@@ -2807,25 +2807,65 @@ export default function App() {
       </div>
 
       {/* Slim summary strip */}
-      <div style={{ marginBottom:"0.75rem", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, overflow:"hidden" }}>
-        <button onClick={() => setStatsOpen(o => !o)}
-          style={{ width:"100%", display:"flex", alignItems:"center", gap:0, padding:"9px 16px", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
-          <div style={{ display:"flex", gap:20, flex:1, flexWrap:"wrap" }}>
-            {[
-              { label:"Total",       val: jobs.filter(j=>!j.archived).length,                                                              color:"#185FA5" },
-              { label:"Active",      val: (counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),                     color:"#3B3489" },
-              { label:"Offers",      val: counts["Offer"]||0,                                                                              color:"#3B6D11" },
-              { label:"Tasks today", val: todayTasks,                                                                                      color: todayTasks>0?"#A32D2D":"var(--text-muted)" },
-            ].map(c => (
-              <div key={c.label} style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-                <span style={{ fontSize:18, fontWeight:700, color:c.color, lineHeight:1 }}>{c.val}</span>
-                <span style={{ fontSize:11, color:"var(--text-muted)", whiteSpace:"nowrap" }}>{c.label}</span>
+      {(() => {
+        const activeJobs = jobs.filter(j => !j.archived);
+        const responded = activeJobs.filter(j => j.status !== "Applied").length;
+        const responseRate = activeJobs.length >= 3 ? Math.round(responded / activeJobs.length * 100) : null;
+        const rateColor = responseRate >= 20 ? "#27500A" : responseRate >= 10 ? "#633806" : "#791F1F";
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+        const thisWeek = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
+        const thisMonth = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= monthAgo).length;
+        const respondedJobs = activeJobs.filter(j => j.status !== "Applied" && j.dateApplied && j.timeline?.length > 1);
+        let avgDays = null;
+        if (respondedJobs.length > 0) {
+          const sum = respondedJobs.reduce((s, j) => {
+            const first = [...(j.timeline||[])].filter(e => e.date && e.status && e.status !== "Applied").sort((a,b) => a.date.localeCompare(b.date))[0];
+            if (!first) return s;
+            return s + Math.max(0, Math.floor((new Date(first.date) - new Date(j.dateApplied+"T00:00:00")) / 86400000));
+          }, 0);
+          avgDays = Math.round(sum / respondedJobs.length);
+        }
+        return (
+          <div style={{ marginBottom:"0.75rem", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, overflow:"hidden" }}>
+            {/* Always-visible row */}
+            <button onClick={() => setStatsOpen(o => !o)}
+              style={{ width:"100%", display:"flex", alignItems:"center", padding:"9px 16px", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
+              <div style={{ display:"flex", gap:20, flex:1, flexWrap:"wrap" }}>
+                {[
+                  { label:"Total",       val: activeJobs.length,                                                                               color:"#185FA5" },
+                  { label:"Active",      val: (counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),                     color:"#3B3489" },
+                  { label:"Offers",      val: counts["Offer"]||0,                                                                              color:"#3B6D11" },
+                  { label:"Tasks today", val: todayTasks,                                                                                      color: todayTasks>0?"#A32D2D":"var(--text-muted)" },
+                ].map(c => (
+                  <div key={c.label} style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                    <span style={{ fontSize:18, fontWeight:700, color:c.color, lineHeight:1 }}>{c.val}</span>
+                    <span style={{ fontSize:11, color:"var(--text-muted)", whiteSpace:"nowrap" }}>{c.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+              <span style={{ fontSize:11, color:"var(--text-muted)", marginLeft:8, flexShrink:0 }}>{statsOpen ? "▲ Less" : "▾ Stats"}</span>
+            </button>
+            {/* Expanded stats */}
+            {statsOpen && activeJobs.length > 0 && (
+              <div style={{ borderTop:"1px solid var(--border-subtle)", padding:"12px 16px", display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:10 }}>
+                {[
+                  { label:"Response rate",      val: responseRate !== null ? `${responseRate}%` : "—", color: responseRate !== null ? rateColor : "var(--text-muted)", hint: responseRate !== null ? `${responded} of ${activeJobs.length} heard back` : "Need 3+ jobs" },
+                  { label:"Applied this week",  val: thisWeek,                                          color:"var(--text-primary)",  hint: null },
+                  { label:"Applied this month", val: thisMonth,                                         color:"var(--text-primary)",  hint: null },
+                  { label:"Avg days to response", val: avgDays !== null ? `${avgDays}d` : "—",          color:"var(--text-primary)",  hint: avgDays !== null ? `${respondedJobs.length} responses` : "Not enough data" },
+                ].map(s => (
+                  <div key={s.label} title={s.hint||""} style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                    <span style={{ fontSize:10, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</span>
+                    <span style={{ fontSize:20, fontWeight:600, color:s.color, lineHeight:1 }}>{s.val}</span>
+                    {s.hint && <span style={{ fontSize:10, color:"var(--text-muted)" }}>{s.hint}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <span style={{ fontSize:11, color:"var(--text-muted)", marginLeft:8, flexShrink:0 }}>{statsOpen ? "▲ Less" : "▾ Stats"}</span>
-        </button>
-      </div>
+        );
+      })()}
 
       {/* Toolbar */}
       <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap" }}>
