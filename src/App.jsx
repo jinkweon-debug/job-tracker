@@ -1702,6 +1702,133 @@ function OnboardingCard({ onAdd, onLoadSample }) {
   );
 }
 
+// ── Account settings modal ────────────────────────────────────────────────────
+function SettingsModal({ user, onClose }) {
+  const [tab, setTab] = useState("password");
+  const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
+  const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
+
+  async function changePassword(e) {
+    e.preventDefault(); setError(""); setMsg("");
+    if (pw !== conf) { setError("Passwords don't match"); return; }
+    if (pw.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setLoading(true);
+    // Re-authenticate first
+    const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: cur });
+    if (signInErr) { setError("Current password is incorrect"); setLoading(false); return; }
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) { setError(error.message); } else { setMsg("Password updated successfully."); setCur(""); setPw(""); setConf(""); }
+    setLoading(false);
+  }
+
+  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
+      <div style={{ width:"100%", maxWidth:420, background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", boxShadow:"0 4px 24px rgba(0,0,0,0.12)" }}>
+        <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>Account settings</div>
+          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
+        </div>
+        <div style={{ padding:"16px 20px" }}>
+          <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Signed in as <span style={{ fontWeight:500, color:"var(--text-primary)" }}>{user.email}</span></div>
+          <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:12 }}>Change password</div>
+          <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
+            <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
+            <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
+            {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
+            {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{msg}</div>}
+            <button type="submit" disabled={loading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:loading?0.7:1 }}>
+              {loading ? "Saving…" : "Update password"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Shared empty state ─────────────────────────────────────────────────────────
+function EmptyState({ icon, title, desc, action, onAction }) {
+  return (
+    <div style={{ textAlign:"center", padding:"4rem 1rem" }}>
+      <div style={{ fontSize:36, marginBottom:12 }}>{icon}</div>
+      <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", marginBottom:8 }}>{title}</div>
+      <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, maxWidth:340, margin:"0 auto" }}>{desc}</div>
+      {action && <button onClick={onAction} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:500 }}>{action}</button>}
+    </div>
+  );
+}
+
+// ── Interview calendar view ────────────────────────────────────────────────────
+function CalendarView({ jobs, onOpenPanel }) {
+  const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+
+  const { y, m } = month;
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayStr_ = todayStr();
+
+  // Map interviewDate → jobs
+  const byDate = {};
+  jobs.filter(j => !j.archived && j.interviewDate).forEach(j => {
+    if (!byDate[j.interviewDate]) byDate[j.interviewDate] = [];
+    byDate[j.interviewDate].push(j);
+  });
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const hasInterviews = Object.keys(byDate).some(d => d.startsWith(`${y}-${String(m+1).padStart(2,"0")}`));
+
+  return (
+    <div style={{ maxWidth:700, margin:"0 auto" }}>
+      {/* Nav */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+        <button onClick={() => setMonth(({y,m}) => m===0?{y:y-1,m:11}:{y,m:m-1})}
+          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>←</button>
+        <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[m]} {y}</div>
+        <button onClick={() => setMonth(({y,m}) => m===11?{y:y+1,m:0}:{y,m:m+1})}
+          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>→</button>
+      </div>
+      {/* Day headers */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:4 }}>
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
+          <div key={d} style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"4px 0" }}>{d}</div>
+        ))}
+      </div>
+      {/* Grid */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={`e${i}`} />;
+          const dateKey = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+          const dayJobs = byDate[dateKey] || [];
+          const isToday = dateKey === todayStr_;
+          return (
+            <div key={dateKey} style={{ minHeight:72, border:`1.5px solid ${isToday?"#185FA5":dayJobs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"6px 7px", background: isToday?"#EFF5FB": dayJobs.length?"var(--surface)":"var(--surface-subtle)" }}>
+              <div style={{ fontSize:12, fontWeight: isToday?700:400, color: isToday?"#185FA5":"var(--text-muted)", marginBottom:4 }}>{day}</div>
+              {dayJobs.map(j => (
+                <div key={j.id} onClick={() => onOpenPanel(j)} title={`${j.company} — ${j.role}`}
+                  style={{ fontSize:10, padding:"2px 5px", background:"#185FA5", color:"#fff", borderRadius:4, marginBottom:2, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {j.company}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {!hasInterviews && (
+        <div style={{ textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:13, marginTop:8 }}>
+          No interviews scheduled this month — add interview dates to your jobs to see them here.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Reset password screen (after clicking email link) ─────────────────────────
 function ResetPasswordScreen({ onDone }) {
   const [password, setPassword] = useState("");
@@ -1840,6 +1967,9 @@ export default function App() {
   const [view, setView] = useState("list");
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [weeklyGoal, setWeeklyGoal] = useState(() => parseInt(localStorage.getItem("weekly_goal")||"0")||0);
+  const [editingGoal, setEditingGoal] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
@@ -2342,6 +2472,44 @@ export default function App() {
         );
       })()}
 
+      {/* Weekly goal tracker */}
+      {jobs.filter(j=>!j.archived).length > 0 && (() => {
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const thisWeek = jobs.filter(j => !j.archived && j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
+        const pct = weeklyGoal > 0 ? Math.min(100, Math.round(thisWeek / weeklyGoal * 100)) : 0;
+        const done = weeklyGoal > 0 && thisWeek >= weeklyGoal;
+        return (
+          <div style={{ marginBottom:"1rem", padding:"10px 14px", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5 }}>
+                <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>
+                  {weeklyGoal > 0 ? (done ? "🎉 Weekly goal reached!" : `Weekly goal: ${thisWeek} / ${weeklyGoal} applications`) : "Set a weekly application goal"}
+                </span>
+                {weeklyGoal > 0 && <span style={{ fontSize:11, color: done?"#27500A":"var(--text-muted)", fontWeight: done?600:400 }}>{pct}%</span>}
+              </div>
+              {weeklyGoal > 0 && (
+                <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${pct}%`, background: done?"#3B6D11":"#185FA5", borderRadius:3, transition:"width 0.4s" }} />
+                </div>
+              )}
+            </div>
+            {editingGoal ? (
+              <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                <input autoFocus type="number" min="1" max="50" defaultValue={weeklyGoal||5}
+                  onBlur={e => { const v=parseInt(e.target.value)||0; setWeeklyGoal(v); localStorage.setItem("weekly_goal",v); setEditingGoal(false); }}
+                  onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="Escape") setEditingGoal(false); }}
+                  style={{ width:52, fontSize:13, padding:"4px 6px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--input-bg)", color:"var(--text-primary)" }} />
+                <span style={{ fontSize:12, color:"var(--text-muted)" }}>/ week</span>
+              </div>
+            ) : (
+              <button onClick={() => setEditingGoal(true)} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface-hover)", color:"var(--text-secondary)", cursor:"pointer", flexShrink:0 }}>
+                {weeklyGoal > 0 ? "Edit goal" : "Set goal"}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Toolbar */}
       <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap" }}>
         {/* Left side — view-specific controls */}
@@ -2479,9 +2647,9 @@ export default function App() {
         <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
           <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
             <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
-              {["list","board","sheet","salary","today"].map((v,i,arr) => (
+              {["list","board","sheet","salary","calendar","today"].map((v,i,arr) => (
                 <button key={v} onClick={() => setView(v)} style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none", background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5", borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", position:"relative", borderRadius:i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap" }}>
-                  {v==="list"?"List":v==="board"?"Pipeline":v==="sheet"?"Sheet":v==="salary"?"Salary":"Today"}
+                  {v==="list"?"List":v==="board"?"Pipeline":v==="sheet"?"Sheet":v==="salary"?"Salary":v==="calendar"?"Calendar":"Today"}
                   {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
                 </button>
               ))}
@@ -2501,6 +2669,7 @@ export default function App() {
             </button>
             {menuOpen && (
               <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
+                <button onClick={() => { setShowSettings(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>⚙️ Account settings</button>
                 <button onClick={() => { exportJSON(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>💾 Export backup (JSON)</button>
                 <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={e=>{importJSON(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
                 <button onClick={() => { exportCSV(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-secondary)" }}>Export CSV</button>
@@ -2611,8 +2780,9 @@ export default function App() {
       )}
 
       {/* Board view */}
-      {view==="board" && (
-        <div>
+      {view==="board" && (jobs.filter(j=>!j.archived).length===0
+        ? <EmptyState icon="📋" title="No applications yet" desc="Add jobs from the List view and they'll appear here as cards you can drag through your pipeline." action="Go to List view" onAction={() => setView("list")} />
+        : <div>
           <PipelineFunnel jobs={jobs.filter(j => !j.archived)} />
           {/* Column toggles + tag filters */}
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
@@ -2623,20 +2793,25 @@ export default function App() {
             ))}
           </div>
           <BoardTable jobs={(activeTagFilters.length>0 ? jobs.filter(j=>activeTagFilters.every(([cat,val])=>(j.tags||{})[cat]===val)) : jobs).filter(j=>!j.archived)} visibleStatuses={Object.keys(STATUS_CONFIG).filter(s=>!hiddenCols[s])} search={search} onDrop={onDrop} onPanelOpen={togglePanel} dragId={dragId} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
-        </div>
-      )}
+        </div>)}
 
       {/* Sheet view */}
-      {view==="sheet" && <SpreadsheetView jobs={jobs} setJobs={setJobs} onStatusChange={onStatusChange} onNotesSave={onNotesSave} />}
+      {view==="sheet" && (jobs.filter(j=>!j.archived).length===0
+        ? <EmptyState icon="📊" title="No jobs to display" desc="Add your first job from the List view and it will appear here in the spreadsheet." />
+        : <SpreadsheetView jobs={jobs} setJobs={setJobs} onStatusChange={onStatusChange} onNotesSave={onNotesSave} />)}
 
       {/* Salary chart view */}
       {view==="salary" && <SalaryChart jobs={jobs} onOpenPanel={togglePanel} />}
+
+      {/* Calendar view */}
+      {view==="calendar" && <CalendarView jobs={jobs} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
       {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
       {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)} onEdit={job => { openEdit(job); setPanelJob(null); }} onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
+      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
   );
