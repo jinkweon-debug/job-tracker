@@ -1524,6 +1524,51 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
   );
 }
 
+// ── Sample data for onboarding ────────────────────────────────────────────────
+function makeSampleJobs() {
+  const now = new Date();
+  const daysAgo = n => { const d = new Date(now); d.setDate(d.getDate() - n); return d.toISOString().slice(0,10); };
+  return [
+    { id:Date.now()+1, company:"Acme Corp", role:"Product Manager", status:"Interview", dateApplied:daysAgo(14), link:"", salaryMin:"90000", salaryMax:"120000", contact:"Sarah Lee", notes:"Great culture fit, hybrid role", tags:{workType:"Hybrid",industry:"Tech",source:"LinkedIn"}, timeline:[{id:crypto.randomUUID(),status:"Applied",date:new Date(now.getTime()-14*86400000).toISOString(),notes:""},{id:crypto.randomUUID(),status:"Phone Screen",date:new Date(now.getTime()-7*86400000).toISOString(),notes:"Good call with recruiter"},{id:crypto.randomUUID(),status:"Interview",date:new Date(now.getTime()-2*86400000).toISOString(),notes:"Panel interview scheduled"}], interviewDate:daysAgo(-2), createdAt:new Date(now.getTime()-14*86400000).toISOString(), updatedAt:new Date().toISOString(), archived:false, followupDismissed:false, prepChecklist:[], lastStatus:null, customFollowup:"" },
+    { id:Date.now()+2, company:"Bright Labs", role:"UX Designer", status:"Phone Screen", dateApplied:daysAgo(10), link:"", salaryMin:"75000", salaryMax:"95000", contact:"", notes:"Startup, Series B", tags:{workType:"Remote",industry:"Tech",source:"Indeed"}, timeline:[{id:crypto.randomUUID(),status:"Applied",date:new Date(now.getTime()-10*86400000).toISOString(),notes:""},{id:crypto.randomUUID(),status:"Phone Screen",date:new Date(now.getTime()-3*86400000).toISOString(),notes:"Intro call with hiring manager"}], interviewDate:"", createdAt:new Date(now.getTime()-10*86400000).toISOString(), updatedAt:new Date().toISOString(), archived:false, followupDismissed:false, prepChecklist:[], lastStatus:null, customFollowup:"" },
+    { id:Date.now()+3, company:"Metro Health", role:"Data Analyst", status:"Applied", dateApplied:daysAgo(5), link:"", salaryMin:"65000", salaryMax:"80000", contact:"", notes:"", tags:{workType:"On-site",industry:"Healthcare",source:"Company site"}, timeline:[{id:crypto.randomUUID(),status:"Applied",date:new Date(now.getTime()-5*86400000).toISOString(),notes:""}], interviewDate:"", createdAt:new Date(now.getTime()-5*86400000).toISOString(), updatedAt:new Date().toISOString(), archived:false, followupDismissed:false, prepChecklist:[], lastStatus:null, customFollowup:"" },
+    { id:Date.now()+4, company:"Greenfield Co", role:"Marketing Manager", status:"Rejected", dateApplied:daysAgo(21), link:"", salaryMin:"", salaryMax:"", contact:"", notes:"Position was filled internally", tags:{workType:"Hybrid",industry:"Retail",source:"Referral"}, timeline:[{id:crypto.randomUUID(),status:"Applied",date:new Date(now.getTime()-21*86400000).toISOString(),notes:""},{id:crypto.randomUUID(),status:"Rejected",date:new Date(now.getTime()-8*86400000).toISOString(),notes:"Position filled internally"}], interviewDate:"", createdAt:new Date(now.getTime()-21*86400000).toISOString(), updatedAt:new Date().toISOString(), archived:false, followupDismissed:false, prepChecklist:[], lastStatus:null, customFollowup:"" },
+  ];
+}
+
+// ── Onboarding card (shown when user has no jobs) ─────────────────────────────
+function OnboardingCard({ onAdd, onLoadSample }) {
+  const steps = [
+    { icon:"📝", title:"Add a job", desc:"Paste in any role you've applied to or are interested in." },
+    { icon:"📊", title:"Track your pipeline", desc:"Move jobs through stages as you hear back." },
+    { icon:"🔔", title:"Never miss a follow-up", desc:"The app reminds you when it's time to follow up." },
+  ];
+  return (
+    <div style={{ maxWidth:580, margin:"2rem auto", padding:"2rem", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
+      <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
+        <div style={{ fontSize:28, marginBottom:8 }}>👋</div>
+        <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Job Tracker</div>
+        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>Your personal hub for managing every application, follow-up, and interview in one place.</div>
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:"1.75rem" }}>
+        {steps.map((s, i) => (
+          <div key={i} style={{ display:"flex", gap:14, alignItems:"flex-start", padding:"12px 14px", background:"var(--surface-subtle)", borderRadius:10, border:"1px solid var(--border-subtle)" }}>
+            <div style={{ fontSize:22, flexShrink:0, marginTop:1 }}>{s.icon}</div>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)", marginBottom:2 }}>{s.title}</div>
+              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.5 }}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
+        <button onClick={onAdd} style={{ fontSize:14, padding:"10px 24px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>+ Add your first job</button>
+        <button onClick={onLoadSample} style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>Explore with sample data</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Reset password screen (after clicking email link) ─────────────────────────
 function ResetPasswordScreen({ onDone }) {
   const [password, setPassword] = useState("");
@@ -2114,14 +2159,55 @@ export default function App() {
       </div>
 
       {/* Summary cards */}
-      <div className="summary-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))", gap:10, marginBottom:"1.5rem" }}>
-        {[{label:"Total",val:jobs.length,color:"#185FA5"},{label:"Active",val:(counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),color:"#3B3489"},{label:"Offers",val:counts["Offer"]||0,color:"#3B6D11"},{label:"Tasks today",val:todayTasks,color:todayTasks>0?"#A32D2D":"#5F5E5A"}].map(c=>(
+      <div className="summary-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))", gap:10, marginBottom:"1rem" }}>
+        {[{label:"Total",val:jobs.filter(j=>!j.archived).length,color:"#185FA5"},{label:"Active",val:(counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),color:"#3B3489"},{label:"Offers",val:counts["Offer"]||0,color:"#3B6D11"},{label:"Tasks today",val:todayTasks,color:todayTasks>0?"#A32D2D":"#5F5E5A"}].map(c=>(
           <div key={c.label} style={{ background:"var(--surface-subtle)", borderRadius:8, padding:"10px 12px", border:"1px solid var(--border-subtle)" }}>
             <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>{c.label}</div>
             <div style={{ fontSize:22, fontWeight:500, color:c.color }}>{c.val}</div>
           </div>
         ))}
       </div>
+
+      {/* Stats row */}
+      {(() => {
+        const active = jobs.filter(j => !j.archived);
+        if (active.length === 0) return null;
+        const total = active.length;
+        const responded = active.filter(j => j.status !== "Applied").length;
+        const responseRate = Math.round(responded / total * 100);
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+        const thisWeek = active.filter(j => j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
+        const thisMonth = active.filter(j => j.dateApplied && new Date(j.dateApplied) >= monthAgo).length;
+        const respondedJobs = active.filter(j => j.status !== "Applied" && j.dateApplied && j.timeline?.length > 1);
+        let avgDays = null;
+        if (respondedJobs.length > 0) {
+          const total = respondedJobs.reduce((sum, j) => {
+            const first = [...(j.timeline||[])].filter(e => e.date && e.status && e.status !== "Applied").sort((a,b) => a.date.localeCompare(b.date))[0];
+            if (!first) return sum;
+            return sum + Math.max(0, Math.floor((new Date(first.date) - new Date(j.dateApplied+"T00:00:00")) / 86400000));
+          }, 0);
+          avgDays = Math.round(total / respondedJobs.length);
+        }
+        const rateColor = responseRate >= 20 ? "#27500A" : responseRate >= 10 ? "#633806" : "#791F1F";
+        const stats = [
+          { label:"Response rate", val: total < 3 ? "—" : `${responseRate}%`, color: total < 3 ? "var(--text-muted)" : rateColor, hint: total < 3 ? "Add more jobs to see" : `${responded} of ${total} apps heard back` },
+          { label:"Applied this week", val: thisWeek, color:"var(--text-primary)", hint: null },
+          { label:"Applied this month", val: thisMonth, color:"var(--text-primary)", hint: null },
+          { label:"Avg days to response", val: avgDays !== null ? `${avgDays}d` : "—", color:"var(--text-primary)", hint: avgDays !== null ? `Based on ${respondedJobs.length} responses` : "Not enough data yet" },
+        ];
+        return (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:8, marginBottom:"1.5rem" }}>
+            {stats.map(s => (
+              <div key={s.label} title={s.hint||""} style={{ background:"var(--surface)", borderRadius:8, padding:"8px 12px", border:"1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
+                <div style={{ fontSize:18, fontWeight:600, color:s.color }}>{s.val}</div>
+                {s.hint && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{s.hint}</div>}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Toolbar */}
       <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap" }}>
@@ -2320,7 +2406,11 @@ export default function App() {
       {/* List view */}
       {view==="list" && (
         filtered.length===0
-          ? <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":jobs.filter(j=>!j.archived).length===0?"No jobs yet — add your first application above.":"No results for this filter."}</div>
+          ? <div>
+              {!showArchived && jobs.filter(j=>!j.archived).length===0
+                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} />
+                : <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":"No results for this filter."}</div>}
+            </div>
           : <div>
               {showArchived && (
                 <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, marginBottom:10 }}>
