@@ -637,6 +637,8 @@ function DetailPanel({ job, onClose, onEdit, onDelete, onArchive, onRestore, onN
         </div>
         <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
         <div style={{ borderTop:"1px solid var(--border)" }} />
+        <EmailTemplates job={job} />
+        <div style={{ borderTop:"1px solid var(--border)" }} />
         <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} />
         <div style={{ borderTop:"1px solid var(--border)" }} />
         <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
@@ -656,6 +658,137 @@ function DetailPanel({ job, onClose, onEdit, onDelete, onArchive, onRestore, onN
           {!job.archived && <button onClick={() => onEdit(job)} style={{ fontSize:13, padding:"6px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit job</button>}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Email templates ───────────────────────────────────────────────────────────
+const EMAIL_TEMPLATES = [
+  {
+    id: "followup",
+    label: "Application follow-up",
+    hint: "1–2 weeks after applying with no response",
+    subject: (j) => `Following up — ${j.role} application`,
+    body: (j) => `Hi [Hiring Manager's name],
+
+I wanted to follow up on my application for the ${j.role} position at ${j.company}. I remain very interested in this opportunity and would love to learn more about the next steps in your process.
+
+Please let me know if you need any additional information from me.
+
+Thank you for your time,
+[Your name]`,
+  },
+  {
+    id: "thankyou",
+    label: "Post-interview thank you",
+    hint: "Same day or next morning after any interview",
+    subject: (j) => `Thank you — ${j.role} interview`,
+    body: (j) => `Hi [Interviewer's name],
+
+Thank you for taking the time to speak with me about the ${j.role} role at ${j.company}. I really enjoyed our conversation and learning more about the team and what you're building.
+
+I'm genuinely excited about this opportunity and look forward to hearing about next steps.
+
+Best regards,
+[Your name]`,
+  },
+  {
+    id: "statuscheck",
+    label: "Status update request",
+    hint: "After interview with no update in 1+ weeks",
+    subject: (j) => `Checking in — ${j.role} at ${j.company}`,
+    body: (j) => `Hi [Name],
+
+I hope you're doing well. I wanted to check in regarding the ${j.role} position at ${j.company} that I interviewed for. I remain very enthusiastic about the opportunity and would appreciate any update on your timeline.
+
+Thank you for your consideration.
+
+Best,
+[Your name]`,
+  },
+  {
+    id: "recruiter",
+    label: "Recruiter outreach",
+    hint: "Cold message to a recruiter about this role",
+    subject: (j) => `Interested in ${j.role} at ${j.company}`,
+    body: (j) => `Hi [Recruiter's name],
+
+I came across the ${j.role} opening at ${j.company} and I'm very interested in learning more. My background aligns well with the requirements, and I'd love to connect briefly.
+
+Would you have 15 minutes for a quick call this week?
+
+Best,
+[Your name]`,
+  },
+];
+
+function EmailTemplates({ job }) {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [copied, setCopied] = useState(null); // "subject" | "body" | "both"
+
+  function copy(text, which) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(which);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  }
+
+  const tpl = EMAIL_TEMPLATES.find(t => t.id === selected);
+
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, fontWeight:500, color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer", padding:0 }}>
+        <span style={{ fontSize:14 }}>📧</span> Email templates
+        <span style={{ fontSize:10, color:"var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+            {EMAIL_TEMPLATES.map(t => (
+              <button key={t.id} onClick={() => setSelected(selected === t.id ? null : t.id)}
+                style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, whiteSpace:"nowrap",
+                  background: selected === t.id ? "#E6F1FB" : "var(--surface-hover)",
+                  color: selected === t.id ? "#0C447C" : "var(--text-secondary)",
+                  border: `1px solid ${selected === t.id ? "#B5D4F4" : "var(--border)"}` }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {tpl && (
+            <div style={{ background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
+              <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border-subtle)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>{tpl.hint}</span>
+              </div>
+              {/* Subject line */}
+              <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border-subtle)" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:3 }}>
+                  <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Subject</span>
+                  <button onClick={() => copy(tpl.subject(job), "subject")}
+                    style={{ fontSize:10, padding:"2px 8px", background: copied==="subject"?"#EAF3DE":"var(--surface-hover)", color: copied==="subject"?"#27500A":"var(--text-muted)", border:`1px solid ${copied==="subject"?"#C0DD97":"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
+                    {copied === "subject" ? "✓ Copied" : "Copy"}
+                  </button>
+                </div>
+                <div style={{ fontSize:12, color:"var(--text-primary)" }}>{tpl.subject(job)}</div>
+              </div>
+              {/* Body */}
+              <div style={{ padding:"8px 12px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Body</span>
+                  <button onClick={() => copy(tpl.body(job), "body")}
+                    style={{ fontSize:10, padding:"2px 8px", background: copied==="body"?"#EAF3DE":"var(--surface-hover)", color: copied==="body"?"#27500A":"var(--text-muted)", border:`1px solid ${copied==="body"?"#C0DD97":"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
+                    {copied === "body" ? "✓ Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre style={{ fontSize:11, color:"var(--text-secondary)", lineHeight:1.6, whiteSpace:"pre-wrap", margin:0, fontFamily:"inherit" }}>{tpl.body(job)}</pre>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
