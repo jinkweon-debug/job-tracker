@@ -594,69 +594,169 @@ function PanelReminders({ job, tasks, onAddReminder }) {
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
-function DetailPanel({ job, onClose, onEdit, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder }) {
+function PanelSection({ label, count, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", background:"none", border:"none", borderTop:"1px solid var(--border)", padding:"10px 0 8px", cursor:"pointer", textAlign:"left" }}>
+        <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>{label}{count != null && count !== 0 ? <span style={{ marginLeft:6, fontSize:11, color:"var(--text-muted)", fontWeight:400 }}>({count})</span> : ""}</span>
+        <span style={{ fontSize:10, color:"var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <div style={{ paddingBottom:8 }}>{children}</div>}
+    </div>
+  );
+}
+
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({});
+
+  function startEdit() {
+    setForm({ ...job, tags: job.tags||{}, timeline: job.timeline||[] });
+    setEditing(true);
+  }
+  function cancelEdit() { setEditing(false); }
+  function saveEdit() {
+    if (!form.role || !form.company) return;
+    onSave(form);
+    setEditing(false);
+  }
+
   const fu = getFollowupStatus(job);
   const jobTags = job.tags || {};
   const activeTags = Object.entries(jobTags).filter(([,v]) => v);
+  const timelineCount = (job.timeline || []).length;
+  const checklistCount = (job.prepChecklist || []).length;
+  const linkedTasks = (tasks||[]).filter(t => t.jobId === job.id).length;
+  const showInterviewDate = editing && INTERVIEW_STATUSES.includes(form.status);
+
+  const inputStyle = { fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+
   return (
-    <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:340, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
+    <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:360, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
+      {/* Header */}
       <div style={{ padding:"16px 20px", borderBottom:"1px solid #e5e5e5", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
-        <div>
-          <div style={{ fontWeight:500, fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
-          <div style={{ fontSize:13, color:"#fff", fontWeight:500 }}>{job.role}</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
+          <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{job.role}</div>
         </div>
-        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px" }}>✕</button>
+        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0 }}>✕</button>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px", display:"flex", flexDirection:"column", gap:16, background:"var(--surface)" }}>
-        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-          <StatusSelect job={job} onChange={(s, d) => onStatusChange(job.id, s, d)} />
-          {fu && <FollowupBadge info={fu} />}
-          {job.followupDismissed && (
-            <span style={{ fontSize:10, color:"var(--text-muted)", background:"var(--surface-hover)", border:"1px solid var(--border)", borderRadius:6, padding:"2px 7px", display:"flex", alignItems:"center", gap:5 }}>
-              🔕 Reminders off
-              <button onClick={() => onUpdateJob(job.id, { followupDismissed: false })} style={{ fontSize:10, color:"#185FA5", background:"none", border:"none", cursor:"pointer", padding:0, fontWeight:600 }}>Re-enable</button>
-            </span>
-          )}
-        </div>
-        {activeTags.length > 0 && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-            {activeTags.map(([cat, val]) => <TagBadge key={cat} category={cat} value={val} />)}
-          </div>
-        )}
-        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          {[["Date applied", job.dateApplied ? { display: job.dateApplied, sub: daysAgoStr(job.dateApplied) } : null], ["Salary", (job.salaryMin||job.salaryMax)?`${job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – ${job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}`:null], ["Contact", job.contact], ["Interview date", job.interviewDate ? fmtDate(job.interviewDate+"T00:00:00") : null]].filter(([,v]) => v).map(([label, val]) => (
-            <div key={label} style={{ display:"flex", gap:8, fontSize:12 }}>
-              <span style={{ color:"var(--text-muted)", minWidth:100 }}>{label}</span>
-              <span style={{ color:"var(--text-primary)", fontWeight:500 }}>
-                {val && typeof val === "object" ? <>{val.display} <span style={{ color:"var(--text-muted)", fontWeight:400 }}>· {val.sub}</span></> : val}
-              </span>
+
+      {/* Body */}
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px", display:"flex", flexDirection:"column", gap:14, background:"var(--surface)" }}>
+        {editing ? (
+          /* ── Edit mode ── */
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:2 }}>Editing</div>
+            {[["Company *","company"],["Role *","role"],["Job posting URL","link"],["Contact / recruiter","contact"]].map(([label,key]) => (
+              <label key={key} style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>{label}
+                <input type={key==="link"?"url":"text"} value={form[key]||""} onChange={e => setForm(f=>({...f,[key]:e.target.value}))} style={inputStyle} />
+              </label>
+            ))}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Salary min
+                <input type="number" value={form.salaryMin||""} onChange={e=>setForm(f=>({...f,salaryMin:e.target.value}))} style={inputStyle} placeholder="90000" />
+              </label>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Salary max
+                <input type="number" value={form.salaryMax||""} onChange={e=>setForm(f=>({...f,salaryMax:e.target.value}))} style={inputStyle} placeholder="120000" />
+              </label>
             </div>
-          ))}
-          {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
-          {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
-        </div>
-        <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
-        <div style={{ borderTop:"1px solid var(--border)" }} />
-        <EmailTemplates job={job} />
-        <div style={{ borderTop:"1px solid var(--border)" }} />
-        <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} />
-        <div style={{ borderTop:"1px solid var(--border)" }} />
-        <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
-        <div style={{ borderTop:"1px solid var(--border)" }} />
-        <div>
-          <div style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)", marginBottom:4 }}>Timeline</div>
-          <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
-        </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Date applied
+                <input type="date" value={form.dateApplied||""} onChange={e=>setForm(f=>({...f,dateApplied:e.target.value}))} style={inputStyle} />
+              </label>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Status
+                <select value={form.status||"Applied"} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={inputStyle}>
+                  {Object.keys(STATUS_CONFIG).map(s=><option key={s}>{s}</option>)}
+                </select>
+              </label>
+            </div>
+            {showInterviewDate && (
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>{form.status} date
+                <input type="date" value={form.interviewDate||""} onChange={e=>setForm(f=>({...f,interviewDate:e.target.value}))} style={inputStyle} />
+              </label>
+            )}
+            <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Custom follow-up date
+              <input type="date" value={form.customFollowup||""} onChange={e=>setForm(f=>({...f,customFollowup:e.target.value}))} style={inputStyle} />
+            </label>
+            <div>
+              <div style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:6 }}>Tags</div>
+              <TagSelector tags={form.tags||{}} onChange={tags=>setForm(f=>({...f,tags}))} />
+            </div>
+          </div>
+        ) : (
+          /* ── View mode ── */
+          <>
+            <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+              <StatusSelect job={job} onChange={(s, d) => onStatusChange(job.id, s, d)} />
+              {fu && <FollowupBadge info={fu} />}
+              {job.followupDismissed && (
+                <span style={{ fontSize:10, color:"var(--text-muted)", background:"var(--surface-hover)", border:"1px solid var(--border)", borderRadius:6, padding:"2px 7px", display:"flex", alignItems:"center", gap:5 }}>
+                  🔕 Reminders off
+                  <button onClick={() => onUpdateJob(job.id, { followupDismissed: false })} style={{ fontSize:10, color:"#185FA5", background:"none", border:"none", cursor:"pointer", padding:0, fontWeight:600 }}>Re-enable</button>
+                </span>
+              )}
+            </div>
+            {activeTags.length > 0 && (
+              <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                {activeTags.map(([cat, val]) => <TagBadge key={cat} category={cat} value={val} />)}
+              </div>
+            )}
+            <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+              {[
+                ["Date applied", job.dateApplied ? { display: job.dateApplied, sub: daysAgoStr(job.dateApplied) } : null],
+                ["Salary", (job.salaryMin||job.salaryMax)?`${job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – ${job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}`:null],
+                ["Contact", job.contact],
+                ["Interview date", job.interviewDate ? fmtDate(job.interviewDate+"T00:00:00") : null],
+              ].filter(([,v]) => v).map(([label, val]) => (
+                <div key={label} style={{ display:"flex", gap:8, fontSize:12 }}>
+                  <span style={{ color:"var(--text-muted)", minWidth:100 }}>{label}</span>
+                  <span style={{ color:"var(--text-primary)", fontWeight:500 }}>
+                    {val && typeof val === "object" ? <>{val.display} <span style={{ color:"var(--text-muted)", fontWeight:400 }}>· {val.sub}</span></> : val}
+                  </span>
+                </div>
+              ))}
+              {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
+              {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
+            </div>
+            <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
+            <PanelSection label="📧 Email templates" defaultOpen={false}>
+              <EmailTemplates job={job} />
+            </PanelSection>
+            <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0}>
+              <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} />
+            </PanelSection>
+            <PanelSection label="✅ Prep checklist" count={checklistCount > 0 ? `${(job.prepChecklist||[]).filter(i=>i.done).length}/${checklistCount}` : null} defaultOpen={checklistCount > 0}>
+              <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
+            </PanelSection>
+            <PanelSection label="📋 Timeline" count={timelineCount || null} defaultOpen={timelineCount > 0}>
+              <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
+            </PanelSection>
+          </>
+        )}
       </div>
+
+      {/* Footer */}
       <div style={{ padding:"12px 20px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", background:"var(--surface)", gap:8, flexWrap:"wrap" }}>
-        <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>
-        <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
-          {job.archived
-            ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#EAF3DE", color:"#27500A", border:"1.5px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:500 }}>↩ Restore</button>
-            : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>📦 Archive</button>
-          }
-          {!job.archived && <button onClick={() => onEdit(job)} style={{ fontSize:13, padding:"6px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit job</button>}
-        </div>
+        {editing ? (
+          <>
+            <button onClick={cancelEdit} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
+            <button onClick={saveEdit} disabled={!form.role||!form.company} style={{ fontSize:13, padding:"6px 20px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, marginLeft:"auto" }}>Save changes</button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>
+            <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
+              {job.archived
+                ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#EAF3DE", color:"#27500A", border:"1.5px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:500 }}>↩ Restore</button>
+                : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>📦 Archive</button>
+              }
+              {!job.archived && <button onClick={startEdit} style={{ fontSize:13, padding:"6px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit</button>}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1315,11 +1415,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
   });
 
   if (withSalary.length === 0) {
-    return (
-      <div style={{ textAlign:"center", padding:"4rem 1rem", color:"var(--text-muted)", fontSize:14 }}>
-        No salary data yet — add salary min/max when creating a job to see the chart.
-      </div>
-    );
+    return <EmptyState icon="💰" title="No salary data yet" desc="Add a salary min/max to any job to see ranges and comparisons here." />;
   }
 
   const allVals = withSalary.flatMap(j => [j.min, j.max].filter(Boolean));
@@ -1938,7 +2034,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             );
           })}
         </div>
-        {!hasEvents && <div style={{ textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:13, marginTop:8 }}>Nothing this month — try toggling event types or navigate to another month.</div>}
+        {!hasEvents && <EmptyState icon="📅" title="Nothing this month" desc="No events found — try toggling event types above or navigate to another month." />}
       </>
     );
   }
@@ -1986,7 +2082,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
           {isToday && <div style={{ fontSize:11, fontWeight:600, color:"#185FA5", marginTop:4 }}>Today</div>}
         </div>
         {evs.length === 0
-          ? <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:13 }}>Nothing scheduled — try toggling event types or pick another day.</div>
+          ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day — try toggling event types or pick another day." />
           : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {evs.map((ev, i) => {
                 const cfg = CAL_TYPES[ev.type];
@@ -2016,7 +2112,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
       .filter(d => d >= today_)
       .sort();
     if (eventDates.length === 0)
-      return <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:13 }}>No upcoming events — try toggling event types above.</div>;
+      return <EmptyState icon="📅" title="No upcoming events" desc="Nothing scheduled ahead — try toggling event types above." />;
 
     // Group by month for section headers
     let lastMonth = null;
@@ -2258,8 +2354,6 @@ export default function App() {
   const [view, setView] = useState("list");
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef(null);
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   const [panelJob, setPanelJob] = useState(null);
@@ -2296,10 +2390,7 @@ export default function App() {
     localStorage.setItem("dark_mode", darkMode);
   }, [darkMode]);
   useEffect(() => {
-    function h(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false);
-    }
+    function h(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); }
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
@@ -2711,6 +2802,10 @@ export default function App() {
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span className="header-hint" style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>N = new · / = search · Esc = close</span>
           <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>
+          <button onClick={() => setDarkMode(d => !d)} title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            style={{ fontSize:15, lineHeight:1, padding:"4px 8px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>
+            {darkMode ? "☀️" : "🌙"}
+          </button>
           <button onClick={() => supabase.auth.signOut()} style={{ fontSize:11, padding:"3px 10px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>Sign out</button>
         </div>
       </div>
@@ -2865,45 +2960,19 @@ export default function App() {
         </div>
         {/* Right side — always fixed */}
         <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
-          <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8, display:"flex", alignItems:"center", gap:0 }}>
-            {/* Primary views */}
-            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:"6px 0 0 6px", overflow:"visible", borderRight:"none" }}>
-              {["list","board","calendar","today"].map((v,i) => (
+          <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
+            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
+              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"]].map(([v,label],i,arr) => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none",
                     background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
-                    borderRight:"1px solid #B5D4F4", position:"relative",
-                    borderRadius:i===0?"4px 0 0 4px":0, whiteSpace:"nowrap" }}>
-                  {v==="list"?"List":v==="board"?"Pipeline":v==="calendar"?"Calendar":"Today"}
+                    borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", position:"relative",
+                    borderRadius:i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap" }}>
+                  {label}
                   {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
                 </button>
               ))}
             </div>
-            {/* More dropdown */}
-            {(() => {
-              const moreActive = view==="sheet"||view==="salary";
-              return (
-                <div ref={moreRef} style={{ position:"relative" }}>
-                  <button onClick={() => setMoreOpen(o=>!o)}
-                    style={{ fontSize:12, padding:"5px 10px", cursor:"pointer", fontWeight:500, border:"1.5px solid #B5D4F4",
-                      borderRadius:"0 6px 6px 0", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4,
-                      background: moreActive?"#185FA5":"var(--surface)", color: moreActive?"#fff":"#185FA5" }}>
-                    {moreActive ? (view==="sheet"?"Sheet":"Salary") : "More"} <span style={{ fontSize:9 }}>▾</span>
-                  </button>
-                  {moreOpen && (
-                    <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", overflow:"hidden", minWidth:120 }}>
-                      {[["sheet","Sheet"],["salary","Salary"]].map(([v,label]) => (
-                        <button key={v} onClick={() => { setView(v); setMoreOpen(false); }}
-                          style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", border:"none", cursor:"pointer", fontWeight:500,
-                            background: view===v?"#E6F1FB":"var(--surface)", color: view===v?"#185FA5":"var(--text-primary)" }}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
           {archivedCount > 0 && (
             <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
@@ -2927,9 +2996,6 @@ export default function App() {
                 <button onClick={enableNotifications} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color: typeof Notification !== "undefined" && Notification.permission==="granted" ? "#27500A" : "var(--text-secondary)" }}>
                   {typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}
                 </button>
-                <button onClick={() => { setDarkMode(d => !d); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", cursor:"pointer", color:"var(--text-secondary)" }}>
-                  {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
-                </button>
               </div>
             )}
           </div>
@@ -2940,7 +3006,14 @@ export default function App() {
       {view === "list" && (
         <div style={{ display:"flex", gap:6, marginBottom:"1rem", alignItems:"center", flexWrap:"wrap" }}>
           {Object.entries(STATUS_CONFIG).map(([s, c]) => {
-            const count = jobs.filter(j => !j.archived && j.status === s).length;
+            // Count only jobs matching all active filters except the status filter itself
+            const count = jobs
+              .filter(j => showArchived ? j.archived : !j.archived)
+              .filter(j => j.status === s)
+              .filter(j => !search || `${j.role} ${j.company}`.toLowerCase().includes(search.toLowerCase()))
+              .filter(j => activeTagFilters.every(([cat,val]) => (j.tags||{})[cat]===val))
+              .filter(j => outreachFilter==="all" || (outreachFilter==="contacted" ? hasOutreach(j) : !hasOutreach(j)))
+              .length;
             const active = filter === s;
             return (
               <button key={s} onClick={() => setFilter(active ? "All" : s)}
@@ -3034,6 +3107,12 @@ export default function App() {
         ? <EmptyState icon="📋" title="No applications yet" desc="Add jobs from the List view and they'll appear here as cards you can drag through your pipeline." action="Go to List view" onAction={() => setView("list")} />
         : <div>
           <PipelineFunnel jobs={jobs.filter(j => !j.archived)} />
+          {jobs.filter(j => !j.archived && (j.salaryMin || j.salaryMax)).length > 0 && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:10, paddingTop:4 }}>Salary ranges</div>
+              <SalaryChart jobs={jobs.filter(j => !j.archived)} onOpenPanel={togglePanel} />
+            </div>
+          )}
           {/* Column toggles + tag filters */}
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
             {Object.entries(STATUS_CONFIG).map(([status,cfg]) => (
@@ -3050,9 +3129,6 @@ export default function App() {
         ? <EmptyState icon="📊" title="No jobs to display" desc="Add your first job from the List view and it will appear here in the spreadsheet." />
         : <SpreadsheetView jobs={jobs} setJobs={setJobs} onStatusChange={onStatusChange} onNotesSave={onNotesSave} />)}
 
-      {/* Salary chart view */}
-      {view==="salary" && <SalaryChart jobs={jobs} onOpenPanel={togglePanel} />}
-
       {/* Calendar view */}
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
@@ -3060,7 +3136,14 @@ export default function App() {
       {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
-      {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)} onEdit={job => { openEdit(job); setPanelJob(null); }} onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
+      {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)}
+        onSave={updated => {
+          const now = new Date().toISOString();
+          const enriched = { ...updated, updatedAt: now };
+          const u = jobs.map(j => j.id === enriched.id ? enriched : j);
+          setJobs(u); saveJobs(u); setPanelJob(enriched);
+        }}
+        onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
