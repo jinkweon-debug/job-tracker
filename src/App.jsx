@@ -2361,6 +2361,7 @@ export default function App() {
   const [undoStack, setUndoStack] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
+  const [salaryOpen, setSalaryOpen] = useState(false);
   const menuRef = useRef(null);
   const dragId = useRef(null);
 
@@ -3108,9 +3109,17 @@ export default function App() {
         : <div>
           <PipelineFunnel jobs={jobs.filter(j => !j.archived)} />
           {jobs.filter(j => !j.archived && (j.salaryMin || j.salaryMax)).length > 0 && (
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:10, paddingTop:4 }}>Salary ranges</div>
-              <SalaryChart jobs={jobs.filter(j => !j.archived)} onOpenPanel={togglePanel} />
+            <div style={{ marginBottom:16, border:"1px solid var(--border)", borderRadius:10, overflow:"hidden" }}>
+              <button onClick={() => setSalaryOpen(o => !o)}
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px", background:"var(--surface-subtle)", border:"none", cursor:"pointer", textAlign:"left" }}>
+                <span style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)" }}>💰 Salary ranges</span>
+                <span style={{ fontSize:11, color:"var(--text-muted)" }}>{salaryOpen ? "▲ Hide" : "▼ Show"}</span>
+              </button>
+              {salaryOpen && (
+                <div style={{ padding:"16px" }}>
+                  <SalaryChart jobs={jobs.filter(j => !j.archived)} onOpenPanel={togglePanel} />
+                </div>
+              )}
             </div>
           )}
           {/* Column toggles + tag filters */}
