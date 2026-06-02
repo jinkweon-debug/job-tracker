@@ -1467,12 +1467,12 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal, setWeeklyGoal, editingGoal, setEditingGoal }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const today = todayStr();
 
-  // ── #3: 30-day cap — build auto tasks, skip anything overdue > 30 days ──
+  // Auto-generated urgent items
   const rawAuto = [];
   jobs.forEach(job => {
     if (job.archived) return;
@@ -1482,19 +1482,12 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
     if (fu?.urgent && fu.diff >= -30)
       rawAuto.push({ id:`auto-followup-${job.id}`, type:"followup", job, diff:fu.diff, fu });
   });
-
-  // ── #4: Sort by urgency — today (0) first, then overdue ascending, then upcoming ──
   const autoTasks = rawAuto.sort((a,b) => {
     const key = d => d===0 ? 0 : d<0 ? -d : 1000+d;
     return key(a.diff) - key(b.diff);
   });
 
-  // ── #1: Snooze — sets customFollowup to today+N so follow-up timer resets ──
-  function snooze(job, days) {
-    onUpdateJob(job.id, { customFollowup: dateInNDays(days) });
-  }
-
-  // ── #2: Log outreach — stamps timeline entry + restarts full follow-up window ──
+  function snooze(job, days) { onUpdateJob(job.id, { customFollowup: dateInNDays(days) }); }
   function logOutreach(job) {
     const now = new Date().toISOString();
     const resetDays = FOLLOWUP_DAYS[job.status] || 7;
@@ -1504,7 +1497,6 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
     });
   }
 
-  // ── #5: Visual urgency tier helpers ──
   function tierStyle(diff, type) {
     if (type==="interview") return { border:"#185FA5", bg:"#F0F6FF", tag:null };
     if (diff===0)            return { border:"#185FA5", bg:"#F0F6FF", tag:null };
@@ -1512,16 +1504,11 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
     return                          { border:"#A32D2D", bg:"#FFF5F5", tag:{ label:`${-diff}d overdue`, color:"#791F1F", bg:"#FCEBEB" } };
   }
 
-  // ── Follow-up card with actions ──
   function AutoCard({ task }) {
     const { job, diff, type, fu } = task;
     const { border, bg, tag } = tierStyle(diff, type);
-    const label = type==="interview"
-      ? `${job.status}: ${job.company} · ${job.role}`
-      : `${job.company} · ${job.role}`;
-    const sublabel = type==="interview"
-      ? "Scheduled for today"
-      : `Status: ${job.status} · ${fu?.label}`;
+    const label = type==="interview" ? `${job.status}: ${job.company} · ${job.role}` : `${job.company} · ${job.role}`;
+    const sublabel = type==="interview" ? "Scheduled for today" : `Status: ${job.status} · ${fu?.label}`;
     return (
       <div style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"11px 12px 11px 14px", background:bg, border:`1px solid ${border}33`, borderLeft:`3px solid ${border}`, borderRadius:8, marginBottom:6 }}>
         <span style={{ fontSize:15, marginTop:1, flexShrink:0 }}>{type==="interview"?"📅":"🔔"}</span>
@@ -1538,20 +1525,18 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
             const isContact = /follow.up|contact/i.test(act.label);
             return (
               <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:3 }}>
-                Last: <span style={{ color: isContact ? "#27500A" : "var(--text-secondary)", fontWeight:500 }}>{isContact ? "📤 " : "📋 "}{act.label}</span> · {act.ago}
+                Last: <span style={{ color: isContact?"#27500A":"var(--text-secondary)", fontWeight:500 }}>{isContact?"📤 ":"📋 "}{act.label}</span> · {act.ago}
               </div>
             );
           })()}
         </div>
         {type==="followup" && (
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
-            <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:"#EAF3DE", color:"#27500A", border:"1px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>
-              ✓ Contacted
-            </button>
+            <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:"#EAF3DE", color:"#27500A", border:"1px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
-              <button onClick={() => onUpdateJob(job.id, { followupDismissed: true })} title="No follow-up needed — stop reminding me" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+              <button onClick={() => onUpdateJob(job.id, { followupDismissed:true })} title="Stop reminding me" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
             </div>
           </div>
         )}
@@ -1559,16 +1544,15 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
     );
   }
 
-  // ── Manual task card (unchanged behaviour) ──
   function TaskCard({ task }) {
     const linkedJob = jobs.find(j => j.id===task.jobId);
     return (
       <div style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"10px 12px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, marginBottom:6 }}>
         <input type="checkbox" checked={task.done||false} onChange={() => { const u=tasks.map(t=>t.id===task.id?{...t,done:!t.done}:t); setTasks(u); saveTasks(u); }} style={{ marginTop:2, cursor:"pointer" }} />
         <div style={{ flex:1 }}>
-          <div style={{ fontSize:13, color:task.done?"var(--text-muted)":"var(--text-primary)", textDecoration:task.done?"line-through":"none" }}>{task.text}</div>
+          <div style={{ fontSize:13, color:"var(--text-primary)" }}>{task.text}</div>
           {linkedJob && <div style={{ fontSize:11, color:"#185FA5", marginTop:2, cursor:"pointer" }} onClick={() => onOpenPanel(linkedJob)}>→ {linkedJob.company} · {linkedJob.role}</div>}
-          {task.dueDate && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{task.dueDate===today?"Today":task.dueDate<today?`Overdue · ${task.dueDate}`:`Due ${task.dueDate}`}</div>}
+          {task.dueDate && <div style={{ fontSize:10, color: task.dueDate<today?"#A32D2D":"var(--text-muted)", marginTop:2 }}>{task.dueDate===today?"Due today":`Overdue · ${task.dueDate}`}</div>}
         </div>
         <button onClick={() => { const u=tasks.filter(t=>t.id!==task.id); setTasks(u); saveTasks(u); }} style={{ fontSize:10, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
       </div>
@@ -1592,102 +1576,34 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
     setNewTask({ text:"", jobId:"", dueDate:todayStr() }); setShowAdd(false);
   }
 
-  const manualToday    = tasks.filter(t => !t.done && t.dueDate===today);
-  const manualOverdue  = tasks.filter(t => !t.done && t.dueDate<today);
-  const manualUpcoming = tasks.filter(t => !t.done && t.dueDate>today);
-  const manualDone     = tasks.filter(t => t.done);
-  const totalPending   = autoTasks.length + manualToday.length + manualOverdue.length;
-
-  // ── Stats for Today tab ──
-  const activeJobs = jobs.filter(j => !j.archived);
-  const responded = activeJobs.filter(j => j.status !== "Applied").length;
-  const responseRate = activeJobs.length >= 3 ? Math.round(responded / activeJobs.length * 100) : null;
-  const rateColor = responseRate >= 20 ? "#27500A" : responseRate >= 10 ? "#633806" : "#791F1F";
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-  const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
-  const thisWeek = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
-  const thisMonth = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= monthAgo).length;
-  const respondedJobs = activeJobs.filter(j => j.status !== "Applied" && j.dateApplied && j.timeline?.length > 1);
-  let avgDays = null;
-  if (respondedJobs.length > 0) {
-    const sum = respondedJobs.reduce((s, j) => {
-      const first = [...(j.timeline||[])].filter(e => e.date && e.status && e.status !== "Applied").sort((a,b) => a.date.localeCompare(b.date))[0];
-      if (!first) return s;
-      return s + Math.max(0, Math.floor((new Date(first.date) - new Date(j.dateApplied+"T00:00:00")) / 86400000));
-    }, 0);
-    avgDays = Math.round(sum / respondedJobs.length);
-  }
-  const goalWeekAgo = new Date(); goalWeekAgo.setDate(goalWeekAgo.getDate() - 7);
-  const goalThisWeek = jobs.filter(j => !j.archived && j.dateApplied && new Date(j.dateApplied) >= goalWeekAgo).length;
-  const goalPct = weeklyGoal > 0 ? Math.min(100, Math.round(goalThisWeek / weeklyGoal * 100)) : 0;
-  const goalDone = weeklyGoal > 0 && goalThisWeek >= weeklyGoal;
+  const manualOverdue = tasks.filter(t => !t.done && t.dueDate < today);
+  const manualToday   = tasks.filter(t => !t.done && t.dueDate === today);
+  const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length;
 
   return (
     <div>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
         <div>
-          <div style={{ fontSize:15, fontWeight:500, color:"var(--text-primary)" }}>Today — {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
-          <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:2 }}>{totalPending===0?"All clear 🎉":`${totalPending} item${totalPending!==1?"s":""} need attention`}</div>
+          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>
+            {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
+          </div>
+          <div style={{ fontSize:12, color: totalPending>0?"#A32D2D":"#27500A", marginTop:3, fontWeight:500 }}>
+            {totalPending===0 ? "✓ All clear" : `${totalPending} item${totalPending!==1?"s":""} need attention`}
+          </div>
         </div>
         <button onClick={() => setShowAdd(o=>!o)} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add task</button>
       </div>
 
-      {/* Stats + weekly goal */}
-      {activeJobs.length > 0 && (
-        <div style={{ marginBottom:20, display:"flex", flexDirection:"column", gap:10 }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:8 }}>
-            {[
-              { label:"Response rate", val: responseRate !== null ? `${responseRate}%` : "—", color: responseRate !== null ? rateColor : "var(--text-muted)", hint: responseRate !== null ? `${responded} of ${activeJobs.length} apps heard back` : "Add more jobs to see" },
-              { label:"Applied this week", val: thisWeek, color:"var(--text-primary)", hint: null },
-              { label:"Applied this month", val: thisMonth, color:"var(--text-primary)", hint: null },
-              { label:"Avg days to response", val: avgDays !== null ? `${avgDays}d` : "—", color:"var(--text-primary)", hint: avgDays !== null ? `Based on ${respondedJobs.length} responses` : "Not enough data yet" },
-            ].map(s => (
-              <div key={s.label} title={s.hint||""} style={{ background:"var(--surface)", borderRadius:8, padding:"8px 12px", border:"1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
-                <div style={{ fontSize:18, fontWeight:600, color:s.color }}>{s.val}</div>
-                {s.hint && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{s.hint}</div>}
-              </div>
-            ))}
-          </div>
-          {/* Weekly goal */}
-          <div style={{ padding:"10px 14px", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: weeklyGoal>0?5:0 }}>
-                <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>
-                  {weeklyGoal > 0 ? (goalDone ? "🎉 Weekly goal reached!" : `Weekly goal: ${goalThisWeek} / ${weeklyGoal} applications`) : "Set a weekly application goal"}
-                </span>
-                {weeklyGoal > 0 && <span style={{ fontSize:11, color: goalDone?"#27500A":"var(--text-muted)", fontWeight: goalDone?600:400 }}>{goalPct}%</span>}
-              </div>
-              {weeklyGoal > 0 && (
-                <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${goalPct}%`, background: goalDone?"#3B6D11":"#185FA5", borderRadius:3, transition:"width 0.4s" }} />
-                </div>
-              )}
-            </div>
-            {editingGoal ? (
-              <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-                <input autoFocus type="number" min="1" max="50" defaultValue={weeklyGoal||5}
-                  onBlur={e => { const v=parseInt(e.target.value)||0; setWeeklyGoal(v); localStorage.setItem("weekly_goal",v); setEditingGoal(false); }}
-                  onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="Escape") setEditingGoal(false); }}
-                  style={{ width:52, fontSize:13, padding:"4px 6px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--input-bg)", color:"var(--text-primary)" }} />
-                <span style={{ fontSize:12, color:"var(--text-muted)" }}>/ week</span>
-              </div>
-            ) : (
-              <button onClick={() => setEditingGoal(true)} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface-hover)", color:"var(--text-secondary)", cursor:"pointer", flexShrink:0 }}>
-                {weeklyGoal > 0 ? "Edit goal" : "Set goal"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-      <div style={{ borderBottom:"1px solid var(--border-subtle)", marginBottom:16 }} />
-
+      {/* Add task form */}
       {showAdd && (
         <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"14px 16px", marginBottom:16 }}>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <input autoFocus placeholder="Task description..." value={newTask.text} onChange={e=>setNewTask(t=>({...t,text:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&addTask()} style={{ fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 10px" }} />
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <label style={{ fontSize:12, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:4 }}>Due date<input type="date" value={newTask.dueDate} onChange={e=>setNewTask(t=>({...t,dueDate:e.target.value}))} style={{ fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px" }} /></label>
+              <label style={{ fontSize:12, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:4 }}>Due date
+                <input type="date" value={newTask.dueDate} onChange={e=>setNewTask(t=>({...t,dueDate:e.target.value}))} style={{ fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px" }} />
+              </label>
               <label style={{ fontSize:12, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:4 }}>Link to job (optional)
                 <select value={newTask.jobId} onChange={e=>setNewTask(t=>({...t,jobId:e.target.value}))} style={{ fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px" }}>
                   <option value="">None</option>
@@ -1703,30 +1619,26 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal,
         </div>
       )}
 
-      {autoTasks.length===0&&manualToday.length===0&&manualOverdue.length===0&&manualUpcoming.length===0&&manualDone.length===0 && (
-        <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>No tasks yet — you're all caught up.</div>
+      {/* All clear */}
+      {totalPending===0 && autoTasks.length===0 && (
+        <div style={{ textAlign:"center", padding:"4rem 1rem", color:"var(--text-muted)", fontSize:14 }}>
+          <div style={{ fontSize:32, marginBottom:12 }}>✓</div>
+          Nothing needs attention right now — check the Calendar for upcoming events.
+        </div>
       )}
 
-      {/* Follow-up reminders (auto-generated) */}
-      <Section title="Follow-ups" color="#185FA5" count={autoTasks.length}>
-        {autoTasks.map(t => <AutoCard key={t.id} task={t} />)}
+      <Section title="Interviews today" color="#185FA5" count={autoTasks.filter(t=>t.type==="interview").length}>
+        {autoTasks.filter(t=>t.type==="interview").map(t => <AutoCard key={t.id} task={t} />)}
       </Section>
-
-      {/* Manual tasks */}
-      <Section title="Overdue" color="#A32D2D" count={manualOverdue.length}>
+      <Section title="Follow-ups" color="#185FA5" count={autoTasks.filter(t=>t.type==="followup").length}>
+        {autoTasks.filter(t=>t.type==="followup").map(t => <AutoCard key={t.id} task={t} />)}
+      </Section>
+      <Section title="Overdue tasks" color="#A32D2D" count={manualOverdue.length}>
         {manualOverdue.map(t => <TaskCard key={t.id} task={t} />)}
       </Section>
-      <Section title="Today" color="#185FA5" count={manualToday.length}>
+      <Section title="Due today" color="#185FA5" count={manualToday.length}>
         {manualToday.map(t => <TaskCard key={t.id} task={t} />)}
       </Section>
-      <Section title="Upcoming" color="var(--text-muted)" count={manualUpcoming.length}>
-        {manualUpcoming.map(t => <TaskCard key={t.id} task={t} />)}
-      </Section>
-      {manualDone.length>0 && (
-        <Section title="Completed" color="var(--text-muted)" count={manualDone.length}>
-          {manualDone.map(t => <TaskCard key={t.id} task={t} />)}
-        </Section>
-      )}
     </div>
   );
 }
@@ -2349,8 +2261,6 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [weeklyGoal, setWeeklyGoal] = useState(() => parseInt(localStorage.getItem("weekly_goal")||"0")||0);
-  const [editingGoal, setEditingGoal] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
@@ -3147,7 +3057,7 @@ export default function App() {
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
-      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} weeklyGoal={weeklyGoal} setWeeklyGoal={setWeeklyGoal} editingGoal={editingGoal} setEditingGoal={setEditingGoal} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
       {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)} onEdit={job => { openEdit(job); setPanelJob(null); }} onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
