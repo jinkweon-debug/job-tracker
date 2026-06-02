@@ -2272,6 +2272,8 @@ export default function App() {
   const [view, setView] = useState("list");
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
   const [showSettings, setShowSettings] = useState(false);
   const [weeklyGoal, setWeeklyGoal] = useState(() => parseInt(localStorage.getItem("weekly_goal")||"0")||0);
   const [editingGoal, setEditingGoal] = useState(false);
@@ -2310,7 +2312,10 @@ export default function App() {
     localStorage.setItem("dark_mode", darkMode);
   }, [darkMode]);
   useEffect(() => {
-    function h(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); }
+    function h(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false);
+    }
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
@@ -2950,15 +2955,45 @@ export default function App() {
         </div>
         {/* Right side — always fixed */}
         <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
-          <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
-            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
-              {["list","board","sheet","salary","calendar","today"].map((v,i,arr) => (
-                <button key={v} onClick={() => setView(v)} style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none", background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5", borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", position:"relative", borderRadius:i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap" }}>
-                  {v==="list"?"List":v==="board"?"Pipeline":v==="sheet"?"Sheet":v==="salary"?"Salary":v==="calendar"?"Calendar":"Today"}
+          <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8, display:"flex", alignItems:"center", gap:0 }}>
+            {/* Primary views */}
+            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:"6px 0 0 6px", overflow:"visible", borderRight:"none" }}>
+              {["list","board","calendar","today"].map((v,i) => (
+                <button key={v} onClick={() => setView(v)}
+                  style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none",
+                    background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
+                    borderRight:"1px solid #B5D4F4", position:"relative",
+                    borderRadius:i===0?"4px 0 0 4px":0, whiteSpace:"nowrap" }}>
+                  {v==="list"?"List":v==="board"?"Pipeline":v==="calendar"?"Calendar":"Today"}
                   {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
                 </button>
               ))}
             </div>
+            {/* More dropdown */}
+            {(() => {
+              const moreActive = view==="sheet"||view==="salary";
+              return (
+                <div ref={moreRef} style={{ position:"relative" }}>
+                  <button onClick={() => setMoreOpen(o=>!o)}
+                    style={{ fontSize:12, padding:"5px 10px", cursor:"pointer", fontWeight:500, border:"1.5px solid #B5D4F4",
+                      borderRadius:"0 6px 6px 0", whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4,
+                      background: moreActive?"#185FA5":"var(--surface)", color: moreActive?"#fff":"#185FA5" }}>
+                    {moreActive ? (view==="sheet"?"Sheet":"Salary") : "More"} <span style={{ fontSize:9 }}>▾</span>
+                  </button>
+                  {moreOpen && (
+                    <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", overflow:"hidden", minWidth:120 }}>
+                      {[["sheet","Sheet"],["salary","Salary"]].map(([v,label]) => (
+                        <button key={v} onClick={() => { setView(v); setMoreOpen(false); }}
+                          style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", border:"none", cursor:"pointer", fontWeight:500,
+                            background: view===v?"#E6F1FB":"var(--surface)", color: view===v?"#185FA5":"var(--text-primary)" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           {archivedCount > 0 && (
             <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
