@@ -1524,6 +1524,54 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
   );
 }
 
+// ── Reset password screen (after clicking email link) ─────────────────────────
+function ResetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (password !== confirm) { setError("Passwords don't match"); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setError(""); setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) { setError(error.message); setLoading(false); return; }
+    setDone(true);
+    setTimeout(onDone, 2000);
+  }
+
+  const inputStyle = { fontSize:14, padding:"9px 12px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
+      <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
+        <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
+          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Job Tracker</div>
+          <div style={{ fontSize:13, color:"var(--text-muted)" }}>Set a new password</div>
+        </div>
+        {done ? (
+          <div style={{ fontSize:13, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
+            ✓ Password updated — signing you in…
+          </div>
+        ) : (
+          <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <input type="password" placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
+            <input type="password" placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={inputStyle} />
+            {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
+            <button type="submit" disabled={loading}
+              style={{ fontSize:14, padding:"10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:loading?"default":"pointer", fontWeight:600, marginTop:4, opacity:loading?0.7:1 }}>
+              {loading ? "Saving…" : "Set new password"}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Auth screen ───────────────────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("signin");
@@ -1541,6 +1589,12 @@ function AuthScreen() {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setMessage("Check your email for a confirmation link.");
+      } else if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: "https://job-tracker-tau-eight.vercel.app/",
+        });
+        if (error) throw error;
+        setMessage("Check your email for a password reset link.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -1553,28 +1607,33 @@ function AuthScreen() {
   }
 
   const inputStyle = { fontSize:14, padding:"9px 12px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const subtitles = { signin:"Sign in to your account", signup:"Create a new account", forgot:"Reset your password" };
+  const btnLabels = { signin:"Sign in", signup:"Create account", forgot:"Send reset email" };
 
   return (
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
           <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Job Tracker</div>
-          <div style={{ fontSize:13, color:"var(--text-muted)" }}>{mode === "signin" ? "Sign in to your account" : "Create a new account"}</div>
+          <div style={{ fontSize:13, color:"var(--text-muted)" }}>{subtitles[mode]}</div>
         </div>
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
-          <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
+          {mode !== "forgot" && <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />}
           {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
           {message && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{message}</div>}
           <button type="submit" disabled={loading}
             style={{ fontSize:14, padding:"10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:loading?"default":"pointer", fontWeight:600, marginTop:4, opacity:loading?0.7:1 }}>
-            {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+            {loading ? "Please wait…" : btnLabels[mode]}
           </button>
         </form>
-        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:13, color:"var(--text-muted)" }}>
-          {mode === "signin"
-            ? <><span>No account? </span><button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign up</button></>
-            : <><span>Have an account? </span><button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign in</button></>}
+        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:13, color:"var(--text-muted)", display:"flex", flexDirection:"column", gap:6 }}>
+          {mode === "signin" && <>
+            <span>No account? <button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign up</button></span>
+            <button onClick={() => { setMode("forgot"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:0, fontSize:12 }}>Forgot password?</button>
+          </>}
+          {mode === "signup" && <span>Have an account? <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign in</button></span>}
+          {mode === "forgot" && <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>← Back to sign in</button>}
         </div>
       </div>
     </div>
@@ -1586,6 +1645,7 @@ export default function App() {
   const isMobile = useIsMobile();
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -1618,7 +1678,8 @@ export default function App() {
       setUser(u); _uid = u?.id ?? null;
       setAuthChecked(true);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") { setPasswordRecovery(true); return; }
       const u = session?.user ?? null;
       setUser(u); _uid = u?.id ?? null;
     });
@@ -2036,6 +2097,7 @@ export default function App() {
   const todayTasks = tasks.filter(t=>!t.done&&t.dueDate<=todayStr()).length + jobs.filter(j=>!j.archived&&j.interviewDate===todayStr()).length + jobs.filter(j=>{ const fu=getFollowupStatus(j); return fu?.urgent && fu.diff >= -30; }).length;
 
   if (!authChecked) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading…</div>;
+  if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!user) return <AuthScreen />;
   if (!loaded) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading your data…</div>;
 
