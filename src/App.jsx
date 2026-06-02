@@ -1770,119 +1770,225 @@ const CAL_TYPES = {
 };
 
 function CalendarView({ jobs, tasks, onOpenPanel }) {
-  const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [calView, setCalView] = useState("month"); // "month" | "week" | "day"
+  const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:false });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
 
-  const { y, m } = month;
   const today_ = todayStr();
-  const monthPrefix = `${y}-${String(m+1).padStart(2,"0")}`;
 
   // Build events map: date → [{type, label, sub, job, task}]
   const byDate = {};
-  function add(date, ev) {
+  function addEv(date, ev) {
     if (!date) return;
     const key = date.slice(0,10);
     if (!byDate[key]) byDate[key] = [];
     byDate[key].push(ev);
   }
-
   if (show.interview)
     jobs.filter(j => !j.archived && j.interviewDate).forEach(j =>
-      add(j.interviewDate, { type:"interview", label:j.company, sub:j.role, job:j }));
-
+      addEv(j.interviewDate, { type:"interview", label:j.company, sub:j.role, job:j }));
   if (show.followup)
     jobs.filter(j => !j.archived && j.customFollowup && j.customFollowup >= today_).forEach(j =>
-      add(j.customFollowup, { type:"followup", label:j.company, sub:"Follow-up due", job:j }));
-
+      addEv(j.customFollowup, { type:"followup", label:j.company, sub:"Follow-up due", job:j }));
   if (show.task)
     (tasks||[]).filter(t => !t.done && t.dueDate).forEach(t => {
       const linkedJob = t.jobId ? jobs.find(j => j.id == t.jobId) : null;
-      add(t.dueDate, { type:"task", label:t.text, sub:linkedJob?.company||null, job:linkedJob, task:t });
+      addEv(t.dueDate, { type:"task", label:t.text, sub:linkedJob?.company||null, job:linkedJob, task:t });
     });
-
   if (show.timeline)
     jobs.filter(j => !j.archived).forEach(j =>
       (j.timeline||[]).forEach(e => {
         if (!e.date) return;
         const key = e.date.slice(0,10);
-        if (e.status==="Interview" && key===j.interviewDate) return; // skip if already an interview event
+        if (e.status==="Interview" && key===j.interviewDate) return;
         const label = e.type==="manual" ? (e.label||"Note") : e.status;
-        add(e.date, { type:"timeline", label:j.company, sub:label, job:j });
+        addEv(e.date, { type:"timeline", label:j.company, sub:label, job:j });
       }));
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const firstDay = new Date(y, m, 1).getDay();
-  const daysInMonth = new Date(y, m+1, 0).getDate();
-  const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
-  const hasEvents = Object.keys(byDate).some(d => d.startsWith(monthPrefix));
+  const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const dayShort = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
-  return (
-    <div style={{ maxWidth:760, margin:"0 auto" }}>
-      {/* Nav + legend */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-        <button onClick={() => setMonth(({y,m}) => m===0?{y:y-1,m:11}:{y,m:m-1})}
-          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>←</button>
-        <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[m]} {y}</div>
-        <button onClick={() => setMonth(({y,m}) => m===11?{y:y+1,m:0}:{y,m:m+1})}
-          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>→</button>
+  // ── Navigation ──
+  function navigate(dir) {
+    setAnchor(prev => {
+      const d = new Date(prev);
+      if (calView === "month") d.setMonth(d.getMonth() + dir);
+      else if (calView === "week") d.setDate(d.getDate() + dir * 7);
+      else d.setDate(d.getDate() + dir);
+      return d;
+    });
+  }
+  function goToday() { const d = new Date(); d.setHours(0,0,0,0); setAnchor(d); }
+
+  // ── Header label ──
+  function navLabel() {
+    if (calView === "month") return `${monthNames[anchor.getMonth()]} ${anchor.getFullYear()}`;
+    if (calView === "week") {
+      const start = new Date(anchor);
+      start.setDate(anchor.getDate() - anchor.getDay());
+      const end = new Date(start); end.setDate(start.getDate() + 6);
+      if (start.getMonth() === end.getMonth()) return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
+      return `${monthNames[start.getMonth()]} – ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
+    }
+    return `${dayNames[anchor.getDay()]}, ${monthNames[anchor.getMonth()]} ${anchor.getDate()}, ${anchor.getFullYear()}`;
+  }
+
+  // ── Event pill ──
+  function EventPill({ ev, compact }) {
+    const cfg = CAL_TYPES[ev.type];
+    return (
+      <div onClick={() => ev.job && onOpenPanel(ev.job)}
+        title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
+        style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}>
+        {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
       </div>
+    );
+  }
 
-      {/* Toggle legend */}
-      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
-        {Object.entries(CAL_TYPES).map(([type, cfg]) => (
-          <button key={type} onClick={() => toggleType(type)}
-            style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:5,
-              background: show[type] ? cfg.bg : "var(--surface)",
-              color:       show[type] ? cfg.text : "var(--text-muted)",
-              border:     `1.5px solid ${show[type] ? cfg.border : "var(--border)"}`,
-              opacity:     show[type] ? 1 : 0.6 }}>
-            <span>{cfg.icon}</span> {cfg.label}
-          </button>
-        ))}
-      </div>
+  // ── Month view ──
+  function MonthView() {
+    const y = anchor.getFullYear(), m = anchor.getMonth();
+    const monthPrefix = `${y}-${String(m+1).padStart(2,"0")}`;
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+    const hasEvents = Object.keys(byDate).some(d => d.startsWith(monthPrefix));
+    const MAX = 3;
+    return (
+      <>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:3 }}>
+          {dayShort.map(d => <div key={d} style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"4px 0" }}>{d}</div>)}
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`} />;
+            const dateKey = `${monthPrefix}-${String(day).padStart(2,"0")}`;
+            const evs = byDate[dateKey] || [];
+            const isToday = dateKey === today_;
+            return (
+              <div key={dateKey}
+                onClick={() => { const d=new Date(anchor); d.setFullYear(y,m,day); setAnchor(d); setCalView("day"); }}
+                style={{ minHeight:78, border:`1.5px solid ${isToday?"#185FA5":evs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"5px 6px", background:isToday?"#EFF5FB":evs.length?"var(--surface)":"var(--surface-subtle)", cursor:"pointer" }}>
+                <div style={{ fontSize:11, fontWeight:isToday?700:400, color:isToday?"#185FA5":"var(--text-muted)", marginBottom:3 }}>{day}</div>
+                {evs.slice(0,MAX).map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
+                {evs.length > MAX && <div style={{ fontSize:9, color:"var(--text-muted)", paddingLeft:2 }}>+{evs.length-MAX} more</div>}
+              </div>
+            );
+          })}
+        </div>
+        {!hasEvents && <div style={{ textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:13, marginTop:8 }}>Nothing this month — try toggling event types or navigate to another month.</div>}
+      </>
+    );
+  }
 
-      {/* Day headers */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:3 }}>
-        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
-          <div key={d} style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"4px 0" }}>{d}</div>
-        ))}
-      </div>
-
-      {/* Grid */}
+  // ── Week view ──
+  function WeekView() {
+    const startOfWeek = new Date(anchor);
+    startOfWeek.setDate(anchor.getDate() - anchor.getDay());
+    const days = Array.from({length:7}, (_, i) => { const d = new Date(startOfWeek); d.setDate(startOfWeek.getDate()+i); return d; });
+    return (
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={`e${i}`} />;
-          const dateKey = `${monthPrefix}-${String(day).padStart(2,"0")}`;
+        {days.map(day => {
+          const dateKey = day.toISOString().slice(0,10);
           const evs = byDate[dateKey] || [];
           const isToday = dateKey === today_;
-          const MAX = 3;
+          const isAnchor = dateKey === anchor.toISOString().slice(0,10);
           return (
-            <div key={dateKey} style={{ minHeight:78, border:`1.5px solid ${isToday?"#185FA5":evs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"5px 6px", background:isToday?"#EFF5FB":evs.length?"var(--surface)":"var(--surface-subtle)" }}>
-              <div style={{ fontSize:11, fontWeight:isToday?700:400, color:isToday?"#185FA5":"var(--text-muted)", marginBottom:3 }}>{day}</div>
-              {evs.slice(0, MAX).map((ev, ei) => {
-                const cfg = CAL_TYPES[ev.type];
-                return (
-                  <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
-                    title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
-                    style={{ fontSize:9, padding:"2px 4px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:3, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.4 }}>
-                    {cfg.icon} {ev.label}
-                  </div>
-                );
-              })}
-              {evs.length > MAX && (
-                <div style={{ fontSize:9, color:"var(--text-muted)", paddingLeft:2 }}>+{evs.length - MAX} more</div>
-              )}
+            <div key={dateKey} style={{ border:`1.5px solid ${isToday?"#185FA5":evs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"8px 8px", minHeight:140, background:isToday?"#EFF5FB":"var(--surface)" }}>
+              <div
+                onClick={() => { setAnchor(day); setCalView("day"); }}
+                style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:8, cursor:"pointer" }}>
+                <div style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{dayShort[day.getDay()]}</div>
+                <div style={{ fontSize:16, fontWeight:isToday?700:400, color:isToday?"#fff":"var(--text-primary)", background:isToday?"#185FA5":"transparent", borderRadius:"50%", width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center", marginTop:2 }}>{day.getDate()}</div>
+              </div>
+              {evs.length === 0 && <div style={{ fontSize:10, color:"var(--text-muted)", fontStyle:"italic", textAlign:"center" }}>—</div>}
+              {evs.map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
             </div>
           );
         })}
       </div>
+    );
+  }
 
-      {!hasEvents && (
-        <div style={{ textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:13, marginTop:8 }}>
-          Nothing to show this month — try toggling event types above or navigate to another month.
+  // ── Day view ──
+  function DayView() {
+    const dateKey = anchor.toISOString().slice(0,10);
+    const evs = byDate[dateKey] || [];
+    const isToday = dateKey === today_;
+    return (
+      <div style={{ maxWidth:520, margin:"0 auto" }}>
+        <div style={{ padding:"14px 18px", background: isToday?"#EFF5FB":"var(--surface-subtle)", border:`1.5px solid ${isToday?"#185FA5":"var(--border)"}`, borderRadius:10, marginBottom:12, textAlign:"center" }}>
+          <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{dayNames[anchor.getDay()]}</div>
+          <div style={{ fontSize:28, fontWeight:700, color:isToday?"#185FA5":"var(--text-primary)", lineHeight:1.2 }}>{anchor.getDate()}</div>
+          <div style={{ fontSize:12, color:"var(--text-muted)" }}>{monthNames[anchor.getMonth()]} {anchor.getFullYear()}</div>
+          {isToday && <div style={{ fontSize:11, fontWeight:600, color:"#185FA5", marginTop:4 }}>Today</div>}
         </div>
-      )}
+        {evs.length === 0
+          ? <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:13 }}>Nothing scheduled — try toggling event types or pick another day.</div>
+          : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {evs.map((ev, i) => {
+                const cfg = CAL_TYPES[ev.type];
+                return (
+                  <div key={i} onClick={() => ev.job && onOpenPanel(ev.job)}
+                    style={{ display:"flex", gap:12, alignItems:"flex-start", padding:"12px 14px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`4px solid ${cfg.border}`, borderRadius:8, cursor:ev.job?"pointer":"default" }}>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{cfg.icon}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:cfg.text, marginBottom:2 }}>{ev.label}</div>
+                      {ev.sub && <div style={{ fontSize:12, color:cfg.text, opacity:0.8 }}>{ev.sub}</div>}
+                      <div style={{ fontSize:10, color:cfg.text, opacity:0.6, marginTop:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{cfg.label}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+        }
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth:760, margin:"0 auto" }}>
+      {/* Nav bar */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+        <button onClick={() => navigate(-1)}
+          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>←</button>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>{navLabel()}</div>
+          <button onClick={goToday} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>Today</button>
+        </div>
+        <button onClick={() => navigate(1)}
+          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>→</button>
+      </div>
+
+      {/* View switcher + event type toggles */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:14 }}>
+        <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }}>
+          {["month","week","day"].map((v,i,arr) => (
+            <button key={v} onClick={() => setCalView(v)}
+              style={{ fontSize:12, padding:"5px 14px", border:"none", cursor:"pointer", fontWeight:500, borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", background:calView===v?"#185FA5":"var(--surface)", color:calView===v?"#fff":"#185FA5", textTransform:"capitalize" }}>
+              {v}
+            </button>
+          ))}
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+          {Object.entries(CAL_TYPES).map(([type, cfg]) => (
+            <button key={type} onClick={() => toggleType(type)}
+              style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:5,
+                background: show[type] ? cfg.bg : "var(--surface)",
+                color:       show[type] ? cfg.text : "var(--text-muted)",
+                border:     `1.5px solid ${show[type] ? cfg.border : "var(--border)"}`,
+                opacity:     show[type] ? 1 : 0.6 }}>
+              <span>{cfg.icon}</span> {cfg.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {calView === "month" && <MonthView />}
+      {calView === "week"  && <WeekView />}
+      {calView === "day"   && <DayView />}
     </div>
   );
 }
