@@ -1467,7 +1467,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, weeklyGoal, setWeeklyGoal, editingGoal, setEditingGoal }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const today = todayStr();
@@ -1598,6 +1598,30 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
   const manualDone     = tasks.filter(t => t.done);
   const totalPending   = autoTasks.length + manualToday.length + manualOverdue.length;
 
+  // ── Stats for Today tab ──
+  const activeJobs = jobs.filter(j => !j.archived);
+  const responded = activeJobs.filter(j => j.status !== "Applied").length;
+  const responseRate = activeJobs.length >= 3 ? Math.round(responded / activeJobs.length * 100) : null;
+  const rateColor = responseRate >= 20 ? "#27500A" : responseRate >= 10 ? "#633806" : "#791F1F";
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
+  const thisWeek = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
+  const thisMonth = activeJobs.filter(j => j.dateApplied && new Date(j.dateApplied) >= monthAgo).length;
+  const respondedJobs = activeJobs.filter(j => j.status !== "Applied" && j.dateApplied && j.timeline?.length > 1);
+  let avgDays = null;
+  if (respondedJobs.length > 0) {
+    const sum = respondedJobs.reduce((s, j) => {
+      const first = [...(j.timeline||[])].filter(e => e.date && e.status && e.status !== "Applied").sort((a,b) => a.date.localeCompare(b.date))[0];
+      if (!first) return s;
+      return s + Math.max(0, Math.floor((new Date(first.date) - new Date(j.dateApplied+"T00:00:00")) / 86400000));
+    }, 0);
+    avgDays = Math.round(sum / respondedJobs.length);
+  }
+  const goalWeekAgo = new Date(); goalWeekAgo.setDate(goalWeekAgo.getDate() - 7);
+  const goalThisWeek = jobs.filter(j => !j.archived && j.dateApplied && new Date(j.dateApplied) >= goalWeekAgo).length;
+  const goalPct = weeklyGoal > 0 ? Math.min(100, Math.round(goalThisWeek / weeklyGoal * 100)) : 0;
+  const goalDone = weeklyGoal > 0 && goalThisWeek >= weeklyGoal;
+
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
@@ -1607,6 +1631,56 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
         </div>
         <button onClick={() => setShowAdd(o=>!o)} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add task</button>
       </div>
+
+      {/* Stats + weekly goal */}
+      {activeJobs.length > 0 && (
+        <div style={{ marginBottom:20, display:"flex", flexDirection:"column", gap:10 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:8 }}>
+            {[
+              { label:"Response rate", val: responseRate !== null ? `${responseRate}%` : "—", color: responseRate !== null ? rateColor : "var(--text-muted)", hint: responseRate !== null ? `${responded} of ${activeJobs.length} apps heard back` : "Add more jobs to see" },
+              { label:"Applied this week", val: thisWeek, color:"var(--text-primary)", hint: null },
+              { label:"Applied this month", val: thisMonth, color:"var(--text-primary)", hint: null },
+              { label:"Avg days to response", val: avgDays !== null ? `${avgDays}d` : "—", color:"var(--text-primary)", hint: avgDays !== null ? `Based on ${respondedJobs.length} responses` : "Not enough data yet" },
+            ].map(s => (
+              <div key={s.label} title={s.hint||""} style={{ background:"var(--surface)", borderRadius:8, padding:"8px 12px", border:"1px solid var(--border-subtle)" }}>
+                <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
+                <div style={{ fontSize:18, fontWeight:600, color:s.color }}>{s.val}</div>
+                {s.hint && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{s.hint}</div>}
+              </div>
+            ))}
+          </div>
+          {/* Weekly goal */}
+          <div style={{ padding:"10px 14px", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: weeklyGoal>0?5:0 }}>
+                <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>
+                  {weeklyGoal > 0 ? (goalDone ? "🎉 Weekly goal reached!" : `Weekly goal: ${goalThisWeek} / ${weeklyGoal} applications`) : "Set a weekly application goal"}
+                </span>
+                {weeklyGoal > 0 && <span style={{ fontSize:11, color: goalDone?"#27500A":"var(--text-muted)", fontWeight: goalDone?600:400 }}>{goalPct}%</span>}
+              </div>
+              {weeklyGoal > 0 && (
+                <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
+                  <div style={{ height:"100%", width:`${goalPct}%`, background: goalDone?"#3B6D11":"#185FA5", borderRadius:3, transition:"width 0.4s" }} />
+                </div>
+              )}
+            </div>
+            {editingGoal ? (
+              <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+                <input autoFocus type="number" min="1" max="50" defaultValue={weeklyGoal||5}
+                  onBlur={e => { const v=parseInt(e.target.value)||0; setWeeklyGoal(v); localStorage.setItem("weekly_goal",v); setEditingGoal(false); }}
+                  onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="Escape") setEditingGoal(false); }}
+                  style={{ width:52, fontSize:13, padding:"4px 6px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--input-bg)", color:"var(--text-primary)" }} />
+                <span style={{ fontSize:12, color:"var(--text-muted)" }}>/ week</span>
+              </div>
+            ) : (
+              <button onClick={() => setEditingGoal(true)} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface-hover)", color:"var(--text-secondary)", cursor:"pointer", flexShrink:0 }}>
+                {weeklyGoal > 0 ? "Edit goal" : "Set goal"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div style={{ borderBottom:"1px solid var(--border-subtle)", marginBottom:16 }} />
 
       {showAdd && (
         <div style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"14px 16px", marginBottom:16 }}>
@@ -2278,6 +2352,7 @@ export default function App() {
   const [weeklyGoal, setWeeklyGoal] = useState(() => parseInt(localStorage.getItem("weekly_goal")||"0")||0);
   const [editingGoal, setEditingGoal] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
+  const [statsOpen, setStatsOpen] = useState(false);
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
   const [undoStack, setUndoStack] = useState(null);
@@ -2731,94 +2806,26 @@ export default function App() {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="summary-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))", gap:10, marginBottom:"1rem" }}>
-        {[{label:"Total",val:jobs.filter(j=>!j.archived).length,color:"#185FA5"},{label:"Active",val:(counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),color:"#3B3489"},{label:"Offers",val:counts["Offer"]||0,color:"#3B6D11"},{label:"Tasks today",val:todayTasks,color:todayTasks>0?"#A32D2D":"#5F5E5A"}].map(c=>(
-          <div key={c.label} style={{ background:"var(--surface-subtle)", borderRadius:8, padding:"10px 12px", border:"1px solid var(--border-subtle)" }}>
-            <div style={{ fontSize:11, color:"var(--text-muted)", marginBottom:4 }}>{c.label}</div>
-            <div style={{ fontSize:22, fontWeight:500, color:c.color }}>{c.val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Stats row */}
-      {(() => {
-        const active = jobs.filter(j => !j.archived);
-        if (active.length === 0) return null;
-        const total = active.length;
-        const responded = active.filter(j => j.status !== "Applied").length;
-        const responseRate = Math.round(responded / total * 100);
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const monthAgo = new Date(); monthAgo.setDate(monthAgo.getDate() - 30);
-        const thisWeek = active.filter(j => j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
-        const thisMonth = active.filter(j => j.dateApplied && new Date(j.dateApplied) >= monthAgo).length;
-        const respondedJobs = active.filter(j => j.status !== "Applied" && j.dateApplied && j.timeline?.length > 1);
-        let avgDays = null;
-        if (respondedJobs.length > 0) {
-          const total = respondedJobs.reduce((sum, j) => {
-            const first = [...(j.timeline||[])].filter(e => e.date && e.status && e.status !== "Applied").sort((a,b) => a.date.localeCompare(b.date))[0];
-            if (!first) return sum;
-            return sum + Math.max(0, Math.floor((new Date(first.date) - new Date(j.dateApplied+"T00:00:00")) / 86400000));
-          }, 0);
-          avgDays = Math.round(total / respondedJobs.length);
-        }
-        const rateColor = responseRate >= 20 ? "#27500A" : responseRate >= 10 ? "#633806" : "#791F1F";
-        const stats = [
-          { label:"Response rate", val: total < 3 ? "—" : `${responseRate}%`, color: total < 3 ? "var(--text-muted)" : rateColor, hint: total < 3 ? "Add more jobs to see" : `${responded} of ${total} apps heard back` },
-          { label:"Applied this week", val: thisWeek, color:"var(--text-primary)", hint: null },
-          { label:"Applied this month", val: thisMonth, color:"var(--text-primary)", hint: null },
-          { label:"Avg days to response", val: avgDays !== null ? `${avgDays}d` : "—", color:"var(--text-primary)", hint: avgDays !== null ? `Based on ${respondedJobs.length} responses` : "Not enough data yet" },
-        ];
-        return (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:8, marginBottom:"1.5rem" }}>
-            {stats.map(s => (
-              <div key={s.label} title={s.hint||""} style={{ background:"var(--surface)", borderRadius:8, padding:"8px 12px", border:"1px solid var(--border-subtle)" }}>
-                <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{s.label}</div>
-                <div style={{ fontSize:18, fontWeight:600, color:s.color }}>{s.val}</div>
-                {s.hint && <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:2 }}>{s.hint}</div>}
+      {/* Slim summary strip */}
+      <div style={{ marginBottom:"0.75rem", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, overflow:"hidden" }}>
+        <button onClick={() => setStatsOpen(o => !o)}
+          style={{ width:"100%", display:"flex", alignItems:"center", gap:0, padding:"9px 16px", background:"none", border:"none", cursor:"pointer", textAlign:"left" }}>
+          <div style={{ display:"flex", gap:20, flex:1, flexWrap:"wrap" }}>
+            {[
+              { label:"Total",       val: jobs.filter(j=>!j.archived).length,                                                              color:"#185FA5" },
+              { label:"Active",      val: (counts["Applied"]||0)+(counts["Phone Screen"]||0)+(counts["Interview"]||0),                     color:"#3B3489" },
+              { label:"Offers",      val: counts["Offer"]||0,                                                                              color:"#3B6D11" },
+              { label:"Tasks today", val: todayTasks,                                                                                      color: todayTasks>0?"#A32D2D":"var(--text-muted)" },
+            ].map(c => (
+              <div key={c.label} style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                <span style={{ fontSize:18, fontWeight:700, color:c.color, lineHeight:1 }}>{c.val}</span>
+                <span style={{ fontSize:11, color:"var(--text-muted)", whiteSpace:"nowrap" }}>{c.label}</span>
               </div>
             ))}
           </div>
-        );
-      })()}
-
-      {/* Weekly goal tracker */}
-      {jobs.filter(j=>!j.archived).length > 0 && (() => {
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const thisWeek = jobs.filter(j => !j.archived && j.dateApplied && new Date(j.dateApplied) >= weekAgo).length;
-        const pct = weeklyGoal > 0 ? Math.min(100, Math.round(thisWeek / weeklyGoal * 100)) : 0;
-        const done = weeklyGoal > 0 && thisWeek >= weeklyGoal;
-        return (
-          <div style={{ marginBottom:"1rem", padding:"10px 14px", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ flex:1 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:5 }}>
-                <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>
-                  {weeklyGoal > 0 ? (done ? "🎉 Weekly goal reached!" : `Weekly goal: ${thisWeek} / ${weeklyGoal} applications`) : "Set a weekly application goal"}
-                </span>
-                {weeklyGoal > 0 && <span style={{ fontSize:11, color: done?"#27500A":"var(--text-muted)", fontWeight: done?600:400 }}>{pct}%</span>}
-              </div>
-              {weeklyGoal > 0 && (
-                <div style={{ height:6, background:"var(--border)", borderRadius:3, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${pct}%`, background: done?"#3B6D11":"#185FA5", borderRadius:3, transition:"width 0.4s" }} />
-                </div>
-              )}
-            </div>
-            {editingGoal ? (
-              <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-                <input autoFocus type="number" min="1" max="50" defaultValue={weeklyGoal||5}
-                  onBlur={e => { const v=parseInt(e.target.value)||0; setWeeklyGoal(v); localStorage.setItem("weekly_goal",v); setEditingGoal(false); }}
-                  onKeyDown={e => { if(e.key==="Enter") e.target.blur(); if(e.key==="Escape") setEditingGoal(false); }}
-                  style={{ width:52, fontSize:13, padding:"4px 6px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--input-bg)", color:"var(--text-primary)" }} />
-                <span style={{ fontSize:12, color:"var(--text-muted)" }}>/ week</span>
-              </div>
-            ) : (
-              <button onClick={() => setEditingGoal(true)} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface-hover)", color:"var(--text-secondary)", cursor:"pointer", flexShrink:0 }}>
-                {weeklyGoal > 0 ? "Edit goal" : "Set goal"}
-              </button>
-            )}
-          </div>
-        );
-      })()}
+          <span style={{ fontSize:11, color:"var(--text-muted)", marginLeft:8, flexShrink:0 }}>{statsOpen ? "▲ Less" : "▾ Stats"}</span>
+        </button>
+      </div>
 
       {/* Toolbar */}
       <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap" }}>
@@ -3147,7 +3154,7 @@ export default function App() {
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
-      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} weeklyGoal={weeklyGoal} setWeeklyGoal={setWeeklyGoal} editingGoal={editingGoal} setEditingGoal={setEditingGoal} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
       {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)} onEdit={job => { openEdit(job); setPanelJob(null); }} onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
