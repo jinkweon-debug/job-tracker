@@ -1770,8 +1770,10 @@ const CAL_TYPES = {
 };
 
 function CalendarView({ jobs, tasks, onOpenPanel }) {
-  const [calView, setCalView] = useState("month"); // "month" | "week" | "day"
+  const [calView, setCalView] = useState("month"); // "month" | "week" | "day" | "agenda"
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
+  // Mini-month sidebar has its own browsable month independent of anchor
+  const [miniMonth, setMiniMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:false });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
 
@@ -1814,13 +1816,23 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   function navigate(dir) {
     setAnchor(prev => {
       const d = new Date(prev);
-      if (calView === "month") d.setMonth(d.getMonth() + dir);
+      if (calView === "month") { d.setMonth(d.getMonth() + dir); setMiniMonth({ y: d.getFullYear(), m: d.getMonth() }); }
       else if (calView === "week") d.setDate(d.getDate() + dir * 7);
+      else if (calView === "agenda") d.setDate(d.getDate() + dir * 14);
       else d.setDate(d.getDate() + dir);
       return d;
     });
   }
-  function goToday() { const d = new Date(); d.setHours(0,0,0,0); setAnchor(d); }
+  function goToday() {
+    const d = new Date(); d.setHours(0,0,0,0);
+    setAnchor(d);
+    setMiniMonth({ y: d.getFullYear(), m: d.getMonth() });
+  }
+  function jumpToDay(date) {
+    const d = new Date(date); d.setHours(0,0,0,0);
+    setAnchor(d);
+    if (calView === "month") setMiniMonth({ y: d.getFullYear(), m: d.getMonth() });
+  }
 
   // ── Header label ──
   function navLabel() {
@@ -1832,6 +1844,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
       if (start.getMonth() === end.getMonth()) return `${monthNames[start.getMonth()]} ${start.getFullYear()}`;
       return `${monthNames[start.getMonth()]} – ${monthNames[end.getMonth()]} ${end.getFullYear()}`;
     }
+    if (calView === "agenda") return `Upcoming events`;
     return `${dayNames[anchor.getDay()]}, ${monthNames[anchor.getMonth()]} ${anchor.getDate()}, ${anchor.getFullYear()}`;
   }
 
@@ -1843,6 +1856,67 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
         style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}>
         {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
+      </div>
+    );
+  }
+
+  // ── Mini month sidebar ──
+  function MiniMonth() {
+    const { y, m } = miniMonth;
+    const prefix = `${y}-${String(m+1).padStart(2,"0")}`;
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+    const anchorKey = anchor.toISOString().slice(0,10);
+    return (
+      <div style={{ width:188, flexShrink:0 }}>
+        {/* Mini month nav */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
+          <button onClick={() => setMiniMonth(({y,m}) => m===0?{y:y-1,m:11}:{y,m:m-1})}
+            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:5, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>‹</button>
+          <span style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[m].slice(0,3)} {y}</span>
+          <button onClick={() => setMiniMonth(({y,m}) => m===11?{y:y+1,m:0}:{y,m:m+1})}
+            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:5, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>›</button>
+        </div>
+        {/* Day headers */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:2 }}>
+          {["S","M","T","W","T","F","S"].map((d,i) => (
+            <div key={i} style={{ fontSize:9, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"2px 0" }}>{d}</div>
+          ))}
+        </div>
+        {/* Day cells */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
+          {cells.map((day, i) => {
+            if (!day) return <div key={`e${i}`} />;
+            const dateKey = `${prefix}-${String(day).padStart(2,"0")}`;
+            const isToday = dateKey === today_;
+            const isSelected = dateKey === anchorKey;
+            const hasEvs = (byDate[dateKey]||[]).length > 0;
+            return (
+              <div key={dateKey} onClick={() => { jumpToDay(new Date(dateKey)); if (calView==="month") setMiniMonth({y,m}); }}
+                style={{ fontSize:10, height:22, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", borderRadius:4, cursor:"pointer",
+                  background: isSelected ? "#185FA5" : isToday ? "#EFF5FB" : "transparent",
+                  color: isSelected ? "#fff" : isToday ? "#185FA5" : "var(--text-primary)",
+                  fontWeight: isToday||isSelected ? 700 : 400 }}>
+                {day}
+                {hasEvs && !isSelected && <div style={{ width:3, height:3, borderRadius:"50%", background: isToday?"#185FA5":"#B5D4F4", marginTop:1 }} />}
+              </div>
+            );
+          })}
+        </div>
+        {/* Event type toggles below mini month */}
+        <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:5 }}>
+          <div style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:2 }}>Show</div>
+          {Object.entries(CAL_TYPES).map(([type, cfg]) => (
+            <button key={type} onClick={() => toggleType(type)}
+              style={{ display:"flex", alignItems:"center", gap:7, fontSize:11, padding:"5px 8px", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left",
+                background: show[type] ? cfg.bg : "var(--surface-hover)",
+                color:       show[type] ? cfg.text : "var(--text-muted)",
+                border:     `1px solid ${show[type] ? cfg.border : "var(--border)"}` }}>
+              <span>{cfg.icon}</span> {cfg.label}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1948,47 +2022,114 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
     );
   }
 
+  // ── Agenda view ──
+  function AgendaView() {
+    // Collect all event dates from today_ forward, sorted
+    const startDate = new Date(today_);
+    const eventDates = Object.keys(byDate)
+      .filter(d => d >= today_)
+      .sort();
+    if (eventDates.length === 0)
+      return <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:13 }}>No upcoming events — try toggling event types above.</div>;
+
+    // Group by month for section headers
+    let lastMonth = null;
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+        {eventDates.map(dateKey => {
+          const evs = byDate[dateKey];
+          if (!evs?.length) return null;
+          const d = new Date(dateKey + "T00:00:00");
+          const isToday = dateKey === today_;
+          const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+          const showMonthHeader = monthKey !== lastMonth;
+          lastMonth = monthKey;
+          return (
+            <div key={dateKey}>
+              {showMonthHeader && (
+                <div style={{ fontSize:11, fontWeight:700, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.06em", padding:"14px 0 6px", borderBottom:"1px solid var(--border-subtle)", marginBottom:6 }}>
+                  {monthNames[d.getMonth()]} {d.getFullYear()}
+                </div>
+              )}
+              <div style={{ display:"flex", gap:0, marginBottom:10 }}>
+                {/* Date column */}
+                <div style={{ width:68, flexShrink:0, paddingTop:2, cursor:"pointer" }}
+                  onClick={() => { jumpToDay(d); setCalView("day"); }}>
+                  <div style={{ fontSize:10, fontWeight:600, color: isToday?"#185FA5":"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{dayShort[d.getDay()]}</div>
+                  <div style={{ fontSize:22, fontWeight:700, lineHeight:1.1,
+                    color: isToday?"#fff":"var(--text-primary)",
+                    background: isToday?"#185FA5":"transparent",
+                    borderRadius:"50%", width:36, height:36,
+                    display:"flex", alignItems:"center", justifyContent:"center", marginTop:2 }}>
+                    {d.getDate()}
+                  </div>
+                </div>
+                {/* Events column */}
+                <div style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
+                  {evs.map((ev, ei) => {
+                    const cfg = CAL_TYPES[ev.type];
+                    return (
+                      <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
+                        style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`3px solid ${cfg.border}`, borderRadius:7, cursor:ev.job?"pointer":"default" }}
+                        onMouseEnter={e => { if(ev.job) e.currentTarget.style.filter="brightness(0.96)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.filter="none"; }}>
+                        <span style={{ fontSize:14, flexShrink:0 }}>{cfg.icon}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:cfg.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>
+                          {ev.sub && <div style={{ fontSize:11, color:cfg.text, opacity:0.75, marginTop:1 }}>{ev.sub}</div>}
+                        </div>
+                        <div style={{ fontSize:10, color:cfg.text, opacity:0.55, flexShrink:0, textTransform:"uppercase", letterSpacing:"0.04em" }}>{cfg.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const viewLabels = { month:"Month", week:"Week", day:"Day", agenda:"Agenda" };
+
   return (
-    <div style={{ maxWidth:760, margin:"0 auto" }}>
-      {/* Nav bar */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-        <button onClick={() => navigate(-1)}
-          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>←</button>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>{navLabel()}</div>
-          <button onClick={goToday} style={{ fontSize:11, padding:"3px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>Today</button>
-        </div>
-        <button onClick={() => navigate(1)}
-          style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>→</button>
-      </div>
+    <div style={{ display:"flex", gap:24, alignItems:"flex-start" }}>
+      {/* ── Left sidebar: mini month + toggles ── */}
+      <MiniMonth />
 
-      {/* View switcher + event type toggles */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:8, marginBottom:14 }}>
-        <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }}>
-          {["month","week","day"].map((v,i,arr) => (
-            <button key={v} onClick={() => setCalView(v)}
-              style={{ fontSize:12, padding:"5px 14px", border:"none", cursor:"pointer", fontWeight:500, borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", background:calView===v?"#185FA5":"var(--surface)", color:calView===v?"#fff":"#185FA5", textTransform:"capitalize" }}>
-              {v}
-            </button>
-          ))}
+      {/* ── Main area ── */}
+      <div style={{ flex:1, minWidth:0 }}>
+        {/* Top bar: Today + nav + view switcher */}
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:14, flexWrap:"wrap" }}>
+          <button onClick={goToday}
+            style={{ fontSize:12, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", fontWeight:500 }}>Today</button>
+          {calView !== "agenda" && <>
+            <button onClick={() => navigate(-1)}
+              style={{ fontSize:13, padding:"4px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>‹</button>
+            <button onClick={() => navigate(1)}
+              style={{ fontSize:13, padding:"4px 10px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>›</button>
+          </>}
+          <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", flex:1 }}>{navLabel()}</div>
+          {/* View switcher */}
+          <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }}>
+            {["month","week","day","agenda"].map((v,i,arr) => (
+              <button key={v} onClick={() => setCalView(v)}
+                style={{ fontSize:12, padding:"5px 13px", border:"none", cursor:"pointer", fontWeight:500,
+                  borderRight:i<arr.length-1?"1px solid #B5D4F4":"none",
+                  background:calView===v?"#185FA5":"var(--surface)",
+                  color:calView===v?"#fff":"#185FA5" }}>
+                {viewLabels[v]}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-          {Object.entries(CAL_TYPES).map(([type, cfg]) => (
-            <button key={type} onClick={() => toggleType(type)}
-              style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:5,
-                background: show[type] ? cfg.bg : "var(--surface)",
-                color:       show[type] ? cfg.text : "var(--text-muted)",
-                border:     `1.5px solid ${show[type] ? cfg.border : "var(--border)"}`,
-                opacity:     show[type] ? 1 : 0.6 }}>
-              <span>{cfg.icon}</span> {cfg.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {calView === "month" && <MonthView />}
-      {calView === "week"  && <WeekView />}
-      {calView === "day"   && <DayView />}
+        {calView === "month"  && <MonthView />}
+        {calView === "week"   && <WeekView />}
+        {calView === "day"    && <DayView />}
+        {calView === "agenda" && <AgendaView />}
+      </div>
     </div>
   );
 }
