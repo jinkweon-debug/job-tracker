@@ -1762,67 +1762,125 @@ function EmptyState({ icon, title, desc, action, onAction }) {
 }
 
 // ── Interview calendar view ────────────────────────────────────────────────────
-function CalendarView({ jobs, onOpenPanel }) {
+const CAL_TYPES = {
+  interview: { label:"Interviews", icon:"🗓️", bg:"#185FA5",          text:"#fff",                    border:"#0C447C" },
+  followup:  { label:"Follow-ups", icon:"🔔", bg:"#FAEEDA",          text:"#633806",                 border:"#FAC775" },
+  task:      { label:"Tasks",      icon:"✅", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
+  timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
+};
+
+function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:false });
+  const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
 
   const { y, m } = month;
-  const firstDay = new Date(y, m, 1).getDay();
-  const daysInMonth = new Date(y, m + 1, 0).getDate();
-  const todayStr_ = todayStr();
+  const today_ = todayStr();
+  const monthPrefix = `${y}-${String(m+1).padStart(2,"0")}`;
 
-  // Map interviewDate → jobs
+  // Build events map: date → [{type, label, sub, job, task}]
   const byDate = {};
-  jobs.filter(j => !j.archived && j.interviewDate).forEach(j => {
-    if (!byDate[j.interviewDate]) byDate[j.interviewDate] = [];
-    byDate[j.interviewDate].push(j);
-  });
+  function add(date, ev) {
+    if (!date) return;
+    const key = date.slice(0,10);
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(ev);
+  }
+
+  if (show.interview)
+    jobs.filter(j => !j.archived && j.interviewDate).forEach(j =>
+      add(j.interviewDate, { type:"interview", label:j.company, sub:j.role, job:j }));
+
+  if (show.followup)
+    jobs.filter(j => !j.archived && j.customFollowup && j.customFollowup >= today_).forEach(j =>
+      add(j.customFollowup, { type:"followup", label:j.company, sub:"Follow-up due", job:j }));
+
+  if (show.task)
+    (tasks||[]).filter(t => !t.done && t.dueDate).forEach(t => {
+      const linkedJob = t.jobId ? jobs.find(j => j.id == t.jobId) : null;
+      add(t.dueDate, { type:"task", label:t.text, sub:linkedJob?.company||null, job:linkedJob, task:t });
+    });
+
+  if (show.timeline)
+    jobs.filter(j => !j.archived).forEach(j =>
+      (j.timeline||[]).forEach(e => {
+        if (!e.date) return;
+        const key = e.date.slice(0,10);
+        if (e.status==="Interview" && key===j.interviewDate) return; // skip if already an interview event
+        const label = e.type==="manual" ? (e.label||"Note") : e.status;
+        add(e.date, { type:"timeline", label:j.company, sub:label, job:j });
+      }));
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const cells = [];
-  for (let i = 0; i < firstDay; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-
-  const hasInterviews = Object.keys(byDate).some(d => d.startsWith(`${y}-${String(m+1).padStart(2,"0")}`));
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const cells = [...Array(firstDay).fill(null), ...Array.from({length:daysInMonth},(_,i)=>i+1)];
+  const hasEvents = Object.keys(byDate).some(d => d.startsWith(monthPrefix));
 
   return (
-    <div style={{ maxWidth:700, margin:"0 auto" }}>
-      {/* Nav */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+    <div style={{ maxWidth:760, margin:"0 auto" }}>
+      {/* Nav + legend */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, flexWrap:"wrap", gap:8 }}>
         <button onClick={() => setMonth(({y,m}) => m===0?{y:y-1,m:11}:{y,m:m-1})}
           style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>←</button>
         <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[m]} {y}</div>
         <button onClick={() => setMonth(({y,m}) => m===11?{y:y+1,m:0}:{y,m:m+1})}
           style={{ fontSize:13, padding:"5px 12px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer" }}>→</button>
       </div>
+
+      {/* Toggle legend */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
+        {Object.entries(CAL_TYPES).map(([type, cfg]) => (
+          <button key={type} onClick={() => toggleType(type)}
+            style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:5,
+              background: show[type] ? cfg.bg : "var(--surface)",
+              color:       show[type] ? cfg.text : "var(--text-muted)",
+              border:     `1.5px solid ${show[type] ? cfg.border : "var(--border)"}`,
+              opacity:     show[type] ? 1 : 0.6 }}>
+            <span>{cfg.icon}</span> {cfg.label}
+          </button>
+        ))}
+      </div>
+
       {/* Day headers */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:4 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3, marginBottom:3 }}>
         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
           <div key={d} style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"4px 0" }}>{d}</div>
         ))}
       </div>
+
       {/* Grid */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
         {cells.map((day, i) => {
           if (!day) return <div key={`e${i}`} />;
-          const dateKey = `${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-          const dayJobs = byDate[dateKey] || [];
-          const isToday = dateKey === todayStr_;
+          const dateKey = `${monthPrefix}-${String(day).padStart(2,"0")}`;
+          const evs = byDate[dateKey] || [];
+          const isToday = dateKey === today_;
+          const MAX = 3;
           return (
-            <div key={dateKey} style={{ minHeight:72, border:`1.5px solid ${isToday?"#185FA5":dayJobs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"6px 7px", background: isToday?"#EFF5FB": dayJobs.length?"var(--surface)":"var(--surface-subtle)" }}>
-              <div style={{ fontSize:12, fontWeight: isToday?700:400, color: isToday?"#185FA5":"var(--text-muted)", marginBottom:4 }}>{day}</div>
-              {dayJobs.map(j => (
-                <div key={j.id} onClick={() => onOpenPanel(j)} title={`${j.company} — ${j.role}`}
-                  style={{ fontSize:10, padding:"2px 5px", background:"#185FA5", color:"#fff", borderRadius:4, marginBottom:2, cursor:"pointer", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {j.company}
-                </div>
-              ))}
+            <div key={dateKey} style={{ minHeight:78, border:`1.5px solid ${isToday?"#185FA5":evs.length?"#B5D4F4":"var(--border)"}`, borderRadius:8, padding:"5px 6px", background:isToday?"#EFF5FB":evs.length?"var(--surface)":"var(--surface-subtle)" }}>
+              <div style={{ fontSize:11, fontWeight:isToday?700:400, color:isToday?"#185FA5":"var(--text-muted)", marginBottom:3 }}>{day}</div>
+              {evs.slice(0, MAX).map((ev, ei) => {
+                const cfg = CAL_TYPES[ev.type];
+                return (
+                  <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
+                    title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
+                    style={{ fontSize:9, padding:"2px 4px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:3, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.4 }}>
+                    {cfg.icon} {ev.label}
+                  </div>
+                );
+              })}
+              {evs.length > MAX && (
+                <div style={{ fontSize:9, color:"var(--text-muted)", paddingLeft:2 }}>+{evs.length - MAX} more</div>
+              )}
             </div>
           );
         })}
       </div>
-      {!hasInterviews && (
+
+      {!hasEvents && (
         <div style={{ textAlign:"center", padding:"2rem 1rem", color:"var(--text-muted)", fontSize:13, marginTop:8 }}>
-          No interviews scheduled this month — add interview dates to your jobs to see them here.
+          Nothing to show this month — try toggling event types above or navigate to another month.
         </div>
       )}
     </div>
@@ -2804,7 +2862,7 @@ export default function App() {
       {view==="salary" && <SalaryChart jobs={jobs} onOpenPanel={togglePanel} />}
 
       {/* Calendar view */}
-      {view==="calendar" && <CalendarView jobs={jobs} onOpenPanel={togglePanel} />}
+      {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
       {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
