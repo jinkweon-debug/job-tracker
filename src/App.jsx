@@ -1966,12 +1966,13 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
 
   // ── Event pill ──
   function EventPill({ ev, compact }) {
-    const cfg = getCalCfg(ev.type);
+    const typeCfg = getCalCfg(ev.type);
+    const cfg = ev.job ? getStatusCfg(ev.job.status) : typeCfg;
     return (
       <div onClick={() => ev.job && onOpenPanel(ev.job)}
         title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
         style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}>
-        {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
+        {typeCfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
       </div>
     );
   }
@@ -2120,15 +2121,17 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
           ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day — try toggling event types or pick another day." />
           : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {evs.map((ev, i) => {
-                const cfg = getCalCfg(ev.type);
+                const typeCfg = getCalCfg(ev.type);
+                const cfg = ev.job ? getStatusCfg(ev.job.status) : typeCfg;
+                const tag = ev.job ? ev.job.status : typeCfg.label;
                 return (
                   <div key={i} onClick={() => ev.job && onOpenPanel(ev.job)}
                     style={{ display:"flex", gap:12, alignItems:"flex-start", padding:"12px 14px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`4px solid ${cfg.border}`, borderRadius:8, cursor:ev.job?"pointer":"default" }}>
-                    <span style={{ fontSize:16, flexShrink:0 }}>{cfg.icon}</span>
+                    <span style={{ fontSize:16, flexShrink:0 }}>{typeCfg.icon}</span>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:13, fontWeight:600, color:cfg.text, marginBottom:2 }}>{ev.label}</div>
                       {ev.sub && <div style={{ fontSize:12, color:cfg.text, opacity:0.8 }}>{ev.sub}</div>}
-                      <div style={{ fontSize:10, color:cfg.text, opacity:0.6, marginTop:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{cfg.label}</div>
+                      <div style={{ fontSize:10, color:cfg.text, opacity:0.6, marginTop:3, textTransform:"uppercase", letterSpacing:"0.04em" }}>{tag}</div>
                     </div>
                   </div>
                 );
@@ -2184,18 +2187,20 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                 {/* Events column */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
                   {evs.map((ev, ei) => {
-                    const cfg = getCalCfg(ev.type);
+                    const typeCfg = getCalCfg(ev.type);
+                    const cfg = ev.job ? getStatusCfg(ev.job.status) : typeCfg;
+                    const tag = ev.job ? ev.job.status : typeCfg.label;
                     return (
                       <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
                         style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`3px solid ${cfg.border}`, borderRadius:7, cursor:ev.job?"pointer":"default" }}
                         onMouseEnter={e => { if(ev.job) e.currentTarget.style.filter="brightness(0.96)"; }}
                         onMouseLeave={e => { e.currentTarget.style.filter="none"; }}>
-                        <span style={{ fontSize:14, flexShrink:0 }}>{cfg.icon}</span>
+                        <span style={{ fontSize:14, flexShrink:0 }}>{typeCfg.icon}</span>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:600, color:cfg.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>
                           {ev.sub && <div style={{ fontSize:11, color:cfg.text, opacity:0.75, marginTop:1 }}>{ev.sub}</div>}
                         </div>
-                        <div style={{ fontSize:10, color:cfg.text, opacity:0.55, flexShrink:0, textTransform:"uppercase", letterSpacing:"0.04em" }}>{cfg.label}</div>
+                        <div style={{ fontSize:10, color:cfg.text, opacity:0.55, flexShrink:0, textTransform:"uppercase", letterSpacing:"0.04em" }}>{tag}</div>
                       </div>
                     );
                   })}
