@@ -1999,9 +1999,10 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   function EventPill({ ev, compact }) {
     const cfg = getCalCfg(ev.type);
     return (
-      <div onClick={() => ev.job && onOpenPanel(ev.job)}
+      <div
         title={`${cfg.label}: ${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
-        style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}>
+        style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}
+        onClick={e => { e.stopPropagation(); ev.job && onOpenPanel(ev.job); }}>
         {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
       </div>
     );
