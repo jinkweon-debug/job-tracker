@@ -155,6 +155,15 @@ function getFollowupStatus(job) {
   return null;
 }
 
+// Returns the effective follow-up due date string (YYYY-MM-DD) for a job, or null.
+function getFollowupDate(job) {
+  if (!job.dateApplied || !FOLLOWUP_DAYS[job.status] || job.followupDismissed || job.archived) return null;
+  if (job.customFollowup) return job.customFollowup;
+  const d = new Date(job.dateApplied + "T00:00:00");
+  d.setDate(d.getDate() + FOLLOWUP_DAYS[job.status]);
+  return d.toISOString().slice(0, 10);
+}
+
 const STALE_DAYS = 14;
 const ACTIVE_STATUSES = new Set(["Applied", "Phone Screen", "Interview"]);
 
@@ -584,35 +593,37 @@ function PrepChecklist({ job, onUpdate }) {
 }
 
 // ── Panel reminders section ───────────────────────────────────────────────────
-function PanelReminders({ job, tasks, onAddReminder }) {
+function PanelReminders({ job, tasks, onAddReminder, onTaskDone, onTaskDelete }) {
   const [open, setOpen] = useState(false);
   const today = todayStr();
-  const linked = (tasks||[]).filter(t => t.jobId === job.id).sort((a,b) => a.dueDate.localeCompare(b.dueDate));
+  const linked = (tasks||[]).filter(t => t.jobId === job.id).sort((a,b) => (a.dueDate||"").localeCompare(b.dueDate||""));
   const upcoming = linked.filter(t => !t.done && t.dueDate >= today);
   const past     = linked.filter(t => t.done || t.dueDate < today);
   return (
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: (linked.length||open) ? 8 : 0 }}>
-        <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>Reminders{linked.length>0?` (${linked.length})`:""}</span>
+        <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>Reminders{upcoming.length>0?` (${upcoming.length})`:""}</span>
         <button onClick={() => setOpen(o=>!o)} style={{ fontSize:11, padding:"2px 9px", background:open?getStatusCfg("Applied").bg:"var(--surface-hover)", color:open?getStatusCfg("Applied").text:"var(--text-secondary)", border:`1px solid ${open?getStatusCfg("Applied").border:"var(--border)"}`, borderRadius:5, cursor:"pointer", fontWeight:500 }}>
-          {open ? "✕ Cancel" : "+ Set reminder"}
+          {open ? "✕ Cancel" : "+ Add"}
         </button>
       </div>
       {open && <ReminderMini job={job} onSave={(date,note) => { onAddReminder(job.id,date,note); setOpen(false); }} onClose={() => setOpen(false)} />}
       {upcoming.map(t => (
         <div key={t.id} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, padding:"5px 0", borderBottom:"0.5px solid var(--border-subtle)" }}>
-          <span style={{ fontSize:14 }}>🔔</span>
+          <input type="checkbox" checked={false} onChange={() => onTaskDone && onTaskDone(t.id)} style={{ cursor:"pointer", flexShrink:0 }} />
           <div style={{ flex:1 }}>
             <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{t.text}</span>
-            <span style={{ color: t.dueDate===today?"#A32D2D":"var(--text-muted)", marginLeft:6, fontSize:11 }}>
+            <span style={{ color: t.dueDate===today?getStatusCfg("Rejected").text:"var(--text-muted)", marginLeft:6, fontSize:11 }}>
               {t.dueDate===today ? "Today" : t.dueDate<today ? `Overdue · ${t.dueDate}` : t.dueDate}
             </span>
           </div>
+          <button onClick={() => onTaskDelete && onTaskDelete(t.id)} style={{ fontSize:11, padding:"0 4px", background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", lineHeight:1 }} title="Remove">✕</button>
         </div>
       ))}
       {past.length>0 && (
-        <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
-          {past.length} past reminder{past.length!==1?"s":""}
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:11, color:"var(--text-muted)", marginTop:4 }}>
+          <span>{past.length} completed</span>
+          <button onClick={() => past.forEach(t => onTaskDelete && onTaskDelete(t.id))} style={{ fontSize:11, color:"var(--text-muted)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", padding:0 }}>Clear</button>
         </div>
       )}
     </div>
@@ -634,7 +645,7 @@ function PanelSection({ label, count, defaultOpen = false, children }) {
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
 
@@ -752,7 +763,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               <EmailTemplates job={job} />
             </PanelSection>
             <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0}>
-              <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} />
+              <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} onTaskDone={onTaskDone} onTaskDelete={onTaskDelete} />
             </PanelSection>
             <PanelSection label="✅ Prep checklist" count={checklistCount > 0 ? `${(job.prepChecklist||[]).filter(i=>i.done).length}/${checklistCount}` : null} defaultOpen={checklistCount > 0}>
               <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
@@ -1007,9 +1018,10 @@ function ReminderMini({ job, onSave, onClose }) {
 }
 
 // ── List card ─────────────────────────────────────────────────────────────────
-function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel }) {
+function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, tasks }) {
   const fu = getFollowupStatus(job);
   const stale = isStale(job);
+  const reminderCount = (tasks||[]).filter(t => t.jobId===job.id && !t.done).length;
   const [hovered, setHovered] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -1079,7 +1091,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
           })()}
           {hovered && (
             <div style={{ display:"flex", gap:5, marginLeft:"auto" }}>
-              <button onClick={() => { setReminderOpen(o=>!o); setTimelineOpen(false); }} title="Set a reminder" style={btnStyle(reminderOpen)}>🔔 Remind</button>
+              <button onClick={() => { setReminderOpen(o=>!o); setTimelineOpen(false); }} title="Set a reminder" style={btnStyle(reminderOpen)}>🔔 Remind{reminderCount>0?` (${reminderCount})`:""}</button>
               {onDuplicate && <button onClick={() => onDuplicate(job)} title="Duplicate" style={btnStyle(false)}>⧉</button>}
               <button onClick={() => { setTimelineOpen(o=>!o); setReminderOpen(false); }} style={btnStyle(timelineOpen)}>
                 {timelineOpen ? "▲ Hide" : `▼ Timeline${hasTimeline?` (${job.timeline.length})`:""}`}
@@ -1659,7 +1671,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
-              <button onClick={() => onUpdateJob(job.id, { followupDismissed:true })} title="Stop reminding me" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+              <button onClick={() => snooze(job, 30)} title="Snooze 30 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>−30d</button>
             </div>
           </div>
         )}
@@ -1701,7 +1713,8 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
 
   const manualOverdue = tasks.filter(t => !t.done && t.dueDate < today);
   const manualToday   = tasks.filter(t => !t.done && t.dueDate === today);
-  const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length;
+  const staleJobs     = jobs.filter(j => !j.archived && isStale(j) && !getFollowupStatus(j));
+  const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length + staleJobs.length;
 
   return (
     <div>
@@ -1750,17 +1763,32 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
         </div>
       )}
 
-      <Section title="Interviews today" color="#185FA5" count={autoTasks.filter(t=>t.type==="interview").length}>
+      <Section title="Interviews today" color={getStatusCfg("Interview").text} count={autoTasks.filter(t=>t.type==="interview").length}>
         {autoTasks.filter(t=>t.type==="interview").map(t => <AutoCard key={t.id} task={t} />)}
       </Section>
-      <Section title="Follow-ups" color="#185FA5" count={autoTasks.filter(t=>t.type==="followup").length}>
+      <Section title="Follow-ups due" color={getStatusCfg("Phone Screen").text} count={autoTasks.filter(t=>t.type==="followup").length}>
         {autoTasks.filter(t=>t.type==="followup").map(t => <AutoCard key={t.id} task={t} />)}
       </Section>
-      <Section title="Overdue tasks" color="#A32D2D" count={manualOverdue.length}>
+      <Section title="Overdue reminders" color={getStatusCfg("Rejected").text} count={manualOverdue.length}>
         {manualOverdue.map(t => <TaskCard key={t.id} task={t} />)}
       </Section>
-      <Section title="Due today" color="#185FA5" count={manualToday.length}>
+      <Section title="Reminders due today" color={getStatusCfg("Applied").text} count={manualToday.length}>
         {manualToday.map(t => <TaskCard key={t.id} task={t} />)}
+      </Section>
+      <Section title="No recent activity" color="var(--text-muted)" count={staleJobs.length}>
+        {staleJobs.map(job => (
+          <div key={job.id} onClick={() => onOpenPanel(job)}
+            style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:"var(--surface)", border:"1px solid var(--border)", borderLeft:`3px solid ${getStatusCfg(job.status).border}`, borderRadius:8, marginBottom:6, cursor:"pointer" }}>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.company} · {job.role}</div>
+              <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>
+                <span style={{ ...(() => { const c=getStatusCfg(job.status); return { background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:500 }; })() }}>{job.status}</span>
+                <span style={{ marginLeft:6 }}>· last updated {timeAgo(job.updatedAt||job.createdAt)}</span>
+              </div>
+            </div>
+            <span style={{ fontSize:11, color:"var(--text-muted)", flexShrink:0 }}>›</span>
+          </div>
+        ))}
       </Section>
     </div>
   );
@@ -1874,13 +1902,13 @@ function EmptyState({ icon, title, desc, action, onAction }) {
 const CAL_TYPES = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#185FA5",          text:"#fff",                    border:"#0C447C" },
   followup:  { label:"Follow-ups", icon:"🔔", bg:"#FAEEDA",          text:"#633806",                 border:"#FAC775" },
-  task:      { label:"Tasks",      icon:"✅", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
+  task:      { label:"Reminders",  icon:"🔔", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
   timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
 };
 const CAL_TYPES_DARK = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#1a3550", text:"#7BB8F0", border:"#2d5580" },
   followup:  { label:"Follow-ups", icon:"🔔", bg:"#3d2b10", text:"#FAC775", border:"#5c4020" },
-  task:      { label:"Tasks",      icon:"✅", bg:"#1a3010", text:"#90C855", border:"#2a5020" },
+  task:      { label:"Reminders",  icon:"🔔", bg:"#1a3010", text:"#90C855", border:"#2a5020" },
   timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
 };
 const getCalCfg = (type) => ((isDark() ? CAL_TYPES_DARK : CAL_TYPES)[type] || {});
@@ -1908,8 +1936,10 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
     jobs.filter(j => !j.archived && j.interviewDate).forEach(j =>
       addEv(j.interviewDate, { type:"interview", label:j.company, sub:j.role, job:j }));
   if (show.followup)
-    jobs.filter(j => !j.archived && j.customFollowup && j.customFollowup >= today_).forEach(j =>
-      addEv(j.customFollowup, { type:"followup", label:j.company, sub:"Follow-up due", job:j }));
+    jobs.filter(j => !j.archived).forEach(j => {
+      const fuDate = getFollowupDate(j);
+      if (fuDate && fuDate >= today_) addEv(fuDate, { type:"followup", label:j.company, sub:`Follow-up · ${j.status}`, job:j });
+    });
   if (show.task)
     (tasks||[]).filter(t => !t.done && t.dueDate).forEach(t => {
       const linkedJob = t.jobId ? jobs.find(j => j.id == t.jobId) : null;
@@ -3175,7 +3205,7 @@ export default function App() {
                       <input type="checkbox" checked={selected.has(job.id)} onChange={() => toggleSelect(job.id)} style={{ cursor:"pointer" }} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <ListCard job={job} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} />
+                      <ListCard job={job} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} tasks={tasks} />
                     </div>
                   </div>
                 ))}
@@ -3232,7 +3262,10 @@ export default function App() {
           const u = jobs.map(j => j.id === enriched.id ? enriched : j);
           setJobs(u); saveJobs(u); setPanelJob(enriched);
         }}
-        onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
+        onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder}
+        onTaskDone={id => { const u=tasks.map(t=>t.id===id?{...t,done:true}:t); setTasks(u); saveTasks(u); }}
+        onTaskDelete={id => { const u=tasks.filter(t=>t.id!==id); setTasks(u); saveTasks(u); }}
+        onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
