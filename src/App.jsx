@@ -1890,7 +1890,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   // Mini-month sidebar has its own browsable month independent of anchor
   const [miniMonth, setMiniMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:false });
+  const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:true });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
 
   const today_ = todayStr();
@@ -2009,7 +2009,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             const isSelected = dateKey === anchorKey;
             const hasEvs = (byDate[dateKey]||[]).length > 0;
             return (
-              <div key={dateKey} onClick={() => { jumpToDay(new Date(dateKey)); if (calView==="month") setMiniMonth({y,m}); }}
+              <div key={dateKey} onClick={() => { jumpToDay(new Date(dateKey + "T00:00:00")); if (calView==="month") setMiniMonth({y,m}); }}
                 style={{ fontSize:10, height:22, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", borderRadius:4, cursor:"pointer",
                   background: isSelected ? "var(--accent)" : isToday ? (isDark()?"#1a3550":"#EFF5FB") : "transparent",
                   color: isSelected ? "#fff" : isToday ? "var(--accent)" : "var(--text-primary)",
@@ -2023,13 +2023,14 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         {/* Event type toggles below mini month */}
         <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:5 }}>
           <div style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:2 }}>Show</div>
-          {Object.entries(CAL_TYPES).map(([type]) => { const cfg = getCalCfg(type); return (
+          {Object.entries(CAL_TYPES).map(([type]) => { const cfg = getCalCfg(type); const on = show[type]; return (
             <button key={type} onClick={() => toggleType(type)}
-              style={{ display:"flex", alignItems:"center", gap:7, fontSize:11, padding:"5px 8px", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left",
-                background: show[type] ? cfg.bg : "var(--surface-hover)",
-                color:       show[type] ? cfg.text : "var(--text-muted)",
-                border:     `1px solid ${show[type] ? cfg.border : "var(--border)"}` }}>
-              <span>{cfg.icon}</span> {cfg.label}
+              style={{ display:"flex", alignItems:"center", gap:7, fontSize:11, padding:"5px 8px", borderRadius:6, cursor:"pointer", fontWeight: on ? 600 : 400, textAlign:"left",
+                background: on ? cfg.bg : "var(--surface-hover)",
+                color:       on ? cfg.text : "var(--text-muted)",
+                border:     `${on ? "2px" : "1px"} solid ${on ? cfg.border : "var(--border)"}`,
+                opacity:     on ? 1 : 0.5 }}>
+              <span style={{ fontSize:9, lineHeight:1 }}>{on ? "●" : "○"}</span> {cfg.icon} {cfg.label}
             </button>
           ); })}
         </div>
