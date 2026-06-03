@@ -2246,7 +2246,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             {sidebarOpen && <span style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em" }}>Calendar</span>}
             <button onClick={() => setSidebarOpen(o => !o)} title={sidebarOpen ? "Collapse" : "Expand"}
               style={{ fontSize:14, lineHeight:1, padding:"2px 5px", background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", flexShrink:0 }}>
-              {sidebarOpen ? "‹" : "›"}
+              {sidebarOpen ? "«" : "»"}
             </button>
           </div>
           {/* Collapsible content */}
