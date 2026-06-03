@@ -96,6 +96,7 @@ const EMPTY = {
   id: null, role: "", company: "", link: "", salaryMin: "", salaryMax: "",
   dateApplied: "", status: "Applied", contact: "", customFollowup: "", notes: "",
   createdAt: null, updatedAt: null, lastStatus: null, timeline: [], interviewDate: "",
+  interviewTime: "",
   tags: {}, prepChecklist: [], archived: false, followupDismissed: false,
 };
 
@@ -116,6 +117,14 @@ const PREP_DEFAULTS = {
     "Review your resume and be ready to speak to every line",
   ],
 };
+
+function formatTime12(time24) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
 
 function timeAgo(iso) {
   if (!iso) return null;
@@ -277,7 +286,7 @@ function saveTasks(tasks) {
   supabase.from('user_data').upsert({ user_id: _uid, tasks, updated_at: new Date().toISOString() }).then(() => {});
 }
 
-function applyStatusChange(jobs, id, newStatus, interviewDate) {
+function applyStatusChange(jobs, id, newStatus, interviewDate, interviewTime) {
   const now = new Date().toISOString();
   return jobs.map(j => {
     if (j.id !== id) return j;
@@ -289,7 +298,12 @@ function applyStatusChange(jobs, id, newStatus, interviewDate) {
     if (defaults && prepChecklist.length === 0) {
       prepChecklist = defaults.map((text, i) => ({ id: `${newStatus}-${i}`, text, done: false }));
     }
-    return { ...j, status: newStatus, updatedAt: now, lastStatus: { status: newStatus, at: now }, timeline: newTimeline, prepChecklist, ...(interviewDate !== undefined ? { interviewDate } : {}) };
+    return {
+      ...j, status: newStatus, updatedAt: now, lastStatus: { status: newStatus, at: now },
+      timeline: newTimeline, prepChecklist,
+      ...(interviewDate !== undefined ? { interviewDate } : {}),
+      ...(interviewTime !== undefined ? { interviewTime } : {}),
+    };
   });
 }
 
@@ -317,8 +331,9 @@ function UndoToast({ message, onUndo, onDismiss }) {
 }
 
 // ── Interview date prompt ─────────────────────────────────────────────────────
-function InterviewDatePrompt({ status, anchorRef, onConfirm, onSkip }) {
+function InterviewDatePrompt({ status, job, anchorRef, onConfirm, onSkip }) {
   const [date, setDate] = useState(todayStr());
+  const [time, setTime] = useState("10:00");
   const ref = useRef(null);
   const [pos, setPos] = useState({ top:0, left:0 });
   useEffect(() => {
@@ -330,13 +345,32 @@ function InterviewDatePrompt({ status, anchorRef, onConfirm, onSkip }) {
     setTimeout(() => document.addEventListener("mousedown", handler), 0);
     return () => document.removeEventListener("mousedown", handler);
   }, [onSkip]);
+
+  function buildCalUrl() {
+    const [h, m] = time.split(":").map(Number);
+    const endH = String(h + 1).padStart(2, "0");
+    const startDt = date.replace(/-/g, "") + "T" + String(h).padStart(2,"0") + String(m).padStart(2,"0") + "00";
+    const endDt   = date.replace(/-/g, "") + "T" + endH + String(m).padStart(2,"0") + "00";
+    const title   = encodeURIComponent(`${status} – ${job?.company || ""}`);
+    const details = encodeURIComponent(`Role: ${job?.role || ""}`);
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startDt}/${endDt}&details=${details}`;
+  }
+
   return (
-    <div ref={ref} style={{ position:"fixed", top:pos.top, left:pos.left, zIndex:500, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", padding:"14px 16px", width:240 }}>
-      <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", marginBottom:8 }}>{status} date</div>
-      <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width:"100%", fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", boxSizing:"border-box", marginBottom:10 }} />
-      <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+    <div ref={ref} style={{ position:"fixed", top:pos.top, left:pos.left, zIndex:500, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", padding:"14px 16px", width:270 }}>
+      <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", marginBottom:8 }}>{status} date & time</div>
+      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ flex:3, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", boxSizing:"border-box" }} />
+        <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ flex:2, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", boxSizing:"border-box" }} />
+      </div>
+      <div style={{ display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap" }}>
         <button onClick={onSkip} style={{ fontSize:12, padding:"4px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>Skip</button>
-        <button onClick={() => onConfirm(date)} style={{ fontSize:12, padding:"4px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Save</button>
+        <button onClick={() => onConfirm(date, time)} style={{ fontSize:12, padding:"4px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Save</button>
+        <a href={buildCalUrl()} target="_blank" rel="noreferrer"
+          onClick={() => onConfirm(date, time)}
+          style={{ fontSize:12, padding:"4px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:5, cursor:"pointer", fontWeight:500, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4 }}>
+          📅 + Calendar
+        </a>
       </div>
     </div>
   );
@@ -351,14 +385,14 @@ function StatusSelect({ job, onChange }) {
   function handleChange(e) {
     const s = e.target.value;
     if (INTERVIEW_STATUSES.includes(s)) { setPendingStatus(s); setPrompt(true); }
-    else onChange(s, "");
+    else onChange(s, "", "");
   }
   return (
     <div style={{ position:"relative", display:"inline-block" }}>
       <select ref={anchorRef} value={job.status} onChange={handleChange} style={{ fontSize:12, fontWeight:500, padding:"2px 6px", borderRadius:6, cursor:"pointer", background:cfg.bg, color:cfg.text, border:`1.5px solid ${cfg.border}` }}>
         {Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)}
       </select>
-      {prompt && <InterviewDatePrompt status={pendingStatus} anchorRef={anchorRef} onConfirm={date => { onChange(pendingStatus, date); setPrompt(false); }} onSkip={() => { onChange(pendingStatus, ""); setPrompt(false); }} />}
+      {prompt && <InterviewDatePrompt status={pendingStatus} job={job} anchorRef={anchorRef} onConfirm={(date, time) => { onChange(pendingStatus, date, time); setPrompt(false); }} onSkip={() => { onChange(pendingStatus, "", ""); setPrompt(false); }} />}
     </div>
   );
 }
@@ -711,9 +745,14 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               </label>
             </div>
             {showInterviewDate && (
-              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>{form.status} date
-                <input type="date" value={form.interviewDate||""} onChange={e=>setForm(f=>({...f,interviewDate:e.target.value}))} style={inputStyle} />
-              </label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>{form.status} date
+                  <input type="date" value={form.interviewDate||""} onChange={e=>setForm(f=>({...f,interviewDate:e.target.value}))} style={inputStyle} />
+                </label>
+                <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Time
+                  <input type="time" value={form.interviewTime||""} onChange={e=>setForm(f=>({...f,interviewTime:e.target.value}))} style={inputStyle} />
+                </label>
+              </div>
             )}
             <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Custom follow-up date
               <input type="date" value={form.customFollowup||""} onChange={e=>setForm(f=>({...f,customFollowup:e.target.value}))} style={inputStyle} />
@@ -727,7 +766,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
           /* ── View mode ── */
           <>
             <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-              <StatusSelect job={job} onChange={(s, d) => onStatusChange(job.id, s, d)} />
+              <StatusSelect job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
               {fu && <FollowupBadge info={fu} />}
               {job.followupDismissed && (
                 <span style={{ fontSize:10, color:"var(--text-muted)", background:"var(--surface-hover)", border:"1px solid var(--border)", borderRadius:6, padding:"2px 7px", display:"flex", alignItems:"center", gap:5 }}>
@@ -746,7 +785,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                 ["Date applied", job.dateApplied ? { display: job.dateApplied, sub: daysAgoStr(job.dateApplied) } : null],
                 ["Salary", (job.salaryMin||job.salaryMax)?`${job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – ${job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}`:null],
                 ["Contact", job.contact],
-                ["Interview date", job.interviewDate ? fmtDate(job.interviewDate+"T00:00:00") : null],
+                ["Interview date", job.interviewDate ? `${fmtDate(job.interviewDate+"T00:00:00")}${job.interviewTime ? ` · ${formatTime12(job.interviewTime)}` : ""}` : null],
               ].filter(([,v]) => v).map(([label, val]) => (
                 <div key={label} style={{ display:"flex", gap:8, fontSize:12 }}>
                   <span style={{ color:"var(--text-muted)", minWidth:100 }}>{label}</span>
@@ -965,9 +1004,14 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
               </label>
             </div>
             {showInterviewDate && (
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{form.status} date
-                <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize:13 }} />
-              </label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{form.status} date
+                  <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize:13 }} />
+                </label>
+                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Time
+                  <input type="time" value={form.interviewTime||""} onChange={e => setForm(f=>({...f,interviewTime:e.target.value}))} style={{ fontSize:13 }} />
+                </label>
+              </div>
             )}
             <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>
               Custom follow-up date <span style={{ fontWeight:400, color:"var(--text-secondary)" }}>(overrides auto)</span>
@@ -1046,7 +1090,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
             style={{ fontWeight:500, fontSize:14, color:"var(--accent)", cursor:"pointer" }}>
             {job.role}
           </span>
-          <StatusSelect job={job} onChange={(s, d) => onStatusChange(job.id, s, d)} />
+          <StatusSelect job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
           {onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={fu} />}
           {stale && !fu && <StaleBadge />}
         </div>
@@ -1061,7 +1105,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
         {/* Row 3: Details — tightened */}
         <div style={{ display:"flex", flexWrap:"wrap", gap:"3px 14px", fontSize:12, color:"var(--text-secondary)" }}>
           {job.dateApplied && <span title={job.dateApplied}>Applied {daysAgoStr(job.dateApplied)}</span>}
-          {job.interviewDate && <span style={{ color:getStatusCfg("Interview").text, fontWeight:500 }}>📅 {INTERVIEW_STATUSES.includes(job.status)?job.status:"Interview"}: {fmtDate(job.interviewDate+"T00:00:00")}</span>}
+          {job.interviewDate && <span style={{ color:getStatusCfg("Interview").text, fontWeight:500 }}>📅 {INTERVIEW_STATUSES.includes(job.status)?job.status:"Interview"}: {fmtDate(job.interviewDate+"T00:00:00")}{job.interviewTime ? ` · ${formatTime12(job.interviewTime)}` : ""}</span>}
           {(job.salaryMin||job.salaryMax) && <span>{job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – {job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}</span>}
           {job.contact && <span>📇 {job.contact}</span>}
           {job.link && <a href={job.link} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none" }}>View posting ↗</a>}
@@ -2596,10 +2640,19 @@ export default function App() {
     setJobs(u); saveJobs(u);
   }
 
-  function onStatusChange(id, newStatus, interviewDate) {
+  function onStatusChange(id, newStatus, interviewDate, interviewTime) {
     const job = jobs.find(j => j.id===id);
     pushUndo(`Status changed: "${job?.company} · ${job?.role}" → ${newStatus}`, jobs);
-    const u = applyStatusChange(jobs, id, newStatus, interviewDate); setJobs(u); saveJobs(u);
+    const u = applyStatusChange(jobs, id, newStatus, interviewDate, interviewTime);
+    setJobs(u); saveJobs(u);
+    // Auto-create a day-before reminder when an interview date is set
+    if (interviewDate && INTERVIEW_STATUSES.includes(newStatus)) {
+      const d = new Date(interviewDate + "T00:00:00");
+      d.setDate(d.getDate() - 1);
+      const reminderDate = d.toISOString().slice(0, 10);
+      const timeStr = interviewTime ? ` at ${formatTime12(interviewTime)}` : "";
+      addReminder(id, reminderDate, `${newStatus} tomorrow${timeStr} — ${job?.company}`);
+    }
   }
 
   function addReminder(jobId, date, note) {
