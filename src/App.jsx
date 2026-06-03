@@ -19,6 +19,14 @@ const STATUS_CONFIG = {
   "Rejected":     { bg: "#FCEBEB", text: "#791F1F", border: "#F7C1C1" },
   "Withdrawn":    { bg: "#F1EFE8", text: "#444441", border: "#D3D1C7" },
 };
+const STATUS_CONFIG_DARK = {
+  "Applied":      { bg: "#1a3550", text: "#7BB8F0", border: "#2d5580" },
+  "Phone Screen": { bg: "#3d2b10", text: "#FAC775", border: "#5c4020" },
+  "Interview":    { bg: "#252350", text: "#B5B0F8", border: "#3c3a80" },
+  "Offer":        { bg: "#1a3010", text: "#90C855", border: "#2a5020" },
+  "Rejected":     { bg: "#3d1515", text: "#F08080", border: "#5c2525" },
+  "Withdrawn":    { bg: "#282828", text: "#B0AFA8", border: "#3c3c3a" },
+};
 
 // ── Tags config ───────────────────────────────────────────────────────────────
 const TAG_CONFIG = {
@@ -26,12 +34,28 @@ const TAG_CONFIG = {
   industry:  { label:"Industry",   values:["Tech","Finance","Healthcare","Education","Retail","Gov/Non-profit","Other"], bg:"#EEEDFE", text:"#3C3489", border:"#CECBF6" },
   source:    { label:"Source",     values:["LinkedIn","Indeed","Referral","Company site","Recruiter","Other"], bg:"#EAF3DE", text:"#27500A", border:"#C0DD97" },
 };
+const TAG_CONFIG_DARK = {
+  workType:  { ...TAG_CONFIG.workType,  bg:"#1a3550", text:"#7BB8F0", border:"#2d5580" },
+  industry:  { ...TAG_CONFIG.industry,  bg:"#252350", text:"#B5B0F8", border:"#3c3a80" },
+  source:    { ...TAG_CONFIG.source,    bg:"#1a3010", text:"#90C855", border:"#2a5020" },
+};
 // Legacy aliases so existing references keep working
 const TAG_OPTIONS = TAG_CONFIG;
 const TAG_COLORS  = Object.fromEntries(Object.entries(TAG_CONFIG).map(([k,v]) => [k, {bg:v.bg,text:v.text,border:v.border}]));
 
+// ── Theme-aware color helpers ─────────────────────────────────────────────────
+// _isDark is set synchronously at the top of the App render so all child
+// components read the correct theme during the same render pass.
+let _isDark = localStorage.getItem("dark_mode") === "true";
+const isDark = () => _isDark;
+const getStatusCfg = (s) => ((isDark() ? STATUS_CONFIG_DARK : STATUS_CONFIG)[s] || {});
+const getTagColors = (cat) => {
+  const cfg = (isDark() ? TAG_CONFIG_DARK : TAG_CONFIG)[cat];
+  return cfg ? { bg: cfg.bg, text: cfg.text, border: cfg.border } : { bg:"#f5f5f5", text:"#555", border:"#ddd" };
+};
+
 function TagBadge({ category, value }) {
-  const c = TAG_COLORS[category] || { bg:"#f5f5f5", text:"#555", border:"#ddd" };
+  const c = getTagColors(category);
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:3, background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:5, padding:"2px 6px", fontSize:11, fontWeight:500, whiteSpace:"nowrap" }}>
       {value}
@@ -48,12 +72,12 @@ function TagSelector({ tags = {}, onChange }) {
           <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
             {cfg.values.map(v => {
               const active = tags[cat] === v;
-              const c = TAG_COLORS[cat];
+              const c = getTagColors(cat);
               return (
                 <button key={v} onClick={() => onChange({ ...tags, [cat]: active ? "" : v })}
                   style={{ fontSize:12, padding:"4px 12px", borderRadius:6, cursor:"pointer", fontWeight:500,
-                    background: active ? c.bg : "#fff", color: active ? c.text : "#888",
-                    border: `1.5px solid ${active ? c.border : "#ddd"}` }}>
+                    background: active ? c.bg : "var(--surface-hover)", color: active ? c.text : "var(--text-secondary)",
+                    border: `1.5px solid ${active ? c.border : "var(--border)"}` }}>
                   {v}
                 </button>
               );
@@ -167,12 +191,14 @@ function isStale(job) {
 
 
 function StaleBadge() {
-  return <span style={{ background:"#F1EFE8", color:"#5F5E5A", border:"0.5px solid #D3D1C7", borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap" }}>Stale</span>;
+  const c = getStatusCfg("Withdrawn");
+  return <span style={{ background:c.bg, color:c.text, border:`0.5px solid ${c.border}`, borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap" }}>Stale</span>;
 }
 
 function FollowupBadge({ info }) {
   if (!info) return null;
-  return <span style={{ background: info.urgent?"#FCEBEB":"#FAEEDA", color: info.urgent?"#791F1F":"#633806", border:`0.5px solid ${info.urgent?"#F7C1C1":"#FAC775"}`, borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap" }}>{info.label}</span>;
+  const c = getStatusCfg(info.urgent ? "Rejected" : "Phone Screen");
+  return <span style={{ background:c.bg, color:c.text, border:`0.5px solid ${c.border}`, borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap" }}>{info.label}</span>;
 }
 
 function FollowupActions({ job, onUpdateJob }) {
@@ -201,14 +227,14 @@ function FollowupActions({ job, onUpdateJob }) {
   return (
     <span style={{ position:"relative", display:"inline-flex" }}>
       <span onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
-        style={{ background:fu.urgent?"#FCEBEB":"#FAEEDA", color:fu.urgent?"#791F1F":"#633806", border:`0.5px solid ${fu.urgent?"#F7C1C1":"#FAC775"}`, borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap", cursor:"pointer", userSelect:"none" }}>
+        style={{ ...(() => { const c = getStatusCfg(fu.urgent ? "Rejected" : "Phone Screen"); return { background:c.bg, color:c.text, border:`0.5px solid ${c.border}` }; })(), borderRadius:6, padding:"2px 6px", fontSize:10, fontWeight:500, whiteSpace:"nowrap", cursor:"pointer", userSelect:"none" }}>
         {fu.label} ▾
       </span>
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, zIndex:99 }} />
           <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, padding:"8px 10px", boxShadow:"0 4px 16px rgba(0,0,0,0.14)", display:"flex", flexDirection:"column", gap:6, minWidth:155 }}>
-            <button onClick={logOutreach} style={{ fontSize:11, padding:"5px 10px", background:"#EAF3DE", color:"#27500A", border:"1px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", textAlign:"left" }}>
+            <button onClick={logOutreach} style={{ fontSize:11, padding:"5px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap", textAlign:"left" }}>
               ✓ Contacted
             </button>
             <div style={{ display:"flex", gap:4 }}>
@@ -311,7 +337,7 @@ function InterviewDatePrompt({ status, anchorRef, onConfirm, onSkip }) {
 function StatusSelect({ job, onChange }) {
   const [prompt, setPrompt] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
-  const cfg = STATUS_CONFIG[job.status] || {};
+  const cfg = getStatusCfg(job.status);
   const anchorRef = useRef(null);
   function handleChange(e) {
     const s = e.target.value;
@@ -401,7 +427,7 @@ function Timeline({ timeline, onUpdate, compact = false }) {
         const isManual = entry.type === "manual";
         const cfg = isManual
           ? { bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" }
-          : (STATUS_CONFIG[entry.status] || {});
+          : getStatusCfg(entry.status);
         const key = entryKey(entry);
         const isEditing = editing === key;
         const label = isManual ? entry.label : entry.status;
@@ -529,11 +555,11 @@ function PrepChecklist({ job, onUpdate }) {
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
         <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>Prep checklist</span>
         {checklist.length > 0 && (
-          <span style={{ fontSize:11, background: done===checklist.length?"#EAF3DE":"#f0f0f0", color: done===checklist.length?"#27500A":"#888", border:`1px solid ${done===checklist.length?"#C0DD97":"#ddd"}`, borderRadius:10, padding:"1px 7px", fontWeight:500 }}>{done}/{checklist.length}</span>
+          <span style={{ fontSize:11, background: done===checklist.length?getStatusCfg("Offer").bg:"var(--surface-hover)", color: done===checklist.length?getStatusCfg("Offer").text:"var(--text-muted)", border:`1px solid ${done===checklist.length?getStatusCfg("Offer").border:"var(--border)"}`, borderRadius:10, padding:"1px 7px", fontWeight:500 }}>{done}/{checklist.length}</span>
         )}
       </div>
       {hasPrepDefaults && (
-        <button onClick={() => populateDefaults(job.status)} style={{ fontSize:12, padding:"5px 12px", background:"#E6F1FB", color:"#0C447C", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:500, marginBottom:8, width:"100%" }}>
+        <button onClick={() => populateDefaults(job.status)} style={{ fontSize:12, padding:"5px 12px", background:getStatusCfg("Applied").bg, color:getStatusCfg("Applied").text, border:`1px solid ${getStatusCfg("Applied").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, marginBottom:8, width:"100%" }}>
           + Load {job.status} prep items
         </button>
       )}
@@ -568,7 +594,7 @@ function PanelReminders({ job, tasks, onAddReminder }) {
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: (linked.length||open) ? 8 : 0 }}>
         <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>Reminders{linked.length>0?` (${linked.length})`:""}</span>
-        <button onClick={() => setOpen(o=>!o)} style={{ fontSize:11, padding:"2px 9px", background:open?"#E6F1FB":"var(--surface-hover)", color:open?"#0C447C":"var(--text-secondary)", border:`1px solid ${open?"#B5D4F4":"var(--border)"}`, borderRadius:5, cursor:"pointer", fontWeight:500 }}>
+        <button onClick={() => setOpen(o=>!o)} style={{ fontSize:11, padding:"2px 9px", background:open?getStatusCfg("Applied").bg:"var(--surface-hover)", color:open?getStatusCfg("Applied").text:"var(--text-secondary)", border:`1px solid ${open?getStatusCfg("Applied").border:"var(--border)"}`, borderRadius:5, cursor:"pointer", fontWeight:500 }}>
           {open ? "✕ Cancel" : "+ Set reminder"}
         </button>
       </div>
@@ -636,7 +662,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   return (
     <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:360, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
       {/* Header */}
-      <div style={{ padding:"16px 20px", borderBottom:"1px solid #e5e5e5", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
+      <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{job.role}</div>
@@ -747,10 +773,10 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
           </>
         ) : (
           <>
-            <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>
+            <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>
             <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
               {job.archived
-                ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"#EAF3DE", color:"#27500A", border:"1.5px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:500 }}>↩ Restore</button>
+                ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1.5px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>↩ Restore</button>
                 : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>📦 Archive</button>
               }
               {!job.archived && <button onClick={startEdit} style={{ fontSize:13, padding:"6px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit</button>}
@@ -850,9 +876,9 @@ function EmailTemplates({ job }) {
             {EMAIL_TEMPLATES.map(t => (
               <button key={t.id} onClick={() => setSelected(selected === t.id ? null : t.id)}
                 style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, whiteSpace:"nowrap",
-                  background: selected === t.id ? "#E6F1FB" : "var(--surface-hover)",
-                  color: selected === t.id ? "#0C447C" : "var(--text-secondary)",
-                  border: `1px solid ${selected === t.id ? "#B5D4F4" : "var(--border)"}` }}>
+                  background: selected === t.id ? getStatusCfg("Applied").bg : "var(--surface-hover)",
+                  color: selected === t.id ? getStatusCfg("Applied").text : "var(--text-secondary)",
+                  border: `1px solid ${selected === t.id ? getStatusCfg("Applied").border : "var(--border)"}` }}>
                 {t.label}
               </button>
             ))}
@@ -868,7 +894,7 @@ function EmailTemplates({ job }) {
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:3 }}>
                   <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Subject</span>
                   <button onClick={() => copy(tpl.subject(job), "subject")}
-                    style={{ fontSize:10, padding:"2px 8px", background: copied==="subject"?"#EAF3DE":"var(--surface-hover)", color: copied==="subject"?"#27500A":"var(--text-muted)", border:`1px solid ${copied==="subject"?"#C0DD97":"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
+                    style={{ fontSize:10, padding:"2px 8px", background: copied==="subject"?getStatusCfg("Offer").bg:"var(--surface-hover)", color: copied==="subject"?getStatusCfg("Offer").text:"var(--text-muted)", border:`1px solid ${copied==="subject"?getStatusCfg("Offer").border:"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
                     {copied === "subject" ? "✓ Copied" : "Copy"}
                   </button>
                 </div>
@@ -879,7 +905,7 @@ function EmailTemplates({ job }) {
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                   <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Body</span>
                   <button onClick={() => copy(tpl.body(job), "body")}
-                    style={{ fontSize:10, padding:"2px 8px", background: copied==="body"?"#EAF3DE":"var(--surface-hover)", color: copied==="body"?"#27500A":"var(--text-muted)", border:`1px solid ${copied==="body"?"#C0DD97":"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
+                    style={{ fontSize:10, padding:"2px 8px", background: copied==="body"?getStatusCfg("Offer").bg:"var(--surface-hover)", color: copied==="body"?getStatusCfg("Offer").text:"var(--text-muted)", border:`1px solid ${copied==="body"?getStatusCfg("Offer").border:"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
                     {copied === "body" ? "✓ Copied" : "Copy"}
                   </button>
                 </div>
@@ -950,9 +976,9 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
         {tab === "timeline" && <Timeline timeline={form.timeline||[]} onUpdate={tl => setForm(f=>({...f,timeline:tl}))} />}
 
         <div style={{ display:"flex", gap:8, marginTop:"1.25rem", justifyContent:"space-between", alignItems:"center" }}>
-          {isEdit && <button onClick={onDelete} style={{ fontSize:13, padding:"6px 14px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete job</button>}
+          {isEdit && <button onClick={onDelete} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete job</button>}
           <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
-            <button onClick={onClose} style={{ fontSize:13, padding:"6px 14px", background:"#F1EFE8", color:"#444441", border:"1.5px solid #B4B2A9", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
+            <button onClick={onClose} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
             <button onClick={onSave} disabled={!form.role||!form.company} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Save</button>
           </div>
         </div>
@@ -991,11 +1017,11 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
   const hasTimeline = job.timeline && job.timeline.length > 0;
   const activeTags = Object.entries(job.tags || {}).filter(([,v]) => v);
 
-  const btnStyle = (active) => ({ fontSize:11, padding:"2px 8px", background:active?"#E6F1FB":"var(--surface-hover)", color:active?"#0C447C":"var(--text-muted)", border:`1px solid ${active?"#B5D4F4":"var(--border)"}`, borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" });
+  const btnStyle = (active) => { const ac = getStatusCfg("Applied"); return { fontSize:11, padding:"2px 8px", background:active?ac.bg:"var(--surface-hover)", color:active?ac.text:"var(--text-muted)", border:`1px solid ${active?ac.border:"var(--border)"}`, borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }; };
 
   return (
     <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ background:fu?.urgent?"#FFF8F8":"var(--surface)", padding:"12px 16px" }}>
+      style={{ background:fu?.urgent?(isDark()?"#2d1a1a":"#FFF8F8"):"var(--surface)", padding:"12px 16px" }}>
       <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
 
         {/* Row 1: Company · Role · edit icon · Status · badges */}
@@ -1005,7 +1031,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
             {job.company}
           </span>
           <span onClick={() => onOpenPanel && onOpenPanel(job)}
-            style={{ fontWeight:500, fontSize:14, color:"#185FA5", cursor:"pointer" }}>
+            style={{ fontWeight:500, fontSize:14, color:"var(--accent)", cursor:"pointer" }}>
             {job.role}
           </span>
           <StatusSelect job={job} onChange={(s, d) => onStatusChange(job.id, s, d)} />
@@ -1023,10 +1049,10 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
         {/* Row 3: Details — tightened */}
         <div style={{ display:"flex", flexWrap:"wrap", gap:"3px 14px", fontSize:12, color:"var(--text-secondary)" }}>
           {job.dateApplied && <span title={job.dateApplied}>Applied {daysAgoStr(job.dateApplied)}</span>}
-          {job.interviewDate && <span style={{ color:"#3C3489", fontWeight:500 }}>📅 {INTERVIEW_STATUSES.includes(job.status)?job.status:"Interview"}: {fmtDate(job.interviewDate+"T00:00:00")}</span>}
+          {job.interviewDate && <span style={{ color:getStatusCfg("Interview").text, fontWeight:500 }}>📅 {INTERVIEW_STATUSES.includes(job.status)?job.status:"Interview"}: {fmtDate(job.interviewDate+"T00:00:00")}</span>}
           {(job.salaryMin||job.salaryMax) && <span>{job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – {job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}</span>}
           {job.contact && <span>📇 {job.contact}</span>}
-          {job.link && <a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none" }}>View posting ↗</a>}
+          {job.link && <a href={job.link} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none" }}>View posting ↗</a>}
         </div>
 
         {/* Row 4: Notes — inline, click to edit */}
@@ -1049,7 +1075,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
             if (!act) return job.createdAt ? <span>Added {timeAgo(job.createdAt)}</span> : null;
             if (act.isInitialApply) return <span style={{ fontStyle:"italic" }}>No activity beyond application</span>;
             const isContact = /follow.up|contact/i.test(act.label);
-            return <span>Last: <span style={{ color:isContact?"#27500A":"var(--text-secondary)", fontWeight:500 }}>{isContact?"📤 ":"📋 "}{act.label}</span> · {act.ago}</span>;
+            return <span>Last: <span style={{ color:isContact?getStatusCfg("Offer").text:"var(--text-secondary)", fontWeight:500 }}>{isContact?"📤 ":"📋 "}{act.label}</span> · {act.ago}</span>;
           })()}
           {hovered && (
             <div style={{ display:"flex", gap:5, marginLeft:"auto" }}>
@@ -1084,7 +1110,7 @@ function Cell({ value, type = "text", options, onChange, align = "left", style =
     return <div style={cellStyle}><input ref={ref} type={type==="link"?"url":type} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={handleKey} placeholder={type==="link"?"https://...":undefined} style={{ width:"100%", border:"none", background:"transparent", fontSize:13, outline:"none" }} /></div>;
   }
   if (type === "select" && options === Object.keys(STATUS_CONFIG)) {
-    const cfg = STATUS_CONFIG[value] || {};
+    const cfg = getStatusCfg(value || "Applied");
     return <div style={{ ...cellStyle, cursor:"pointer" }} onClick={() => setEditing(true)}><span style={{ background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:5, padding:"2px 8px", fontSize:12, fontWeight:500, whiteSpace:"nowrap" }}>{value || "Applied"}</span></div>;
   }
   if (type === "select" && value) {
@@ -1258,7 +1284,7 @@ function PipelineFunnel({ jobs }) {
     const count = everReached[s] || 0;
     const prev  = i > 0 ? (everReached[active[i - 1]] || 0) : null;
     const conv  = prev && prev > 0 ? Math.round(count / prev * 100) : null;
-    const cfg   = STATUS_CONFIG[s];
+    const cfg   = getStatusCfg(s);
     return { s, count, conv, cfg };
   });
 
@@ -1296,7 +1322,7 @@ function PipelineFunnel({ jobs }) {
         ].map(c => (
           <div key={c.label} style={{ background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:"8px 14px", minWidth:110 }}>
             <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3 }}>{c.label}</div>
-            <div style={{ fontSize:17, fontWeight:500, color: c.accent ? "#27500A" : "#185FA5" }}>{c.val}</div>
+            <div style={{ fontSize:17, fontWeight:500, color: c.accent ? getStatusCfg("Offer").text : getStatusCfg("Applied").text }}>{c.val}</div>
           </div>
         ))}
       </div>
@@ -1312,7 +1338,7 @@ function PipelineFunnel({ jobs }) {
               {/* Stage column */}
               <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
                 <div style={{ fontSize:12, fontWeight:500, color:cfg.text }}>{count}</div>
-                <div style={{ width:"100%", height:barH, background:count > 0 ? cfg.bg : "#f0f0f0", border:`1.5px solid ${count > 0 ? cfg.border : "#e5e5e5"}`, borderRadius:"4px 4px 0 0", transition:"height 0.3s" }} />
+                <div style={{ width:"100%", height:barH, background:count > 0 ? cfg.bg : "var(--surface-hover)", border:`1.5px solid ${count > 0 ? cfg.border : "var(--border)"}`, borderRadius:"4px 4px 0 0", transition:"height 0.3s" }} />
                 <div style={{ fontSize:10, color:"var(--text-muted)", textAlign:"center", lineHeight:1.3 }}>{s}</div>
                 {avgDays[s] != null && <div style={{ fontSize:9, color:"var(--text-muted)" }}>~{avgDays[s]}d</div>}
               </div>
@@ -1344,10 +1370,10 @@ function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId
       onDrop={e => { e.preventDefault(); if (overCol) onDrop(overCol); setOverCol(null); }}
     >
       <div style={{ position:"absolute", inset:0, display:"grid", gridTemplateColumns:`repeat(${colCount},1fr)`, pointerEvents:"none", zIndex:1 }}>
-        {visibleStatuses.map(s => { const cfg=STATUS_CONFIG[s]; const isOver=overCol===s; return <div key={s} style={{ background:isOver?cfg.border:"transparent", opacity:isOver?0.45:0, transition:"opacity 0.12s" }} />; })}
+        {visibleStatuses.map(s => { const cfg=getStatusCfg(s); const isOver=overCol===s; return <div key={s} style={{ background:isOver?cfg.border:"transparent", opacity:isOver?0.45:0, transition:"opacity 0.12s" }} />; })}
       </div>
       <div style={{ display:"grid", gridTemplateColumns:`repeat(${colCount},minmax(0,1fr))`, borderBottom:"1px solid var(--border)", position:"relative", zIndex:2 }}>
-        {visibleStatuses.map((s,i) => { const cfg=STATUS_CONFIG[s]; return <div key={s} style={{ background:cfg.bg, padding:"8px 12px", borderRight:i<colCount-1?"1px solid var(--border)":"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}><span style={{ fontSize:12, fontWeight:500, color:cfg.text }}>{s}</span><span style={{ fontSize:11, fontWeight:500, color:cfg.text, background:"rgba(255,255,255,0.7)", borderRadius:10, padding:"1px 7px" }}>{colJobs[i].length}</span></div>; })}
+        {visibleStatuses.map((s,i) => { const cfg=getStatusCfg(s); return <div key={s} style={{ background:cfg.bg, padding:"8px 12px", borderRight:i<colCount-1?"1px solid var(--border)":"none", display:"flex", justifyContent:"space-between", alignItems:"center" }}><span style={{ fontSize:12, fontWeight:500, color:cfg.text }}>{s}</span><span style={{ fontSize:11, fontWeight:500, color:cfg.text, background:isDark()?"rgba(0,0,0,0.25)":"rgba(255,255,255,0.7)", borderRadius:10, padding:"1px 7px" }}>{colJobs[i].length}</span></div>; })}
       </div>
       <div style={{ position:"relative", zIndex:2 }}>
         {Array.from({ length:maxRows }).map((_,rowIdx) => (
@@ -1360,9 +1386,9 @@ function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId
                   {job && (
                     <div draggable onDragStart={e => { e.dataTransfer.effectAllowed="move"; dragId.current=job.id; }} onDragEnd={() => setOverCol(null)} style={{ cursor:"grab", userSelect:"none", paddingBottom:8, borderBottom:"1px solid var(--border)" }}>
                       <div style={{ fontSize:12, color:"var(--text-primary)", fontWeight:700, marginBottom:2 }}>{job.company}</div>
-                      <div onClick={() => onPanelOpen(job)} style={{ fontWeight:500, fontSize:13, color:"#185FA5", marginBottom:2, cursor:"pointer" }}>{job.role}</div>
+                      <div onClick={() => onPanelOpen(job)} style={{ fontWeight:500, fontSize:13, color:"var(--accent)", marginBottom:2, cursor:"pointer" }}>{job.role}</div>
                       {activeTags.length > 0 && <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginBottom:4 }}>{activeTags.map(([cat,val]) => <TagBadge key={cat} category={cat} value={val} />)}</div>}
-                      {job.interviewDate && <div style={{ fontSize:10, color:"#3C3489", marginBottom:3, fontWeight:500 }}>📅 {fmtDate(job.interviewDate+"T00:00:00")}</div>}
+                      {job.interviewDate && <div style={{ fontSize:10, color:getStatusCfg("Interview").text, marginBottom:3, fontWeight:500 }}>📅 {fmtDate(job.interviewDate+"T00:00:00")}</div>}
                       {getFollowupStatus(job) && <div style={{ marginBottom:4 }}>{onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={getFollowupStatus(job)} />}</div>}
                       {isStale(job) && !getFollowupStatus(job) && <div style={{ marginBottom:4 }}><StaleBadge /></div>}
                       {(() => {
@@ -1373,7 +1399,7 @@ function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId
                         );
                         return (
                           <div style={{ fontSize:11, display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
-                            <span style={{ color: act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? "#27500A" : "#185FA5", fontWeight:500 }}>
+                            <span style={{ color: act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? getStatusCfg("Offer").text : "var(--accent)", fontWeight:500 }}>
                               {act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? "📤" : "📋"} {act.label}
                             </span>
                             <span style={{ color:"var(--text-muted)" }}>· {act.ago}</span>
@@ -1475,7 +1501,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
           <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", marginBottom:12 }}>Average midpoint by status</div>
           <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
             {byStatus.map(({ status, avg, count }) => {
-              const cfg = STATUS_CONFIG[status] || {};
+              const cfg = getStatusCfg(status);
               return (
                 <div key={status} style={{ background:cfg.bg, border:`1px solid ${cfg.border}`, borderRadius:8, padding:"8px 14px", minWidth:120 }}>
                   <div style={{ fontSize:11, color:cfg.text, fontWeight:500, marginBottom:3 }}>{status} ({count})</div>
@@ -1516,7 +1542,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
         {/* Rows */}
         <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
           {withSalary.map((job) => {
-            const cfg = STATUS_CONFIG[job.status] || {};
+            const cfg = getStatusCfg(job.status);
             const isHovered = hover === job.id;
             const barLeft = job.min ? pct(job.min) : pct(job.mid);
             const barRight = job.max ? 100 - pct(job.max) : 100 - pct(job.mid);
@@ -1526,9 +1552,9 @@ function SalaryChart({ jobs, onOpenPanel }) {
                 onMouseEnter={() => setHover(job.id)} onMouseLeave={() => setHover(null)}>
                 {/* Label */}
                 <div onClick={() => onOpenPanel && onOpenPanel(job)}
-                  style={{ width:220, flexShrink:0, fontSize:12, color:isHovered?"#185FA5":"var(--text-secondary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", fontWeight:isHovered?500:400, textDecoration:isHovered?"underline":"none" }}
+                  style={{ width:220, flexShrink:0, fontSize:12, color:isHovered?"var(--accent)":"var(--text-secondary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", fontWeight:isHovered?500:400, textDecoration:isHovered?"underline":"none" }}
                   title={`${job.company} · ${job.role} — click to open`}>
-                  <span style={{ fontWeight:700 }}>{job.company}</span> <span style={{ color:isHovered?"#185FA5":"var(--text-muted)", fontWeight:400 }}>· {job.role}</span>
+                  <span style={{ fontWeight:700 }}>{job.company}</span> <span style={{ color:isHovered?"var(--accent)":"var(--text-muted)", fontWeight:400 }}>· {job.role}</span>
                 </div>
                 {/* Bar track */}
                 <div style={{ flex:1, position:"relative", height:10, background:"var(--surface-hover)", borderRadius:5 }}>
@@ -1594,10 +1620,11 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
   }
 
   function tierStyle(diff, type) {
-    if (type==="interview") return { border:"#185FA5", bg:"#F0F6FF", tag:null };
-    if (diff===0)            return { border:"#185FA5", bg:"#F0F6FF", tag:null };
-    if (diff >= -7)          return { border:"#C27209", bg:"#FFF8F0", tag:{ label:`${-diff}d overdue`, color:"#7A4500", bg:"#FDEEC8" } };
-    return                          { border:"#A32D2D", bg:"#FFF5F5", tag:{ label:`${-diff}d overdue`, color:"#791F1F", bg:"#FCEBEB" } };
+    const d = isDark();
+    if (type==="interview") return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", tag:null };
+    if (diff===0)            return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", tag:null };
+    if (diff >= -7)          return { border: d?"#5c4020":"#C27209", bg: d?"#3d2b10":"#FFF8F0", tag:{ label:`${-diff}d overdue`, color: d?"#FAC775":"#7A4500", bg: d?"#3d2b10":"#FDEEC8" } };
+    return                          { border: d?"#5c2525":"#A32D2D", bg: d?"#3d1515":"#FFF5F5", tag:{ label:`${-diff}d overdue`, color: d?"#F08080":"#791F1F", bg: d?"#3d1515":"#FCEBEB" } };
   }
 
   function AutoCard({ task }) {
@@ -1621,14 +1648,14 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
             const isContact = /follow.up|contact/i.test(act.label);
             return (
               <div style={{ fontSize:10, color:"var(--text-muted)", marginTop:3 }}>
-                Last: <span style={{ color: isContact?"#27500A":"var(--text-secondary)", fontWeight:500 }}>{isContact?"📤 ":"📋 "}{act.label}</span> · {act.ago}
+                Last: <span style={{ color: isContact?getStatusCfg("Offer").text:"var(--text-secondary)", fontWeight:500 }}>{isContact?"📤 ":"📋 "}{act.label}</span> · {act.ago}
               </div>
             );
           })()}
         </div>
         {type==="followup" && (
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
-            <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:"#EAF3DE", color:"#27500A", border:"1px solid #C0DD97", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
+            <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
@@ -1684,7 +1711,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
           <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>
             {new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}
           </div>
-          <div style={{ fontSize:12, color: totalPending>0?"#A32D2D":"#27500A", marginTop:3, fontWeight:500 }}>
+          <div style={{ fontSize:12, color: totalPending>0?getStatusCfg("Rejected").text:getStatusCfg("Offer").text, marginTop:3, fontWeight:500 }}>
             {totalPending===0 ? "✓ All clear" : `${totalPending} item${totalPending!==1?"s":""} need attention`}
           </div>
         </div>
@@ -1850,6 +1877,13 @@ const CAL_TYPES = {
   task:      { label:"Tasks",      icon:"✅", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
   timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
 };
+const CAL_TYPES_DARK = {
+  interview: { label:"Interviews", icon:"🗓️", bg:"#1a3550", text:"#7BB8F0", border:"#2d5580" },
+  followup:  { label:"Follow-ups", icon:"🔔", bg:"#3d2b10", text:"#FAC775", border:"#5c4020" },
+  task:      { label:"Tasks",      icon:"✅", bg:"#1a3010", text:"#90C855", border:"#2a5020" },
+  timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
+};
+const getCalCfg = (type) => ((isDark() ? CAL_TYPES_DARK : CAL_TYPES)[type] || {});
 
 function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [calView, setCalView] = useState("month"); // "month" | "week" | "day" | "agenda"
@@ -1932,7 +1966,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
 
   // ── Event pill ──
   function EventPill({ ev, compact }) {
-    const cfg = CAL_TYPES[ev.type];
+    const cfg = getCalCfg(ev.type);
     return (
       <div onClick={() => ev.job && onOpenPanel(ev.job)}
         title={`${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
@@ -1977,11 +2011,11 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             return (
               <div key={dateKey} onClick={() => { jumpToDay(new Date(dateKey)); if (calView==="month") setMiniMonth({y,m}); }}
                 style={{ fontSize:10, height:22, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", borderRadius:4, cursor:"pointer",
-                  background: isSelected ? "#185FA5" : isToday ? "#EFF5FB" : "transparent",
-                  color: isSelected ? "#fff" : isToday ? "#185FA5" : "var(--text-primary)",
+                  background: isSelected ? "var(--accent)" : isToday ? (isDark()?"#1a3550":"#EFF5FB") : "transparent",
+                  color: isSelected ? "#fff" : isToday ? "var(--accent)" : "var(--text-primary)",
                   fontWeight: isToday||isSelected ? 700 : 400 }}>
                 {day}
-                {hasEvs && !isSelected && <div style={{ width:3, height:3, borderRadius:"50%", background: isToday?"#185FA5":"#B5D4F4", marginTop:1 }} />}
+                {hasEvs && !isSelected && <div style={{ width:3, height:3, borderRadius:"50%", background: isToday?"var(--accent)":getStatusCfg("Applied").border, marginTop:1 }} />}
               </div>
             );
           })}
@@ -1989,7 +2023,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         {/* Event type toggles below mini month */}
         <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:5 }}>
           <div style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:2 }}>Show</div>
-          {Object.entries(CAL_TYPES).map(([type, cfg]) => (
+          {Object.entries(CAL_TYPES).map(([type]) => { const cfg = getCalCfg(type); return (
             <button key={type} onClick={() => toggleType(type)}
               style={{ display:"flex", alignItems:"center", gap:7, fontSize:11, padding:"5px 8px", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left",
                 background: show[type] ? cfg.bg : "var(--surface-hover)",
@@ -1997,7 +2031,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                 border:     `1px solid ${show[type] ? cfg.border : "var(--border)"}` }}>
               <span>{cfg.icon}</span> {cfg.label}
             </button>
-          ))}
+          ); })}
         </div>
       </div>
     );
@@ -2085,7 +2119,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
           ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day — try toggling event types or pick another day." />
           : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {evs.map((ev, i) => {
-                const cfg = CAL_TYPES[ev.type];
+                const cfg = getCalCfg(ev.type);
                 return (
                   <div key={i} onClick={() => ev.job && onOpenPanel(ev.job)}
                     style={{ display:"flex", gap:12, alignItems:"flex-start", padding:"12px 14px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`4px solid ${cfg.border}`, borderRadius:8, cursor:ev.job?"pointer":"default" }}>
@@ -2149,7 +2183,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                 {/* Events column */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
                   {evs.map((ev, ei) => {
-                    const cfg = CAL_TYPES[ev.type];
+                    const cfg = getCalCfg(ev.type);
                     return (
                       <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
                         style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`3px solid ${cfg.border}`, borderRadius:7, cursor:ev.job?"pointer":"default" }}
@@ -2356,6 +2390,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
+  _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
   const [undoStack, setUndoStack] = useState(null);
@@ -2875,7 +2910,7 @@ export default function App() {
                         <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                           {Object.entries(TAG_CONFIG).map(([cat, cfg]) => {
                             const active = tagFilter[cat];
-                            const c = TAG_COLORS[cat];
+                            const c = getTagColors(cat);
                             return (
                               <div key={cat} style={{ position:"relative" }}>
                                 <select value={active || ""} onChange={e => setTagFilter(f => ({ ...f, [cat]: e.target.value }))}
@@ -2931,7 +2966,7 @@ export default function App() {
                         <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                           {Object.entries(TAG_CONFIG).map(([cat, cfg]) => {
                             const active = tagFilter[cat];
-                            const c = TAG_COLORS[cat];
+                            const c = getTagColors(cat);
                             return (
                               <div key={cat} style={{ position:"relative" }}>
                                 <select value={active || ""} onChange={e => setTagFilter(f => ({ ...f, [cat]: e.target.value }))}
@@ -3006,7 +3041,8 @@ export default function App() {
       {/* Status bubble bar */}
       {view === "list" && (
         <div style={{ display:"flex", gap:6, marginBottom:"1rem", alignItems:"center", flexWrap:"wrap" }}>
-          {Object.entries(STATUS_CONFIG).map(([s, c]) => {
+          {Object.entries(STATUS_CONFIG).map(([s]) => {
+            const c = getStatusCfg(s);
             // Count only jobs matching all active filters except the status filter itself
             const count = jobs
               .filter(j => showArchived ? j.archived : !j.archived)
@@ -3124,11 +3160,11 @@ export default function App() {
           )}
           {/* Column toggles + tag filters */}
           <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
-            {Object.entries(STATUS_CONFIG).map(([status,cfg]) => (
+            {Object.entries(STATUS_CONFIG).map(([status]) => { const cfg = getStatusCfg(status); return (
               <button key={status} onClick={() => toggleCol(status)} style={{ fontSize:11, padding:"3px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, background:hiddenCols[status]?"var(--surface)":cfg.bg, color:hiddenCols[status]?"var(--text-muted)":cfg.text, border:`1.5px solid ${hiddenCols[status]?"var(--border)":cfg.border}` }}>
                 {hiddenCols[status]?"+":" −"} {status}
               </button>
-            ))}
+            ); })}
           </div>
           <BoardTable jobs={(activeTagFilters.length>0 ? jobs.filter(j=>activeTagFilters.every(([cat,val])=>(j.tags||{})[cat]===val)) : jobs).filter(j=>!j.archived)} visibleStatuses={Object.keys(STATUS_CONFIG).filter(s=>!hiddenCols[s])} search={search} onDrop={onDrop} onPanelOpen={togglePanel} dragId={dragId} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
         </div>)}

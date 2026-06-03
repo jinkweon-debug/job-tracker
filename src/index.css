@@ -19,6 +19,7 @@ input, select, textarea, button { font-family: inherit; }
   --input-border:     #cccccc;
   --scrollbar-track:  #f0f0f0;
   --scrollbar-thumb:  #cccccc;
+  --accent:           #185FA5;
 }
 
 /* ── Dark theme ── */
@@ -31,12 +32,13 @@ input, select, textarea, button { font-family: inherit; }
   --border-subtle:    #333333;
   --text-primary:     #eeeeee;
   --text-secondary:   #c0c0c0;
-  --text-muted:       #909090;
-  --text-placeholder: #666666;
+  --text-muted:       #aaaaaa;
+  --text-placeholder: #888888;
   --input-bg:         #2a2a2a;
   --input-border:     #484848;
   --scrollbar-track:  #1e1e1e;
   --scrollbar-thumb:  #444444;
+  --accent:           #7BB8F0;
 }
 
 /* ── Dark mode element overrides ── */
