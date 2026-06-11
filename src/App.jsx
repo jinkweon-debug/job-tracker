@@ -3017,6 +3017,22 @@ export default function App() {
   function openAdd() { setForm({...EMPTY, id:Date.now(), timeline:[], tags:{}}); setModal(true); }
   function openEdit(job) { setForm({...job, timeline:job.timeline||[], tags:job.tags||{}}); setModal(true); }
 
+  // Auto-create/link a Contacts CRM entry from a job's free-text "Contact / recruiter" field.
+  function syncContactFromField(job) {
+    const name = (job.contact || "").trim();
+    if (!name) return;
+    const existing = contacts.find(c => c.name.trim().toLowerCase() === name.toLowerCase());
+    let u;
+    if (existing) {
+      if ((existing.relatedJobIds||[]).includes(job.id)) return;
+      u = contacts.map(c => c.id===existing.id ? { ...c, relatedJobIds:[...new Set([...(c.relatedJobIds||[]), job.id])] } : c);
+    } else {
+      const newContact = { id: Date.now(), name, title:"", company: job.company, email:"", phone:"", linkedin:"", notes:"", createdAt: new Date().toISOString(), relatedJobIds:[job.id] };
+      u = [...contacts, newContact];
+    }
+    setContacts(u); saveContacts(u);
+  }
+
   function save() {
     if (!form.role || !form.company) return;
     const now = new Date().toISOString();
@@ -3027,6 +3043,7 @@ export default function App() {
     const enriched = { ...form, timeline:tl, createdAt:existing?existing.createdAt:now, updatedAt:now, lastStatus:statusChanged?{status:form.status,at:now}:(existing?.lastStatus||null) };
     const updated = existing ? jobs.map(j=>j.id===form.id?enriched:j) : [...jobs,enriched];
     setJobs(updated); saveJobs(updated); setModal(false);
+    syncContactFromField(enriched);
   }
 
   function del(id) {
@@ -3736,6 +3753,7 @@ export default function App() {
           const enriched = { ...updated, updatedAt: now };
           const u = jobs.map(j => j.id === enriched.id ? enriched : j);
           setJobs(u); saveJobs(u); setPanelJob(enriched);
+          syncContactFromField(enriched);
         }}
         onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder}
         onTaskDone={id => { const u=tasks.map(t=>t.id===id?{...t,done:true}:t); setTasks(u); saveTasks(u); }}
