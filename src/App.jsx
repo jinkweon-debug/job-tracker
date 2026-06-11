@@ -2055,9 +2055,10 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
   const bookmarkletCode = `javascript:(function(){function m(n){var e=document.querySelector('meta[property="'+n+'"]')||document.querySelector('meta[name="'+n+'"]');return e?e.content:'';}var role='',company='';try{var ld=document.querySelectorAll('script[type="application/ld+json"]');for(var i=0;i<ld.length;i++){var data=JSON.parse(ld[i].textContent);var arr=Array.isArray(data)?data:[data];for(var j=0;j<arr.length;j++){var d=arr[j];if(d['@type']==='JobPosting'){role=d.title||role;company=(d.hiringOrganization&&d.hiringOrganization.name)||company;}}}}catch(e){}if(!role)role=m('og:title')||document.title;if(!company)company=m('og:site_name');var url='https://job-tracker-tau-eight.vercel.app/?capture=1&role='+encodeURIComponent(role)+'&company='+encodeURIComponent(company)+'&link='+encodeURIComponent(location.href);window.open(url,'_blank');})();`;
 
   // React 19 blocks javascript: hrefs set via JSX as an XSS precaution — set it via the DOM API instead.
+  // The <a> only exists in the DOM when the "capture" tab is active, so re-run when tab changes.
   useEffect(() => {
     if (bookmarkletRef.current) bookmarkletRef.current.setAttribute('href', bookmarkletCode);
-  }, []);
+  }, [tab]);
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
