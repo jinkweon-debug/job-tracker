@@ -2026,6 +2026,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
   const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
   const [newResume, setNewResume] = useState({ name:"", link:"", notes:"" });
+  const bookmarkletRef = useRef(null);
 
   function addResume() {
     if (!newResume.name.trim()) return;
@@ -2052,6 +2053,11 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
   const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
   const bookmarkletCode = `javascript:(function(){function m(n){var e=document.querySelector('meta[property="'+n+'"]')||document.querySelector('meta[name="'+n+'"]');return e?e.content:'';}var role='',company='';try{var ld=document.querySelectorAll('script[type="application/ld+json"]');for(var i=0;i<ld.length;i++){var data=JSON.parse(ld[i].textContent);var arr=Array.isArray(data)?data:[data];for(var j=0;j<arr.length;j++){var d=arr[j];if(d['@type']==='JobPosting'){role=d.title||role;company=(d.hiringOrganization&&d.hiringOrganization.name)||company;}}}}catch(e){}if(!role)role=m('og:title')||document.title;if(!company)company=m('og:site_name');var url='https://job-tracker-tau-eight.vercel.app/?capture=1&role='+encodeURIComponent(role)+'&company='+encodeURIComponent(company)+'&link='+encodeURIComponent(location.href);window.open(url,'_blank');})();`;
+
+  // React 19 blocks javascript: hrefs set via JSX as an XSS precaution — set it via the DOM API instead.
+  useEffect(() => {
+    if (bookmarkletRef.current) bookmarkletRef.current.setAttribute('href', bookmarkletCode);
+  }, []);
 
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
@@ -2087,7 +2093,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
             <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
               Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Job Tracker with the role, company, and link pre-filled.
             </div>
-            <a href={bookmarkletCode} onClick={e => e.preventDefault()} draggable
+            <a ref={bookmarkletRef} onClick={e => e.preventDefault()} draggable
               style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
               📋 Capture job
             </a>
