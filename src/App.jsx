@@ -271,9 +271,9 @@ function FollowupActions({ job, onUpdateJob }) {
 let _uid = null; // set by App on auth change
 
 async function loadUserData() {
-  if (!_uid) return { jobs: [], tasks: [] };
-  const { data } = await supabase.from('user_data').select('jobs,tasks').eq('user_id', _uid).single();
-  return { jobs: data?.jobs || [], tasks: data?.tasks || [] };
+  if (!_uid) return { jobs: [], tasks: [], contacts: [] };
+  const { data } = await supabase.from('user_data').select('jobs,tasks,contacts').eq('user_id', _uid).single();
+  return { jobs: data?.jobs || [], tasks: data?.tasks || [], contacts: data?.contacts || [] };
 }
 
 // Set by App so saveJobs/saveTasks can report status to the UI.
@@ -292,6 +292,14 @@ function saveTasks(tasks) {
   if (!_uid) return;
   _onSaveStatus?.("saving");
   supabase.from('user_data').upsert({ user_id: _uid, tasks, updated_at: new Date().toISOString() }).then(({ error }) => {
+    _onSaveStatus?.(error ? "error" : "saved");
+  });
+}
+
+function saveContacts(contacts) {
+  if (!_uid) return;
+  _onSaveStatus?.("saving");
+  supabase.from('user_data').upsert({ user_id: _uid, contacts, updated_at: new Date().toISOString() }).then(({ error }) => {
     _onSaveStatus?.(error ? "error" : "saved");
   });
 }
@@ -689,9 +697,11 @@ function PanelSection({ label, count, defaultOpen = false, children }) {
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
+  const [addingContact, setAddingContact] = useState(false);
+  const [newContactName, setNewContactName] = useState("");
 
   function startEdit() {
     setForm({ ...job, tags: job.tags||{}, timeline: job.timeline||[] });
@@ -710,6 +720,8 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   const timelineCount = (job.timeline || []).length;
   const checklistCount = (job.prepChecklist || []).length;
   const linkedTasks = (tasks||[]).filter(t => t.jobId === job.id).length;
+  const linkedContacts = (contacts||[]).filter(c => (c.relatedJobIds||[]).includes(job.id));
+  const availableContacts = (contacts||[]).filter(c => !(c.relatedJobIds||[]).includes(job.id));
   const showInterviewDate = editing && INTERVIEW_STATUSES.includes(form.status);
 
   const inputStyle = { fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
@@ -808,6 +820,37 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
             </div>
             <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
+            <PanelSection label="🤝 Contacts" count={linkedContacts.length || null} defaultOpen={linkedContacts.length > 0}>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {linkedContacts.map(c => (
+                  <div key={c.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"6px 8px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
+                    <div onClick={() => onOpenContact(c)} style={{ cursor:"pointer", flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:500, color:"var(--text-primary)" }}>{c.name}</div>
+                      {(c.title||c.company) && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{[c.title,c.company].filter(Boolean).join(" @ ")}</div>}
+                    </div>
+                    <button onClick={() => onUnlinkContact(c.id)} title="Unlink" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
+                  </div>
+                ))}
+                {availableContacts.length > 0 && (
+                  <select value="" onChange={e => { if (e.target.value) onLinkContact(Number(e.target.value)); }}
+                    style={{ fontSize:12, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)" }}>
+                    <option value="">+ Link existing contact…</option>
+                    {availableContacts.map(c => <option key={c.id} value={c.id}>{c.name}{c.company?` (${c.company})`:""}</option>)}
+                  </select>
+                )}
+                {addingContact ? (
+                  <div style={{ display:"flex", gap:6 }}>
+                    <input autoFocus type="text" placeholder="Contact name" value={newContactName} onChange={e=>setNewContactName(e.target.value)}
+                      onKeyDown={e => { if (e.key==="Enter" && newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } if (e.key==="Escape") { setAddingContact(false); setNewContactName(""); } }}
+                      style={{ fontSize:12, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", flex:1 }} />
+                    <button onClick={() => { if (newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } }} style={{ fontSize:12, padding:"4px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Add</button>
+                    <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"4px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setAddingContact(true)} style={{ fontSize:12, padding:"5px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left" }}>+ New contact</button>
+                )}
+              </div>
+            </PanelSection>
             <PanelSection label="📧 Email templates" defaultOpen={false}>
               <EmailTemplates job={job} />
             </PanelSection>
@@ -1952,6 +1995,106 @@ function EmptyState({ icon, title, desc, action, onAction }) {
   );
 }
 
+// ── Contacts ────────────────────────────────────────────────────────────────────
+function ContactsView({ contacts, jobs, search, onOpenPanel, onAdd }) {
+  const q = (search||"").trim().toLowerCase();
+  const filtered = contacts.filter(c => !q ||
+    (c.name||"").toLowerCase().includes(q) ||
+    (c.company||"").toLowerCase().includes(q) ||
+    (c.title||"").toLowerCase().includes(q));
+
+  if (contacts.length === 0) {
+    return <EmptyState icon="👥" title="No contacts yet" desc="Track recruiters, hiring managers, and referrals here, and link them to the jobs you're applying to." action="+ Add contact" onAction={onAdd} />;
+  }
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:12 }}>
+      {filtered.map(c => {
+        const linkedCount = (c.relatedJobIds||[]).length;
+        return (
+          <div key={c.id} onClick={() => onOpenPanel(c)}
+            style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"12px 14px", cursor:"pointer", display:"flex", flexDirection:"column", gap:6 }}>
+            <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>{c.name}</div>
+            {(c.title || c.company) && <div style={{ fontSize:12, color:"var(--text-secondary)" }}>{[c.title, c.company].filter(Boolean).join(" @ ")}</div>}
+            {c.email && <div style={{ fontSize:11, color:"var(--text-muted)" }}>✉️ {c.email}</div>}
+            {c.phone && <div style={{ fontSize:11, color:"var(--text-muted)" }}>📞 {c.phone}</div>}
+            {linkedCount > 0 && <div style={{ fontSize:11, color:"var(--accent)", fontWeight:500, marginTop:2 }}>🔗 {linkedCount} job{linkedCount>1?"s":""}</div>}
+          </div>
+        );
+      })}
+      {filtered.length === 0 && <div style={{ gridColumn:"1/-1", textAlign:"center", color:"var(--text-muted)", fontSize:13, padding:"2rem" }}>No contacts match "{search}"</div>}
+    </div>
+  );
+}
+
+function ContactModal({ contact, onSave, onClose, onDelete }) {
+  const [form, setForm] = useState(() => contact ? { ...contact } : { name:"", title:"", company:"", email:"", phone:"", linkedin:"", notes:"" });
+  const inputStyle = { fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 10px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  return (
+    <div className="modal-overlay" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
+      <div className="modal-inner" style={{ background:"var(--surface)", borderRadius:12, border:"0.5px solid var(--border)", padding:"1.5rem", width:"100%", maxWidth:420, maxHeight:"90vh", overflowY:"auto" }}>
+        <h3 style={{ margin:"0 0 1rem", fontWeight:500, fontSize:16, color:"var(--text-primary)" }}>{contact ? "Edit contact" : "Add contact"}</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {[["Name *","name","text","e.g. Jane Smith"],["Title","title","text","e.g. Technical Recruiter"],["Company","company","text","e.g. Acme Corp"],["Email","email","email","jane@acme.com"],["Phone","phone","tel","(555) 123-4567"],["LinkedIn","linkedin","url","https://linkedin.com/in/..."]].map(([label,key,type,ph]) => (
+            <label key={key} style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>{label}
+              <input type={type} placeholder={ph} value={form[key]||""} onChange={e => setForm(f=>({...f,[key]:e.target.value}))} style={inputStyle} />
+            </label>
+          ))}
+          <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Notes
+            <textarea rows={3} value={form.notes||""} onChange={e => setForm(f=>({...f,notes:e.target.value}))} style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit" }} />
+          </label>
+        </div>
+        <div style={{ display:"flex", gap:8, marginTop:"1.25rem", justifyContent:"space-between", alignItems:"center" }}>
+          {onDelete && <button onClick={onDelete} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>}
+          <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
+            <button onClick={onClose} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
+            <button onClick={() => onSave(form)} disabled={!form.name} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactPanel({ contact, jobs, onClose, onEdit, onOpenJob, onUnlinkJob }) {
+  const linkedJobs = jobs.filter(j => (contact.relatedJobIds||[]).includes(j.id));
+  return (
+    <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:360, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
+      <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{contact.name}</div>
+          {(contact.title || contact.company) && <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{[contact.title, contact.company].filter(Boolean).join(" @ ")}</div>}
+        </div>
+        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0 }}>✕</button>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px", display:"flex", flexDirection:"column", gap:14, background:"var(--surface)" }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+          {contact.email && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>Email</span><a href={`mailto:${contact.email}`} style={{ color:"var(--accent)", textDecoration:"none", fontWeight:500 }}>{contact.email}</a></div>}
+          {contact.phone && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>Phone</span><span style={{ color:"var(--text-primary)", fontWeight:500 }}>{contact.phone}</span></div>}
+          {contact.linkedin && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>LinkedIn</span><a href={contact.linkedin} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none", fontWeight:500 }}>View profile ↗</a></div>}
+        </div>
+        {contact.notes && <div style={{ fontSize:12, color:"var(--text-secondary)", whiteSpace:"pre-wrap", lineHeight:1.5 }}>{contact.notes}</div>}
+        <div>
+          <div style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)", marginBottom:6 }}>Linked jobs{linkedJobs.length > 0 ? ` (${linkedJobs.length})` : ""}</div>
+          {linkedJobs.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No jobs linked yet. Link this contact from a job's detail panel.</div>}
+          {linkedJobs.map(j => (
+            <div key={j.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"6px 0", borderBottom:"1px solid var(--border-subtle)" }}>
+              <div onClick={() => onOpenJob(j)} style={{ cursor:"pointer", flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{j.role}</div>
+                <div style={{ fontSize:11, color:"var(--text-muted)" }}>{j.company}</div>
+              </div>
+              <button onClick={() => onUnlinkJob(j.id)} title="Unlink" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding:"12px 20px", borderTop:"1px solid var(--border)" }}>
+        <button onClick={onEdit} style={{ width:"100%", fontSize:13, padding:"8px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit contact</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Interview calendar view ────────────────────────────────────────────────────
 const CAL_TYPES = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#185FA5",          text:"#fff",                    border:"#0C447C" },
@@ -2502,7 +2645,10 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [contactModal, setContactModal] = useState(null); // null | "new" | contact object being edited
+  const [panelContact, setPanelContact] = useState(null);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [filter, setFilter] = useState("All");
@@ -2545,9 +2691,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) { setJobs([]); setTasks([]); setLoaded(false); return; }
-    loadUserData().then(({ jobs: j, tasks: t }) => {
-      setJobs(j); setTasks(t); setLoaded(true);
+    if (!user) { setJobs([]); setTasks([]); setContacts([]); setLoaded(false); return; }
+    loadUserData().then(({ jobs: j, tasks: t, contacts: c }) => {
+      setJobs(j); setTasks(t); setContacts(c); setLoaded(true);
     });
   }, [user]);
   useEffect(() => {
@@ -3153,7 +3299,7 @@ export default function App() {
         <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
           <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
             <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
-              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"]].map(([v,label],i,arr) => (
+              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["contacts","Contacts"]].map(([v,label],i,arr) => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none",
                     background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
@@ -3170,7 +3316,8 @@ export default function App() {
               📦 {showArchived ? "← Active jobs" : `Archived (${archivedCount})`}
             </button>
           )}
-          {!showArchived && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
+          {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
+          {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
           <div style={{ position:"relative" }} ref={menuRef}>
             <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
               <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
@@ -3335,6 +3482,13 @@ export default function App() {
       {/* Today view */}
       {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
+      {/* Contacts view */}
+      {view==="contacts" && (
+        <ContactsView contacts={contacts} jobs={jobs} search={search}
+          onOpenPanel={c => setPanelContact(p => p?.id === c?.id ? null : c)}
+          onAdd={() => setContactModal("new")} />
+      )}
+
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
       {panelJob && <DetailPanel job={panelJob} onClose={() => setPanelJob(null)}
         onSave={updated => {
@@ -3346,7 +3500,55 @@ export default function App() {
         onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder}
         onTaskDone={id => { const u=tasks.map(t=>t.id===id?{...t,done:true}:t); setTasks(u); saveTasks(u); }}
         onTaskDelete={id => { const u=tasks.filter(t=>t.id!==id); setTasks(u); saveTasks(u); }}
-        onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }} />}
+        onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }}
+        contacts={contacts}
+        onLinkContact={contactId => {
+          const u = contacts.map(c => c.id===contactId ? { ...c, relatedJobIds:[...new Set([...(c.relatedJobIds||[]), panelJob.id])] } : c);
+          setContacts(u); saveContacts(u);
+        }}
+        onUnlinkContact={contactId => {
+          const u = contacts.map(c => c.id===contactId ? { ...c, relatedJobIds:(c.relatedJobIds||[]).filter(id=>id!==panelJob.id) } : c);
+          setContacts(u); saveContacts(u);
+        }}
+        onCreateContact={name => {
+          const now = new Date().toISOString();
+          const newContact = { id: Date.now(), name, title:"", company: panelJob.company, email:"", phone:"", linkedin:"", notes:"", createdAt: now, relatedJobIds:[panelJob.id] };
+          const u = [...contacts, newContact];
+          setContacts(u); saveContacts(u);
+        }}
+        onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }} />}
+      {contactModal && (
+        <ContactModal
+          contact={contactModal === "new" ? null : contactModal}
+          onSave={c => {
+            const now = new Date().toISOString();
+            let u;
+            if (contactModal === "new") {
+              u = [...contacts, { ...c, id: Date.now(), createdAt: now, relatedJobIds: c.relatedJobIds||[] }];
+            } else {
+              u = contacts.map(x => x.id === c.id ? { ...c } : x);
+            }
+            setContacts(u); saveContacts(u); setContactModal(null);
+            if (panelContact && c.id === panelContact.id) setPanelContact(u.find(x=>x.id===c.id));
+          }}
+          onClose={() => setContactModal(null)}
+          onDelete={contactModal !== "new" ? () => {
+            const u = contacts.filter(x => x.id !== contactModal.id);
+            setContacts(u); saveContacts(u); setContactModal(null); setPanelContact(null);
+          } : null}
+        />
+      )}
+      {panelContact && (
+        <ContactPanel contact={panelContact} jobs={jobs}
+          onClose={() => setPanelContact(null)}
+          onEdit={() => setContactModal(panelContact)}
+          onOpenJob={job => { setView("list"); setPanelContact(null); setPanelJob(job); }}
+          onUnlinkJob={jobId => {
+            const u = contacts.map(c => c.id===panelContact.id ? { ...c, relatedJobIds:(c.relatedJobIds||[]).filter(id=>id!==jobId) } : c);
+            setContacts(u); saveContacts(u); setPanelContact(u.find(c=>c.id===panelContact.id));
+          }}
+        />
+      )}
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
