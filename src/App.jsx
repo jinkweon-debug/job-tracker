@@ -1957,6 +1957,8 @@ function SettingsModal({ user, onClose }) {
 
   const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
+  const bookmarkletCode = `javascript:(function(){function m(n){var e=document.querySelector('meta[property="'+n+'"]')||document.querySelector('meta[name="'+n+'"]');return e?e.content:'';}var role='',company='';try{var ld=document.querySelectorAll('script[type="application/ld+json"]');for(var i=0;i<ld.length;i++){var data=JSON.parse(ld[i].textContent);var arr=Array.isArray(data)?data:[data];for(var j=0;j<arr.length;j++){var d=arr[j];if(d['@type']==='JobPosting'){role=d.title||role;company=(d.hiringOrganization&&d.hiringOrganization.name)||company;}}}}catch(e){}if(!role)role=m('og:title')||document.title;if(!company)company=m('og:site_name');var url='https://job-tracker-tau-eight.vercel.app/?capture=1&role='+encodeURIComponent(role)+'&company='+encodeURIComponent(company)+'&link='+encodeURIComponent(location.href);window.open(url,'_blank');})();`;
+
   return (
     <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:420, background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", boxShadow:"0 4px 24px rgba(0,0,0,0.12)" }}>
@@ -1964,20 +1966,42 @@ function SettingsModal({ user, onClose }) {
           <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>Account settings</div>
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
-        <div style={{ padding:"16px 20px" }}>
-          <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Signed in as <span style={{ fontWeight:500, color:"var(--text-primary)" }}>{user.email}</span></div>
-          <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:12 }}>Change password</div>
-          <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
-            <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
-            <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
-            {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
-            {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{msg}</div>}
-            <button type="submit" disabled={loading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:loading?0.7:1 }}>
-              {loading ? "Saving…" : "Update password"}
-            </button>
-          </form>
+        <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
+          {[["password","Password"],["capture","Job capture"]].map(([t,label]) => (
+            <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
+          ))}
         </div>
+        {tab === "password" && (
+          <div style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Signed in as <span style={{ fontWeight:500, color:"var(--text-primary)" }}>{user.email}</span></div>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:12 }}>Change password</div>
+            <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
+              <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
+              <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
+              {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
+              {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{msg}</div>}
+              <button type="submit" disabled={loading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:loading?0.7:1 }}>
+                {loading ? "Saving…" : "Update password"}
+              </button>
+            </form>
+          </div>
+        )}
+        {tab === "capture" && (
+          <div style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Capture jobs from any site</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
+              Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Job Tracker with the role, company, and link pre-filled.
+            </div>
+            <a href={bookmarkletCode} onClick={e => e.preventDefault()} draggable
+              style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
+              📋 Capture job
+            </a>
+            <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:14, lineHeight:1.6 }}>
+              Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically — you can edit the prefilled details before saving.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2724,6 +2748,19 @@ export default function App() {
       setJobs(j); setTasks(t); setContacts(c); setLoaded(true);
     });
   }, [user]);
+  // ── Browser job capture (bookmarklet) ──
+  useEffect(() => {
+    if (!loaded) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("capture") !== "1") return;
+    const role = params.get("role") || "";
+    const company = params.get("company") || "";
+    const link = params.get("link") || "";
+    setForm({ ...EMPTY, id: Date.now(), timeline: [], tags: {}, role, company, link, dateApplied: todayStr() });
+    setModal(true);
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [loaded]);
+
   useEffect(() => {
     document.body.setAttribute("data-theme", darkMode ? "dark" : "light");
     localStorage.setItem("dark_mode", darkMode);
