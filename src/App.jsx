@@ -98,6 +98,7 @@ const EMPTY = {
   createdAt: null, updatedAt: null, lastStatus: null, timeline: [], interviewDate: "",
   interviewTime: "",
   tags: {}, prepChecklist: [], archived: false, followupDismissed: false,
+  offerBase: "", offerBonus: "", offerEquity: "", offerStartDate: "", offerDeadline: "", offerNotes: "",
 };
 
 const PREP_DEFAULTS = {
@@ -779,6 +780,33 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Custom follow-up date
               <input type="date" value={form.customFollowup||""} onChange={e=>setForm(f=>({...f,customFollowup:e.target.value}))} style={inputStyle} />
             </label>
+            {form.status === "Offer" && (
+              <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"10px 12px", background:"var(--surface-subtle)", border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:8 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:getStatusCfg("Offer").text, textTransform:"uppercase", letterSpacing:"0.05em" }}>Offer details</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Base salary
+                    <input type="number" value={form.offerBase||""} onChange={e=>setForm(f=>({...f,offerBase:e.target.value}))} style={inputStyle} placeholder="110000" />
+                  </label>
+                  <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Signing bonus
+                    <input type="number" value={form.offerBonus||""} onChange={e=>setForm(f=>({...f,offerBonus:e.target.value}))} style={inputStyle} placeholder="10000" />
+                  </label>
+                </div>
+                <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Equity
+                  <input type="text" value={form.offerEquity||""} onChange={e=>setForm(f=>({...f,offerEquity:e.target.value}))} style={inputStyle} placeholder="e.g. $40,000 RSUs over 4 years" />
+                </label>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Start date
+                    <input type="date" value={form.offerStartDate||""} onChange={e=>setForm(f=>({...f,offerStartDate:e.target.value}))} style={inputStyle} />
+                  </label>
+                  <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Decision deadline
+                    <input type="date" value={form.offerDeadline||""} onChange={e=>setForm(f=>({...f,offerDeadline:e.target.value}))} style={inputStyle} />
+                  </label>
+                </div>
+                <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Benefits / notes
+                  <textarea rows={2} value={form.offerNotes||""} onChange={e=>setForm(f=>({...f,offerNotes:e.target.value}))} style={{ ...inputStyle, resize:"vertical", fontFamily:"inherit" }} placeholder="PTO, healthcare, remote policy, etc." />
+                </label>
+              </div>
+            )}
             <div>
               <div style={{ fontSize:13, color:"var(--text-secondary)", marginBottom:6 }}>Tags</div>
               <TagSelector tags={form.tags||{}} onChange={tags=>setForm(f=>({...f,tags}))} />
@@ -819,6 +847,24 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
               {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
             </div>
+            {(job.offerBase || job.offerBonus || job.offerEquity || job.offerStartDate || job.offerDeadline || job.offerNotes) && (
+              <div style={{ display:"flex", flexDirection:"column", gap:7, padding:"10px 12px", background:"var(--surface-subtle)", border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:8 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:getStatusCfg("Offer").text, textTransform:"uppercase", letterSpacing:"0.05em" }}>Offer details</div>
+                {[
+                  ["Base salary", job.offerBase ? `$${parseInt(job.offerBase).toLocaleString()}` : null],
+                  ["Signing bonus", job.offerBonus ? `$${parseInt(job.offerBonus).toLocaleString()}` : null],
+                  ["Equity", job.offerEquity || null],
+                  ["Start date", job.offerStartDate ? fmtDate(job.offerStartDate+"T00:00:00") : null],
+                  ["Decision deadline", job.offerDeadline ? fmtDate(job.offerDeadline+"T00:00:00") : null],
+                ].filter(([,v]) => v).map(([label,val]) => (
+                  <div key={label} style={{ display:"flex", gap:8, fontSize:12 }}>
+                    <span style={{ color:"var(--text-muted)", minWidth:110 }}>{label}</span>
+                    <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{val}</span>
+                  </div>
+                ))}
+                {job.offerNotes && <div style={{ fontSize:12, color:"var(--text-secondary)", whiteSpace:"pre-wrap", lineHeight:1.5 }}>{job.offerNotes}</div>}
+              </div>
+            )}
             <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
             <PanelSection label="🤝 Contacts" count={linkedContacts.length || null} defaultOpen={linkedContacts.length > 0}>
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
@@ -2119,6 +2165,56 @@ function ContactPanel({ contact, jobs, onClose, onEdit, onOpenJob, onUnlinkJob }
   );
 }
 
+// ── Offer comparison ───────────────────────────────────────────────────────────
+function OffersView({ jobs, onOpenPanel }) {
+  const offers = jobs.filter(j => !j.archived && (j.offerBase || j.offerBonus || j.offerEquity || j.offerStartDate || j.offerDeadline));
+
+  if (offers.length === 0) {
+    return <EmptyState icon="🎉" title="No offers yet" desc="Once a job reaches the Offer stage, fill in salary, bonus, equity, and deadline details from its detail panel — they'll show up here for side-by-side comparison." />;
+  }
+
+  const today = todayStr();
+  const cols = [
+    ["Role", j => <><div style={{ fontWeight:600, color:"var(--text-primary)" }}>{j.company}</div><div style={{ fontSize:11, color:"var(--text-muted)" }}>{j.role}</div></>],
+    ["Base salary", j => j.offerBase ? `$${parseInt(j.offerBase).toLocaleString()}` : "—"],
+    ["Signing bonus", j => j.offerBonus ? `$${parseInt(j.offerBonus).toLocaleString()}` : "—"],
+    ["Total (base+bonus)", j => (j.offerBase||j.offerBonus) ? `$${(parseInt(j.offerBase||0)+parseInt(j.offerBonus||0)).toLocaleString()}` : "—"],
+    ["Equity", j => j.offerEquity || "—"],
+    ["Start date", j => j.offerStartDate ? fmtDate(j.offerStartDate+"T00:00:00") : "—"],
+    ["Deadline", j => j.offerDeadline ? fmtDate(j.offerDeadline+"T00:00:00") : "—"],
+  ];
+
+  return (
+    <div style={{ overflowX:"auto" }}>
+      <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+        <thead>
+          <tr>
+            {cols.map(([label]) => (
+              <th key={label} style={{ textAlign:"left", padding:"8px 12px", borderBottom:`2px solid var(--border)`, color:"var(--text-secondary)", fontWeight:600, whiteSpace:"nowrap" }}>{label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {offers.map(j => {
+            const deadlineSoon = j.offerDeadline && j.offerDeadline >= today && (new Date(j.offerDeadline) - new Date(today)) / 86400000 <= 3;
+            return (
+              <tr key={j.id} onClick={() => onOpenPanel(j)} style={{ cursor:"pointer" }}>
+                {cols.map(([label, render], i) => (
+                  <td key={label} style={{ padding:"10px 12px", borderBottom:"1px solid var(--border-subtle)", whiteSpace:"nowrap",
+                    color: label==="Deadline" && deadlineSoon ? getStatusCfg("Rejected").text : "var(--text-primary)",
+                    fontWeight: label==="Deadline" && deadlineSoon ? 600 : 400 }}>
+                    {render(j)}{label==="Deadline" && deadlineSoon ? " ⚠" : ""}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Interview calendar view ────────────────────────────────────────────────────
 const CAL_TYPES = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#185FA5",          text:"#fff",                    border:"#0C447C" },
@@ -3364,7 +3460,7 @@ export default function App() {
         <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
           <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
             <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
-              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["contacts","Contacts"]].map(([v,label],i,arr) => (
+              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["offers","Offers"],["contacts","Contacts"]].map(([v,label],i,arr) => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none",
                     background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
@@ -3546,6 +3642,9 @@ export default function App() {
 
       {/* Today view */}
       {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+
+      {/* Offers view */}
+      {view==="offers" && <OffersView jobs={jobs} onOpenPanel={togglePanel} />}
 
       {/* Contacts view */}
       {view==="contacts" && (
