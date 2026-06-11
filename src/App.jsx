@@ -3642,14 +3642,16 @@ export default function App() {
         </div>
         {/* Right side — always fixed */}
         <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap:8, alignItems: isMobile ? "stretch" : "center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? undefined : "flex-end" }}>
-          <div className="view-switcher" style={{ flexShrink: isMobile ? 0 : 1, minWidth:0, paddingTop:8, marginTop:-8, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "auto" : "visible" }}>
-            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible", width: isMobile ? "max-content" : "auto" }}>
+          <div className="view-switcher" style={{ flexShrink: isMobile ? 0 : 1, minWidth:0, paddingTop:8, marginTop:-8, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "visible" : "visible" }}>
+            <div style={isMobile
+              ? { display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:1, background:"#B5D4F4", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }
+              : { display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible", width:"auto" }}>
               {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["offers","Offers"],["contacts","Contacts"]].map(([v,label],i,arr) => (
                 <button key={v} onClick={() => setView(v)}
-                  style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none", flexShrink:0,
+                  style={{ fontSize: isMobile?11:12, padding: isMobile?"6px 4px":"5px 12px", cursor:"pointer", fontWeight:500, border:"none", flexShrink:0,
                     background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
-                    borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", position:"relative",
-                    borderRadius:i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap" }}>
+                    borderRight: !isMobile && i<arr.length-1 ? "1px solid #B5D4F4" : "none", position:"relative",
+                    borderRadius: isMobile ? 0 : (i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0), whiteSpace:"nowrap", textAlign:"center" }}>
                   {label}
                   {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
                 </button>
