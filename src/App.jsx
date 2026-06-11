@@ -276,14 +276,24 @@ async function loadUserData() {
   return { jobs: data?.jobs || [], tasks: data?.tasks || [] };
 }
 
+// Set by App so saveJobs/saveTasks can report status to the UI.
+let _onSaveStatus = null;
+function setSaveStatusHandler(fn) { _onSaveStatus = fn; }
+
 function saveJobs(jobs) {
   if (!_uid) return;
-  supabase.from('user_data').upsert({ user_id: _uid, jobs, updated_at: new Date().toISOString() }).then(() => {});
+  _onSaveStatus?.("saving");
+  supabase.from('user_data').upsert({ user_id: _uid, jobs, updated_at: new Date().toISOString() }).then(({ error }) => {
+    _onSaveStatus?.(error ? "error" : "saved");
+  });
 }
 
 function saveTasks(tasks) {
   if (!_uid) return;
-  supabase.from('user_data').upsert({ user_id: _uid, tasks, updated_at: new Date().toISOString() }).then(() => {});
+  _onSaveStatus?.("saving");
+  supabase.from('user_data').upsert({ user_id: _uid, tasks, updated_at: new Date().toISOString() }).then(({ error }) => {
+    _onSaveStatus?.(error ? "error" : "saved");
+  });
 }
 
 function applyStatusChange(jobs, id, newStatus, interviewDate, interviewTime) {
@@ -2509,6 +2519,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
+  const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
   const [undoStack, setUndoStack] = useState(null);
@@ -2543,6 +2554,16 @@ export default function App() {
     document.body.setAttribute("data-theme", darkMode ? "dark" : "light");
     localStorage.setItem("dark_mode", darkMode);
   }, [darkMode]);
+  useEffect(() => {
+    setSaveStatusHandler(setSaveStatus);
+    return () => setSaveStatusHandler(null);
+  }, []);
+  useEffect(() => {
+    if (saveStatus === "saved") {
+      const t = setTimeout(() => setSaveStatus("idle"), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [saveStatus]);
   useEffect(() => {
     function h(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); }
     document.addEventListener("mousedown", h);
@@ -2964,6 +2985,13 @@ export default function App() {
         <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Job Tracker</h2>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span className="header-hint" style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>N = new · / = search · Esc = close</span>
+          {saveStatus !== "idle" && (
+            <span style={{ fontSize:11, color: saveStatus==="error" ? "#ffb4b4" : "rgba(255,255,255,0.7)", display:"flex", alignItems:"center", gap:4 }}>
+              {saveStatus === "saving" && "Saving…"}
+              {saveStatus === "saved" && "✓ Saved"}
+              {saveStatus === "error" && "⚠ Save failed"}
+            </span>
+          )}
           <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>
           <button onClick={() => setDarkMode(d => !d)} title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             style={{ fontSize:15, lineHeight:1, padding:"4px 8px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>
