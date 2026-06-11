@@ -3656,7 +3656,7 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent: isMobile ? "space-between" : "flex-end", width: isMobile ? "100%" : "auto" }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:"flex-end", width: isMobile ? "100%" : "auto" }}>
             {archivedCount > 0 && (
               <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
                 📦 {showArchived ? "← Active jobs" : `Archived (${archivedCount})`}
