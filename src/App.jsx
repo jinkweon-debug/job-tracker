@@ -1551,11 +1551,74 @@ function PipelineFunnel({ jobs }) {
 }
 
 // ── Board ─────────────────────────────────────────────────────────────────────
+function JobCardBody({ job, onPanelOpen, onUpdateJob }) {
+  const activeTags = Object.entries(job?.tags || {}).filter(([,v]) => v);
+  return (
+    <>
+      <div style={{ fontSize:12, color:"var(--text-primary)", fontWeight:700, marginBottom:2 }}>{job.company}</div>
+      <div onClick={() => onPanelOpen(job)} style={{ fontWeight:500, fontSize:13, color:"var(--accent)", marginBottom:2, cursor:"pointer" }}>{job.role}</div>
+      {activeTags.length > 0 && <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginBottom:4 }}>{activeTags.map(([cat,val]) => <TagBadge key={cat} category={cat} value={val} />)}</div>}
+      {job.interviewDate && <div style={{ fontSize:10, color:getStatusCfg("Interview").text, marginBottom:3, fontWeight:500 }}>📅 {fmtDate(job.interviewDate+"T00:00:00")}</div>}
+      {getFollowupStatus(job) && <div style={{ marginBottom:4 }}>{onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={getFollowupStatus(job)} />}</div>}
+      {isStale(job) && !getFollowupStatus(job) && <div style={{ marginBottom:4 }}><StaleBadge /></div>}
+      {(() => {
+        const act = lastActivity(job);
+        if (!act) return job.dateApplied ? <div style={{ fontSize:11, color:"var(--text-muted)" }}>Applied {daysAgoStr(job.dateApplied)}</div> : null;
+        if (act.isInitialApply) return (
+          <div style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>Applied {daysAgoStr(job.dateApplied)} — no further activity</div>
+        );
+        return (
+          <div style={{ fontSize:11, display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+            <span style={{ color: act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? getStatusCfg("Offer").text : "var(--accent)", fontWeight:500 }}>
+              {act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? "📤" : "📋"} {act.label}
+            </span>
+            <span style={{ color:"var(--text-muted)" }}>· {act.ago}</span>
+          </div>
+        );
+      })()}
+    </>
+  );
+}
+
 function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId, onUpdateJob }) {
+  const isMobile = useIsMobile();
   const [overCol, setOverCol] = useState(null);
   const colCount = visibleStatuses.length;
   const colJobs = visibleStatuses.map(s => jobs.filter(j => j.status===s && (!search||`${j.role} ${j.company}`.toLowerCase().includes(search.toLowerCase()))).sort((a,b) => (b.dateApplied||"").localeCompare(a.dateApplied||"")));
   const maxRows = Math.max(...colJobs.map(c => c.length), 1);
+
+  if (isMobile) {
+    return (
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {visibleStatuses.map((s, i) => {
+          const cfg = getStatusCfg(s);
+          const list = colJobs[i];
+          return (
+            <div key={s} style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
+              <div style={{ background:cfg.bg, padding:"8px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:12, fontWeight:500, color:cfg.text }}>{s}</span>
+                <span style={{ fontSize:11, fontWeight:500, color:cfg.text, background:isDark()?"rgba(0,0,0,0.25)":"rgba(255,255,255,0.7)", borderRadius:10, padding:"1px 7px" }}>{list.length}</span>
+              </div>
+              {list.length === 0 ? (
+                <div style={{ padding:"10px 12px", fontSize:12, color:"var(--text-muted)", background:"var(--surface)" }}>No jobs</div>
+              ) : list.map((job, idx) => (
+                <div key={job.id} style={{ padding:"10px 12px", borderTop:idx>0?"1px solid var(--border)":"none", background:"var(--surface)" }}>
+                  <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+                    <select value={job.status} onChange={e => onUpdateJob(job.id, { status: e.target.value })}
+                      style={{ fontSize:11, padding:"3px 6px", borderRadius:6, border:"1px solid var(--input-border)", background:"var(--input-bg)", color:"var(--text-primary)" }}>
+                      {Object.keys(STATUS_CONFIG).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                  <JobCardBody job={job} onPanelOpen={onPanelOpen} onUpdateJob={onUpdateJob} />
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div style={{ position:"relative", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}
       onDragOver={e => { e.preventDefault(); const rect=e.currentTarget.getBoundingClientRect(); const idx=Math.min(Math.floor((e.clientX-rect.left)/(rect.width/colCount)),colCount-1); setOverCol(visibleStatuses[idx]); }}
@@ -1573,32 +1636,11 @@ function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId
           <div key={rowIdx} style={{ display:"grid", gridTemplateColumns:`repeat(${colCount},minmax(0,1fr))`, borderBottom:rowIdx<maxRows-1?"1px solid var(--border)":"none" }}>
             {visibleStatuses.map((s,colIdx) => {
               const job = colJobs[colIdx][rowIdx];
-              const activeTags = Object.entries(job?.tags || {}).filter(([,v]) => v);
               return (
                 <div key={s} style={{ borderRight:colIdx<colCount-1?"1px solid var(--border)":"none", padding:"8px 10px", minHeight:56, background:"var(--surface)" }}>
                   {job && (
                     <div draggable onDragStart={e => { e.dataTransfer.effectAllowed="move"; dragId.current=job.id; }} onDragEnd={() => setOverCol(null)} style={{ cursor:"grab", userSelect:"none", paddingBottom:8, borderBottom:"1px solid var(--border)" }}>
-                      <div style={{ fontSize:12, color:"var(--text-primary)", fontWeight:700, marginBottom:2 }}>{job.company}</div>
-                      <div onClick={() => onPanelOpen(job)} style={{ fontWeight:500, fontSize:13, color:"var(--accent)", marginBottom:2, cursor:"pointer" }}>{job.role}</div>
-                      {activeTags.length > 0 && <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginBottom:4 }}>{activeTags.map(([cat,val]) => <TagBadge key={cat} category={cat} value={val} />)}</div>}
-                      {job.interviewDate && <div style={{ fontSize:10, color:getStatusCfg("Interview").text, marginBottom:3, fontWeight:500 }}>📅 {fmtDate(job.interviewDate+"T00:00:00")}</div>}
-                      {getFollowupStatus(job) && <div style={{ marginBottom:4 }}>{onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={getFollowupStatus(job)} />}</div>}
-                      {isStale(job) && !getFollowupStatus(job) && <div style={{ marginBottom:4 }}><StaleBadge /></div>}
-                      {(() => {
-                        const act = lastActivity(job);
-                        if (!act) return job.dateApplied ? <div style={{ fontSize:11, color:"var(--text-muted)" }}>Applied {daysAgoStr(job.dateApplied)}</div> : null;
-                        if (act.isInitialApply) return (
-                          <div style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>Applied {daysAgoStr(job.dateApplied)} — no further activity</div>
-                        );
-                        return (
-                          <div style={{ fontSize:11, display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
-                            <span style={{ color: act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? getStatusCfg("Offer").text : "var(--accent)", fontWeight:500 }}>
-                              {act.label.toLowerCase().includes("follow-up") || act.label.toLowerCase().includes("contact") ? "📤" : "📋"} {act.label}
-                            </span>
-                            <span style={{ color:"var(--text-muted)" }}>· {act.ago}</span>
-                          </div>
-                        );
-                      })()}
+                      <JobCardBody job={job} onPanelOpen={onPanelOpen} onUpdateJob={onUpdateJob} />
                     </div>
                   )}
                 </div>
@@ -2091,6 +2133,9 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
         {tab === "capture" && (
           <div style={{ padding:"16px 20px" }}>
             <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Capture jobs from any site</div>
+            <div style={{ fontSize:11, fontWeight:600, color:"var(--accent)", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:6, padding:"6px 10px", marginBottom:12 }}>
+              💻 Desktop browsers only — mobile browsers don't support dragging bookmarklets to a bookmarks bar. On mobile, use "+ Add job" instead.
+            </div>
             <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
               Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Job Tracker with the role, company, and link pre-filled.
             </div>
