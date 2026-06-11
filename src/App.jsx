@@ -3604,12 +3604,12 @@ export default function App() {
           })()}
         </div>
         {/* Right side — always fixed */}
-        <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? "space-between" : "flex-end" }}>
-          <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
-            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible" }}>
+        <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap:8, alignItems: isMobile ? "stretch" : "center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? undefined : "flex-end" }}>
+          <div className="view-switcher" style={{ flexShrink: isMobile ? 0 : 1, minWidth:0, paddingTop:8, marginTop:-8, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "auto" : "visible" }}>
+            <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible", width: isMobile ? "max-content" : "auto" }}>
               {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["offers","Offers"],["contacts","Contacts"]].map(([v,label],i,arr) => (
                 <button key={v} onClick={() => setView(v)}
-                  style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none",
+                  style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none", flexShrink:0,
                     background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
                     borderRight:i<arr.length-1?"1px solid #B5D4F4":"none", position:"relative",
                     borderRadius:i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap" }}>
@@ -3619,31 +3619,33 @@ export default function App() {
               ))}
             </div>
           </div>
-          {archivedCount > 0 && (
-            <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
-              📦 {showArchived ? "← Active jobs" : `Archived (${archivedCount})`}
-            </button>
-          )}
-          {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
-          {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
-          <div style={{ position:"relative" }} ref={menuRef}>
-            <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
-              <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-              <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-              <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-            </button>
-            {menuOpen && (
-              <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
-                <button onClick={() => { setShowSettings(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>⚙️ Account settings</button>
-                <button onClick={() => { exportJSON(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>💾 Export backup (JSON)</button>
-                <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={e=>{importJSON(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
-                <button onClick={() => { exportCSV(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-secondary)" }}>Export CSV</button>
-                <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-secondary)", borderBottom:"0.5px solid var(--border-subtle)" }}>Import CSV<input type="file" accept=".csv" onChange={e=>{importCSV(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
-                <button onClick={enableNotifications} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color: typeof Notification !== "undefined" && Notification.permission==="granted" ? "#27500A" : "var(--text-secondary)" }}>
-                  {typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}
-                </button>
-              </div>
+          <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent: isMobile ? "space-between" : "flex-end", width: isMobile ? "100%" : "auto" }}>
+            {archivedCount > 0 && (
+              <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
+                📦 {showArchived ? "← Active jobs" : `Archived (${archivedCount})`}
+              </button>
             )}
+            {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
+            {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
+            <div style={{ position:"relative" }} ref={menuRef}>
+              <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
+                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+              </button>
+              {menuOpen && (
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
+                  <button onClick={() => { setShowSettings(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>⚙️ Account settings</button>
+                  <button onClick={() => { exportJSON(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>💾 Export backup (JSON)</button>
+                  <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={e=>{importJSON(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
+                  <button onClick={() => { exportCSV(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-secondary)" }}>Export CSV</button>
+                  <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-secondary)", borderBottom:"0.5px solid var(--border-subtle)" }}>Import CSV<input type="file" accept=".csv" onChange={e=>{importCSV(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
+                  <button onClick={enableNotifications} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color: typeof Notification !== "undefined" && Notification.permission==="granted" ? "#27500A" : "var(--text-secondary)" }}>
+                    {typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
