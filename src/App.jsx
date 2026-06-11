@@ -931,7 +931,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                     <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"4px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
                   </div>
                 ) : (
-                  <button onClick={() => setAddingContact(true)} style={{ fontSize:12, padding:"5px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left" }}>+ New contact</button>
+                  <button onClick={() => { setNewContactName(job.contact || ""); setAddingContact(true); }} style={{ fontSize:12, padding:"5px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left" }}>+ New contact</button>
                 )}
               </div>
             </PanelSection>
