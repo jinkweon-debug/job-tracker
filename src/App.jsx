@@ -99,6 +99,7 @@ const EMPTY = {
   interviewTime: "",
   tags: {}, prepChecklist: [], archived: false, followupDismissed: false,
   offerBase: "", offerBonus: "", offerEquity: "", offerStartDate: "", offerDeadline: "", offerNotes: "",
+  resumeId: null,
 };
 
 const PREP_DEFAULTS = {
@@ -272,9 +273,9 @@ function FollowupActions({ job, onUpdateJob }) {
 let _uid = null; // set by App on auth change
 
 async function loadUserData() {
-  if (!_uid) return { jobs: [], tasks: [], contacts: [] };
-  const { data } = await supabase.from('user_data').select('jobs,tasks,contacts').eq('user_id', _uid).single();
-  return { jobs: data?.jobs || [], tasks: data?.tasks || [], contacts: data?.contacts || [] };
+  if (!_uid) return { jobs: [], tasks: [], contacts: [], resumes: [] };
+  const { data } = await supabase.from('user_data').select('jobs,tasks,contacts,resumes').eq('user_id', _uid).single();
+  return { jobs: data?.jobs || [], tasks: data?.tasks || [], contacts: data?.contacts || [], resumes: data?.resumes || [] };
 }
 
 // Set by App so saveJobs/saveTasks can report status to the UI.
@@ -301,6 +302,14 @@ function saveContacts(contacts) {
   if (!_uid) return;
   _onSaveStatus?.("saving");
   supabase.from('user_data').upsert({ user_id: _uid, contacts, updated_at: new Date().toISOString() }).then(({ error }) => {
+    _onSaveStatus?.(error ? "error" : "saved");
+  });
+}
+
+function saveResumes(resumes) {
+  if (!_uid) return;
+  _onSaveStatus?.("saving");
+  supabase.from('user_data').upsert({ user_id: _uid, resumes, updated_at: new Date().toISOString() }).then(({ error }) => {
     _onSaveStatus?.(error ? "error" : "saved");
   });
 }
@@ -698,7 +707,7 @@ function PanelSection({ label, count, defaultOpen = false, children }) {
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, resumes }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [addingContact, setAddingContact] = useState(false);
@@ -780,6 +789,14 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Custom follow-up date
               <input type="date" value={form.customFollowup||""} onChange={e=>setForm(f=>({...f,customFollowup:e.target.value}))} style={inputStyle} />
             </label>
+            {resumes && resumes.length > 0 && (
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Resume version used
+                <select value={form.resumeId||""} onChange={e=>setForm(f=>({...f,resumeId:e.target.value?Number(e.target.value):null}))} style={inputStyle}>
+                  <option value="">— None —</option>
+                  {resumes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </label>
+            )}
             {form.status === "Offer" && (
               <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"10px 12px", background:"var(--surface-subtle)", border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:8 }}>
                 <div style={{ fontSize:12, fontWeight:600, color:getStatusCfg("Offer").text, textTransform:"uppercase", letterSpacing:"0.05em" }}>Offer details</div>
@@ -845,6 +862,11 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                 </div>
               ))}
               {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
+              {job.resumeId && (() => { const r = (resumes||[]).find(x=>x.id===job.resumeId); return r ? (
+                <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Resume</span>
+                  {r.link ? <a href={r.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>{r.name} ↗</a> : <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{r.name}</span>}
+                </div>
+              ) : null; })()}
               {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
             </div>
             {(job.offerBase || job.offerBonus || job.offerEquity || job.offerStartDate || job.offerDeadline || job.offerNotes) && (
@@ -1983,10 +2005,20 @@ function OnboardingCard({ onAdd, onLoadSample }) {
 }
 
 // ── Account settings modal ────────────────────────────────────────────────────
-function SettingsModal({ user, onClose }) {
+function SettingsModal({ user, onClose, resumes, onResumesChange }) {
   const [tab, setTab] = useState("password");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
   const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
+  const [newResume, setNewResume] = useState({ name:"", link:"", notes:"" });
+
+  function addResume() {
+    if (!newResume.name.trim()) return;
+    onResumesChange([...resumes, { id: Date.now(), name: newResume.name.trim(), link: newResume.link.trim(), notes: newResume.notes.trim(), createdAt: new Date().toISOString() }]);
+    setNewResume({ name:"", link:"", notes:"" });
+  }
+  function deleteResume(id) {
+    onResumesChange(resumes.filter(r => r.id !== id));
+  }
 
   async function changePassword(e) {
     e.preventDefault(); setError(""); setMsg("");
@@ -2013,7 +2045,7 @@ function SettingsModal({ user, onClose }) {
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["password","Password"],["capture","Job capture"]].map(([t,label]) => (
+          {[["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
           ))}
         </div>
@@ -2045,6 +2077,33 @@ function SettingsModal({ user, onClose }) {
             </a>
             <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:14, lineHeight:1.6 }}>
               Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically — you can edit the prefilled details before saving.
+            </div>
+          </div>
+        )}
+        {tab === "resumes" && (
+          <div style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Resume versions</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
+              Track different resume versions (e.g. tailored for specific roles) with a link to the file. Then select which version you used on each job's detail panel.
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
+              {resumes.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No resume versions yet.</div>}
+              {resumes.map(r => (
+                <div key={r.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{r.name}</div>
+                    {r.link && <a href={r.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
+                    {r.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{r.notes}</div>}
+                  </div>
+                  <button onClick={() => deleteResume(r.id)} title="Delete" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0 }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8, paddingTop:10, borderTop:"1px solid var(--border)" }}>
+              <input type="text" placeholder="Name (e.g. Resume - PM roles)" value={newResume.name} onChange={e=>setNewResume(f=>({...f,name:e.target.value}))} style={inputStyle} />
+              <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newResume.link} onChange={e=>setNewResume(f=>({...f,link:e.target.value}))} style={inputStyle} />
+              <input type="text" placeholder="Notes (optional)" value={newResume.notes} onChange={e=>setNewResume(f=>({...f,notes:e.target.value}))} style={inputStyle} />
+              <button onClick={addResume} disabled={!newResume.name.trim()} style={{ fontSize:13, padding:"8px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>+ Add resume version</button>
             </div>
           </div>
         )}
@@ -2794,6 +2853,7 @@ export default function App() {
   const [jobs, setJobs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [resumes, setResumes] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [contactModal, setContactModal] = useState(null); // null | "new" | contact object being edited
   const [panelContact, setPanelContact] = useState(null);
@@ -2839,9 +2899,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) { setJobs([]); setTasks([]); setContacts([]); setLoaded(false); return; }
-    loadUserData().then(({ jobs: j, tasks: t, contacts: c }) => {
-      setJobs(j); setTasks(t); setContacts(c); setLoaded(true);
+    if (!user) { setJobs([]); setTasks([]); setContacts([]); setResumes([]); setLoaded(false); return; }
+    loadUserData().then(({ jobs: j, tasks: t, contacts: c, resumes: r }) => {
+      setJobs(j); setTasks(t); setContacts(c); setResumes(r); setLoaded(true);
     });
   }, [user]);
   // ── Browser job capture (bookmarklet) ──
@@ -3680,7 +3740,8 @@ export default function App() {
           const u = [...contacts, newContact];
           setContacts(u); saveContacts(u);
         }}
-        onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }} />}
+        onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }}
+        resumes={resumes} />}
       {contactModal && (
         <ContactModal
           contact={contactModal === "new" ? null : contactModal}
@@ -3713,7 +3774,8 @@ export default function App() {
           }}
         />
       )}
-      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} resumes={resumes}
+        onResumesChange={r => { setResumes(r); saveResumes(r); }} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
   );
