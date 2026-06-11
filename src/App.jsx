@@ -1109,7 +1109,31 @@ function EmailTemplates({ job }) {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
   const [tab, setTab] = useState("details");
+  const [fetchUrl, setFetchUrl] = useState("");
+  const [fetchState, setFetchState] = useState("idle"); // idle | loading | error
   const showInterviewDate = INTERVIEW_STATUSES.includes(form.status);
+
+  async function fetchFromLink() {
+    const url = fetchUrl.trim();
+    if (!url) return;
+    setFetchState("loading");
+    try {
+      const resp = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "Failed to fetch");
+      setForm(f => ({
+        ...f,
+        link: url,
+        role: data.role || f.role,
+        company: data.company || f.company,
+        salaryMin: data.salaryMin || f.salaryMin,
+        salaryMax: data.salaryMax || f.salaryMax,
+      }));
+      setFetchState("idle");
+    } catch (e) {
+      setFetchState("error");
+    }
+  }
   return (
     <div className="modal-overlay" style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100, padding:"1rem" }}>
       <div className="modal-inner" style={{ background:"var(--surface)", borderRadius:12, border:"0.5px solid var(--border)", padding:"1.5rem", width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto" }}>
@@ -1123,6 +1147,19 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
 
         {tab === "details" && (
           <div className="mf" style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {!isEdit && (
+              <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"10px 12px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8 }}>
+                <label style={{ fontSize:12, fontWeight:600, color:"var(--text-secondary)" }}>Paste a job posting link</label>
+                <div style={{ display:"flex", gap:6 }}>
+                  <input type="url" placeholder="https://..." value={fetchUrl} onChange={e=>setFetchUrl(e.target.value)} style={{ fontSize:13, flex:1 }} />
+                  <button type="button" onClick={fetchFromLink} disabled={fetchState==="loading"||!fetchUrl.trim()}
+                    style={{ fontSize:12, padding:"6px 12px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor: fetchUrl.trim()?"pointer":"not-allowed", fontWeight:500, opacity: fetchState==="loading"?0.7:1, whiteSpace:"nowrap" }}>
+                    {fetchState==="loading" ? "Fetching…" : "Fetch details"}
+                  </button>
+                </div>
+                {fetchState==="error" && <div style={{ fontSize:11, color:"#A32D2D" }}>Couldn't read that page automatically — paste the link below and fill in the details manually.</div>}
+              </div>
+            )}
             {[["Company *","company","text","e.g. Acme Corp"],["Role title *","role","text","e.g. Senior Product Manager"],["Job posting URL","link","url","https://..."],["Contact / recruiter","contact","text","Name or email"]].map(([label,key,type,ph]) => (
               <label key={key} style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{label}
                 <input type={type} placeholder={ph} value={form[key]} onChange={e => setForm(f => ({...f,[key]:e.target.value}))} style={{ fontSize:13 }} />
