@@ -272,10 +272,18 @@ function FollowupActions({ job, onUpdateJob }) {
 // ── Supabase data helpers ─────────────────────────────────────────────────────
 let _uid = null; // set by App on auth change
 
+// Tracks job IDs from the last load/save so saveJobs can detect deletions.
+let _lastJobIds = new Set();
+
 async function loadUserData() {
   if (!_uid) return { jobs: [], tasks: [], contacts: [], resumes: [] };
-  const { data } = await supabase.from('user_data').select('jobs,tasks,contacts,resumes').eq('user_id', _uid).single();
-  return { jobs: data?.jobs || [], tasks: data?.tasks || [], contacts: data?.contacts || [], resumes: data?.resumes || [] };
+  const [{ data: jobsData }, { data: userData }] = await Promise.all([
+    supabase.from('jobs').select('*').eq('user_id', _uid),
+    supabase.from('user_data').select('tasks,contacts,resumes').eq('user_id', _uid).single(),
+  ]);
+  const jobs = jobsData || [];
+  _lastJobIds = new Set(jobs.map(j => j.id));
+  return { jobs, tasks: userData?.tasks || [], contacts: userData?.contacts || [], resumes: userData?.resumes || [] };
 }
 
 // Set by App so saveJobs/saveTasks can report status to the UI.
@@ -285,7 +293,15 @@ function setSaveStatusHandler(fn) { _onSaveStatus = fn; }
 function saveJobs(jobs) {
   if (!_uid) return;
   _onSaveStatus?.("saving");
-  supabase.from('user_data').upsert({ user_id: _uid, jobs, updated_at: new Date().toISOString() }).then(({ error }) => {
+  const currentIds = new Set(jobs.map(j => j.id));
+  const removedIds = [..._lastJobIds].filter(id => !currentIds.has(id));
+  const rows = jobs.map(j => ({ ...j, user_id: _uid }));
+  Promise.all([
+    rows.length > 0 ? supabase.from('jobs').upsert(rows) : Promise.resolve({ error: null }),
+    removedIds.length > 0 ? supabase.from('jobs').delete().in('id', removedIds) : Promise.resolve({ error: null }),
+  ]).then(([upsertRes, deleteRes]) => {
+    const error = upsertRes.error || deleteRes.error;
+    if (!error) _lastJobIds = currentIds;
     _onSaveStatus?.(error ? "error" : "saved");
   });
 }
