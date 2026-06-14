@@ -151,6 +151,8 @@
       button.cta { width: 100%; }
     }
   </style>
+  <!-- Vercel Web Analytics (enable "Web Analytics" in the Vercel project dashboard for this to report) -->
+  <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
   <header class="hero">
@@ -189,9 +191,9 @@
         </div>
         <div class="card">
           <span class="ico">✍️</span>
-          <h3>It writes the follow-up for you</h3>
-          <p>When a follow-up comes due, it drafts a personalized message using the role, the contact, and your history — so you actually send it instead of stalling.</p>
-          <span class="tag">Early access</span>
+          <h3>Follow-ups, written for you</h3>
+          <p>When a follow-up comes due, it’ll draft a personalized message from the role, the contact, and your history — so you actually send it instead of stalling. Rolling out to early-access members first.</p>
+          <span class="tag">Coming soon</span>
         </div>
         <div class="card">
           <span class="ico">🤝</span>
@@ -221,7 +223,7 @@
           <ul>
             <li>A daily inbox of what needs action now</li>
             <li>Flags cold applications before they die</li>
-            <li>AI-drafted follow-ups & outreach</li>
+            <li>AI-drafted follow-ups & outreach <em style="color:var(--muted);font-style:italic">(coming soon)</em></li>
             <li>Contacts, reminders & timeline in one place</li>
           </ul>
         </div>
@@ -307,6 +309,7 @@
           } else {
             msg.textContent = "You're on the list. We'll be in touch.";
             msg.className = "msg ok";
+            if (window.va) window.va("event", { name: "waitlist_signup", data: { source: formId === "form-top" ? "hero" : "footer", segment: seg ? seg.value : "none" } });
             form.reset();
           }
         } catch (e) {
