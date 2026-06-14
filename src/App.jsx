@@ -1944,7 +1944,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const [draftJob, setDraftJob] = useState(null);
@@ -2061,6 +2061,10 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
   const staleJobs     = jobs.filter(j => !j.archived && isStale(j) && !getFollowupStatus(j));
   const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length + staleJobs.length;
 
+  if (jobs.filter(j => !j.archived).length === 0) {
+    return <OnboardingCard onAdd={onAddJob} onLoadSample={onLoadSample} />;
+  }
+
   return (
     <div>
       {/* Header */}
@@ -2104,7 +2108,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       {totalPending===0 && autoTasks.length===0 && (
         <div style={{ textAlign:"center", padding:"4rem 1rem", color:"var(--text-muted)", fontSize:14 }}>
           <div style={{ fontSize:32, marginBottom:12 }}>✓</div>
-          Nothing needs attention right now — check the Calendar for upcoming events.
+          You're all caught up — no follow-ups or tasks need your attention today.
         </div>
       )}
 
@@ -2155,16 +2159,16 @@ function makeSampleJobs() {
 // ── Onboarding card (shown when user has no jobs) ─────────────────────────────
 function OnboardingCard({ onAdd, onLoadSample }) {
   const steps = [
-    { icon:"📝", title:"Add a job", desc:"Paste in any role you've applied to or are interested in." },
-    { icon:"📊", title:"Track your pipeline", desc:"Move jobs through stages as you hear back." },
-    { icon:"🔔", title:"Never miss a follow-up", desc:"The app reminds you when it's time to follow up." },
+    { icon:"📝", title:"Add a job", desc:"Paste any role you've applied to — or use the paste-a-link box and it fills in the details for you." },
+    { icon:"🔔", title:"Get told when to follow up", desc:"Your Today list flags applications going cold so you never let one die." },
+    { icon:"✍️", title:"Send it in one tap", desc:"It drafts the follow-up email for you — just review and send." },
   ];
   return (
     <div style={{ maxWidth:580, margin:"2rem auto", padding:"2rem", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
       <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
         <div style={{ fontSize:28, marginBottom:8 }}>👋</div>
-        <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Job Tracker</div>
-        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>Your personal hub for managing every application, follow-up, and interview in one place.</div>
+        <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Followup</div>
+        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up — so applications don't go cold and warm intros don't slip.</div>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:"1.75rem" }}>
         {steps.map((s, i) => (
@@ -2272,7 +2276,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
               💻 Desktop browsers only — mobile browsers don't support dragging bookmarklets to a bookmarks bar. On mobile, use "+ Add job" instead.
             </div>
             <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
-              Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Job Tracker with the role, company, and link pre-filled.
+              Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Followup with the role, company, and link pre-filled.
             </div>
             <a ref={bookmarkletRef} onClick={e => e.preventDefault()} draggable
               style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
@@ -2928,7 +2932,7 @@ function ResetPasswordScreen({ onDone }) {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Job Tracker</div>
+          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Followup</div>
           <div style={{ fontSize:13, color:"var(--text-muted)" }}>Set a new password</div>
         </div>
         {done ? (
@@ -3002,7 +3006,7 @@ function AuthScreen() {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Job Tracker</div>
+          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Followup</div>
           <div style={{ fontSize:13, color:"var(--text-muted)" }}>{subtitles[mode]}</div>
         </div>
         {mode !== "forgot" && (
@@ -3164,11 +3168,11 @@ export default function App() {
     // Single batched notification instead of one per job
     if (overdue.length === 1) {
       const j = overdue[0];
-      fireNotification("Job Tracker — follow-up needed", `${j.company} · ${j.role}`);
+      fireNotification("Followup — follow-up needed", `${j.company} · ${j.role}`);
     } else {
       const preview = overdue.slice(0, 2).map(j => j.company).join(", ");
       const more = overdue.length > 2 ? ` + ${overdue.length - 2} more` : "";
-      fireNotification(`Job Tracker — ${overdue.length} follow-ups needed`, `${preview}${more}`);
+      fireNotification(`Followup — ${overdue.length} follow-ups needed`, `${preview}${more}`);
     }
   }, [loaded]);
 
@@ -3572,7 +3576,7 @@ export default function App() {
     <div style={{ padding:"1rem", fontFamily:"system-ui, sans-serif", paddingRight:!isMobile&&panelJob?"356px":"1rem", transition:"padding-right 0.25s", maxWidth:1200, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom:"1.25rem", padding:"14px 20px", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Job Tracker</h2>
+        <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Followup</h2>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span className="header-hint" style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>N = new · / = search · Esc = close</span>
           {saveStatus !== "idle" && (
@@ -3928,7 +3932,7 @@ export default function App() {
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
-      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {/* Offers view */}
       {view==="offers" && <OffersView jobs={jobs} onOpenPanel={togglePanel} />}
