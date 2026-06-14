@@ -1106,6 +1106,89 @@ function EmailTemplates({ job }) {
   );
 }
 
+// ── Draft follow-up composer ───────────────────────────────────────────────────
+function defaultTemplateId(status) {
+  if (status === "Phone Screen" || status === "Interview") return "statuscheck";
+  return "followup";
+}
+
+function fillDraft(text, profileName, contact) {
+  let out = text;
+  if (profileName) out = out.replace(/\[Your name\]/g, profileName);
+  if (contact && !/@/.test(contact)) {
+    out = out.replace(/\[(?:Hiring Manager's name|Interviewer's name|Recruiter's name|Hiring Manager|Name)\]/g, contact);
+  }
+  return out;
+}
+
+function DraftComposer({ job, profileName, onClose, onMarkContacted }) {
+  const initial = EMAIL_TEMPLATES.find(t => t.id === defaultTemplateId(job.status)) || EMAIL_TEMPLATES[0];
+  const [tplId, setTplId] = useState(initial.id);
+  const [subject, setSubject] = useState(() => initial.subject(job));
+  const [body, setBody] = useState(() => fillDraft(initial.body(job), profileName, job.contact));
+  const [copied, setCopied] = useState(false);
+
+  function pickTemplate(id) {
+    const t = EMAIL_TEMPLATES.find(x => x.id === id);
+    if (!t) return;
+    setTplId(id);
+    setSubject(t.subject(job));
+    setBody(fillDraft(t.body(job), profileName, job.contact));
+  }
+  function copyAll() {
+    navigator.clipboard.writeText(`${subject}\n\n${body}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+  const mailto = `mailto:${/@/.test(job.contact || "") ? job.contact : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  const chip = (active) => ({ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, whiteSpace:"nowrap",
+    background: active ? getStatusCfg("Applied").bg : "var(--surface-hover)", color: active ? getStatusCfg("Applied").text : "var(--text-secondary)",
+    border: `1px solid ${active ? getStatusCfg("Applied").border : "var(--border)"}` });
+  const fieldStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box", fontFamily:"inherit" };
+  const labelStyle = { fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 };
+
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto", background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", boxShadow:"0 4px 24px rgba(0,0,0,0.12)" }}>
+        <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+            <span style={{ fontSize:16, flexShrink:0 }}>📧</span>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>Draft follow-up</div>
+              <div style={{ fontSize:12, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.company} · {job.role}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)", flexShrink:0 }}>✕</button>
+        </div>
+        <div style={{ padding:"14px 18px", display:"flex", flexDirection:"column", gap:14 }}>
+          <div>
+            <div style={labelStyle}>Template</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+              {EMAIL_TEMPLATES.map(t => <button key={t.id} onClick={() => pickTemplate(t.id)} style={chip(tplId === t.id)}>{t.label}</button>)}
+            </div>
+          </div>
+          <div>
+            <div style={labelStyle}>Subject</div>
+            <input value={subject} onChange={e => setSubject(e.target.value)} style={fieldStyle} />
+          </div>
+          <div>
+            <div style={labelStyle}>Body</div>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={11} style={{ ...fieldStyle, resize:"vertical", lineHeight:1.6 }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"8px 11px", border:"1px dashed var(--border)", borderRadius:7 }}>
+            <span style={{ fontSize:12, color:"var(--text-muted)" }}>✨ Improve with AI — personalizes from your history</span>
+            <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:10, background:"var(--surface-hover)", color:"var(--text-muted)", flexShrink:0 }}>Soon</span>
+          </div>
+        </div>
+        <div style={{ padding:"12px 18px", borderTop:"1px solid var(--border)", display:"flex", gap:8, justifyContent:"flex-end", flexWrap:"wrap" }}>
+          <button onClick={copyAll} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500 }}>{copied ? "✓ Copied" : "Copy"}</button>
+          <a href={mailto} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, textDecoration:"none" }}>Open in email ↗</a>
+          <button onClick={onMarkContacted} style={{ fontSize:13, padding:"7px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>✓ Mark contacted</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
   const [tab, setTab] = useState("details");
@@ -1861,9 +1944,10 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
+  const [draftJob, setDraftJob] = useState(null);
   const today = todayStr();
 
   // Auto-generated urgent items
@@ -1927,6 +2011,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
         </div>
         {type==="followup" && (
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
+            <button onClick={() => setDraftJob(job)} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
             <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
@@ -2050,6 +2135,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob }) {
           </div>
         ))}
       </Section>
+      {draftJob && <DraftComposer job={draftJob} profileName={profileName} onClose={() => setDraftJob(null)} onMarkContacted={() => { logOutreach(draftJob); setDraftJob(null); }} />}
     </div>
   );
 }
@@ -2100,8 +2186,9 @@ function OnboardingCard({ onAdd, onLoadSample }) {
 }
 
 // ── Account settings modal ────────────────────────────────────────────────────
-function SettingsModal({ user, onClose, resumes, onResumesChange }) {
-  const [tab, setTab] = useState("password");
+function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange }) {
+  const [tab, setTab] = useState("profile");
+  const [nameField, setNameField] = useState(profileName || "");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
   const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
   const [newResume, setNewResume] = useState({ name:"", link:"", notes:"" });
@@ -2147,10 +2234,21 @@ function SettingsModal({ user, onClose, resumes, onResumesChange }) {
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
+          {[["profile","Profile"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
           ))}
         </div>
+        {tab === "profile" && (
+          <div style={{ padding:"16px 20px" }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Your name</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:12 }}>
+              Used to sign off your follow-up email drafts — it replaces “[Your name]” automatically.
+            </div>
+            <input type="text" placeholder="e.g. Jin Kweon" value={nameField} onChange={e=>setNameField(e.target.value)} style={inputStyle} />
+            <button onClick={() => { onProfileNameChange(nameField.trim()); setMsg("Saved."); setTimeout(()=>setMsg(""),2000); }} style={{ marginTop:12, fontSize:13, padding:"9px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Save</button>
+            {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px", marginTop:10 }}>{msg}</div>}
+          </div>
+        )}
         {tab === "password" && (
           <div style={{ padding:"16px 20px" }}>
             <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Signed in as <span style={{ fontWeight:500, color:"var(--text-primary)" }}>{user.email}</span></div>
@@ -2976,6 +3074,7 @@ export default function App() {
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [profileName, setProfileName] = useState(() => { try { return localStorage.getItem("followup_profile_name") || ""; } catch { return ""; } });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
@@ -3829,7 +3928,7 @@ export default function App() {
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
-      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
 
       {/* Offers view */}
       {view==="offers" && <OffersView jobs={jobs} onOpenPanel={togglePanel} />}
@@ -3904,7 +4003,9 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} resumes={resumes}
-        onResumesChange={r => { setResumes(r); saveResumes(r); }} />}
+        onResumesChange={r => { setResumes(r); saveResumes(r); }}
+        profileName={profileName || user?.user_metadata?.full_name || ""}
+        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} }} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
   );
