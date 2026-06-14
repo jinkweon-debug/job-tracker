@@ -2972,7 +2972,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState("dateApplied");
   const [sortDir, setSortDir] = useState("desc");
   const [search, setSearch] = useState("");
-  const [view, setView] = useState("list");
+  const [view, setView] = useState("today");
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
