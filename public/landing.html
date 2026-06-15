@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>Followup — the job tracker that makes you follow up</title>
+  <meta name="description" content="Followup turns your job search into a daily action list — tracks every application, flags the ones going cold, drafts your follow-ups, and keeps interviews, contacts, and salaries in one place. Free." />
+  <meta property="og:title" content="Followup — the job tracker that makes you follow up" />
+  <meta property="og:description" content="A job tracker that doesn't just store applications — it tells you who to follow up with, when, and drafts the message for you." />
+  <meta property="og:type" content="website" />
+  <script defer src="/_vercel/insights/script.js"></script>
+  <style>
+    :root {
+      --blue: #185FA5;
+      --blue-dark: #0C447C;
+      --blue-light: #B5D4F4;
+      --ink: #14233A;
+      --body: #43536B;
+      --muted: #6B7A90;
+      --surface: #ffffff;
+      --surface-subtle: #F4F8FC;
+      --border: #E2E9F1;
+      --page-bg: #F7FAFD;
+      --good: #1F7A4D;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--body); background: var(--page-bg); line-height: 1.55; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 22px; }
+    .btn-primary {
+      display: inline-block; font-size: 15px; font-weight: 700; text-decoration: none;
+      padding: 13px 26px; border-radius: 9px; background: #0B1F38; color: #fff;
+      transition: transform .08s, background .15s; cursor: pointer; border: none;
+    }
+    .btn-primary:hover { background: #060f1c; }
+    .btn-primary:active { transform: translateY(1px); }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(247,250,253,0.85); backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+    .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 17px; color: var(--ink); }
+    .brand .dot { width: 11px; height: 11px; border-radius: 3px; background: var(--blue); }
+    nav .links { display: flex; align-items: center; gap: 18px; font-size: 14px; }
+    nav .links a.signin { color: var(--blue); text-decoration: none; font-weight: 600; }
+    nav .links a.cta { background: var(--blue); color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; }
+
+    /* HERO */
+    header.hero { padding: 72px 0 60px; text-align: center; }
+    .pill { display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--blue); background: var(--surface); border: 1px solid var(--blue-light); border-radius: 20px; padding: 5px 14px; margin-bottom: 22px; }
+    h1 { font-size: clamp(30px, 6vw, 50px); line-height: 1.1; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; margin: 0 auto 18px; max-width: 16ch; }
+    .hero .sub { font-size: clamp(16px, 2.6vw, 20px); color: var(--body); max-width: 44ch; margin: 0 auto 30px; }
+    .hero .sub b { color: var(--ink); font-weight: 600; }
+    .hero-cta { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
+    .hero-cta .note { font-size: 13px; color: var(--muted); width: 100%; margin-top: 6px; }
+
+    /* SECTION SHELLS */
+    section { padding: 56px 0; }
+    .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue); margin-bottom: 10px; }
+    h2 { font-size: clamp(24px, 4vw, 32px); color: var(--ink); font-weight: 800; letter-spacing: -0.01em; line-height: 1.18; margin-bottom: 14px; }
+    section p.lead { font-size: 17px; color: var(--body); max-width: 60ch; }
+    .center { text-align: center; }
+    .center h2 { margin-left: auto; margin-right: auto; }
+    .center p.lead { margin-left: auto; margin-right: auto; }
+
+    /* FEATURE GRID */
+    .features { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+    .card { background: var(--page-bg); border: 1px solid var(--border); border-radius: 14px; padding: 24px 22px; }
+    .card .ico { font-size: 26px; margin-bottom: 14px; display: block; }
+    .card h3 { font-size: 17px; color: var(--ink); font-weight: 700; margin-bottom: 8px; }
+    .card p { font-size: 14px; color: var(--muted); line-height: 1.55; }
+    .card .tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--blue); background: var(--surface); border: 1px solid var(--blue-light); border-radius: 5px; padding: 2px 7px; margin-top: 12px; }
+
+    /* SPLIT ROWS */
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; margin-top: 40px; }
+    .row:first-of-type { margin-top: 0; }
+    .row .visual { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
+    .row h3 { font-size: 21px; color: var(--ink); font-weight: 700; margin-bottom: 10px; }
+    .row p { font-size: 15px; color: var(--body); }
+    .row ul { list-style: none; margin-top: 12px; }
+    .row li { font-size: 14px; padding: 5px 0 5px 24px; position: relative; color: var(--body); }
+    .row li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+
+    /* mini mockups inside visuals */
+    .mini { font-size: 12px; }
+    .mini .mrow { display: flex; align-items: center; gap: 8px; padding: 9px 11px; background: var(--page-bg); border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 0; margin-bottom: 8px; }
+    .mini .mrow:last-child { margin-bottom: 0; }
+    .mini .mrow .t { flex: 1; min-width: 0; }
+    .mini .mrow .t b { color: var(--ink); font-weight: 600; display: block; font-size: 12.5px; }
+    .mini .mrow .t span { color: var(--muted); font-size: 11px; }
+    .mini .mrow .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: #FDEEC8; color: #7A4500; flex-shrink: 0; }
+    .mini .mrow .draftbtn { font-size: 10.5px; font-weight: 700; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--blue-light); color: var(--blue); background: var(--surface); flex-shrink: 0; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chips span { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--surface-subtle); color: var(--blue); border: 1px solid var(--blue-light); }
+    .pipeline { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .pipeline .col { background: var(--page-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+    .pipeline .col .h { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+    .pipeline .col .cardlet { font-size: 11px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; color: var(--ink); }
+
+    /* USE CASES */
+    .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 36px; counter-reset: s; }
+    .step { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; position: relative; }
+    .step .n { width: 28px; height: 28px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .step h3 { font-size: 16px; color: var(--ink); font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 13.5px; color: var(--muted); }
+
+    /* FINAL CTA */
+    .final { text-align: center; background: var(--surface); border-top: 1px solid var(--border); }
+    .final h2 { margin-bottom: 14px; }
+    .final p { font-size: 16px; color: var(--body); margin-bottom: 26px; }
+
+    footer { text-align: center; padding: 36px 0 56px; color: var(--muted); font-size: 13px; }
+    footer .brand { font-size: 14px; justify-content: center; margin-bottom: 6px; }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; gap: 18px; }
+      .row .visual { order: 2; }
+      .steps { grid-template-columns: 1fr; }
+      section { padding: 44px 0; }
+      header.hero { padding: 48px 0 44px; }
+      nav .links a.signin { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a href="/" class="brand" style="text-decoration:none"><span class="dot"></span> Followup</a>
+      <div class="links">
+        <a href="#features" class="signin" style="color:var(--body)">Features</a>
+        <a href="/" class="signin">Sign in</a>
+        <a href="/" class="cta">Get started</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <span class="pill">Free · your whole job search in one place</span>
+      <h1>The job tracker that makes you follow up.</h1>
+      <p class="sub">Most trackers are where applications go to quietly die. Followup turns your search into a <b>daily action list</b> — it tells you who to follow up with, flags the ones going cold, and drafts the message for you.</p>
+      <div class="hero-cta">
+        <a href="/" class="btn-primary">Get started — it's free</a>
+        <div class="note">No credit card. Sign up with email or Google.</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="features" id="features">
+    <div class="wrap center">
+      <div class="eyebrow">Everything in one place</div>
+      <h2>Built to keep your search moving.</h2>
+      <p class="lead">Tracking is table stakes. Followup is the part that actually lands offers — the follow-ups, the people, and the next thing to do today.</p>
+      <div class="grid">
+        <div class="card">
+          <span class="ico">📥</span>
+          <h3>A daily action list</h3>
+          <p>Open it and see exactly what needs you today: follow-ups due, interviews, and applications going stale. No hunting through a board.</p>
+        </div>
+        <div class="card">
+          <span class="ico">✍️</span>
+          <h3>Drafts your follow-ups</h3>
+          <p>One tap drafts a follow-up email from the role, the contact, and your history — copy it, open it in your mail app, and log it as sent.</p>
+          <span class="tag">AI drafts coming soon</span>
+        </div>
+        <div class="card">
+          <span class="ico">🔔</span>
+          <h3>Never misses a beat</h3>
+          <p>Auto-reminders when it's time to follow up, when an application goes cold, and the day before every interview — synced to your calendar.</p>
+        </div>
+        <div class="card">
+          <span class="ico">⚡</span>
+          <h3>Capture jobs in one click</h3>
+          <p>Save a posting from LinkedIn, Indeed, or anywhere with the bookmarklet — or just paste the link on mobile and it fills in the details.</p>
+        </div>
+        <div class="card">
+          <span class="ico">📊</span>
+          <h3>See your whole pipeline</h3>
+          <p>A drag-and-drop board, a sortable table, a calendar, and a conversion funnel — view your search however makes sense to you.</p>
+        </div>
+        <div class="card">
+          <span class="ico">🤝</span>
+          <h3>People &amp; salaries too</h3>
+          <p>Track recruiters and contacts, log salary ranges, tag by work type and industry, and keep notes and a timeline on every role.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="row">
+        <div>
+          <div class="eyebrow">Your day, not a database</div>
+          <h3>Open to what needs you — today.</h3>
+          <p>Followup leads with a Today view: an inbox of follow-ups that are due, interviews coming up, and applications that have gone quiet. It's the difference between a tool you have to remember to check and one that tells you what to do.</p>
+          <ul>
+            <li>Follow-ups surface automatically on the right cadence</li>
+            <li>Cold applications get flagged before they die</li>
+            <li>Interview-day and day-before reminders, built in</li>
+          </ul>
+        </div>
+        <div class="visual">
+          <div class="mini">
+            <div class="mrow">
+              <div class="t"><b>Acme Corp · Product Manager</b><span>Follow-up due · applied 14 days ago</span></div>
+              <span class="draftbtn">✍️ Draft</span>
+            </div>
+            <div class="mrow">
+              <div class="t"><b>Bright Labs · UX Designer</b><span>Interview today · 2:00 PM</span></div>
+              <span class="badge">Today</span>
+            </div>
+            <div class="mrow">
+              <div class="t"><b>Metro Health · Data Analyst</b><span>No activity in 16 days</span></div>
+              <span class="badge" style="background:#FCEBEB;color:#791F1F">Cold</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="visual">
+          <div class="mini">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:8px">Draft follow-up</div>
+            <div class="chips" style="margin-bottom:10px">
+              <span style="background:var(--blue);color:#fff;border-color:var(--blue)">Application follow-up</span>
+              <span>Status check</span>
+              <span>Recruiter</span>
+            </div>
+            <div style="font-size:12px;background:var(--page-bg);border:1px solid var(--border);border-radius:8px;padding:10px;line-height:1.6;color:var(--body)">Hi Sarah,<br><br>Following up on my application for the Product Manager role at Acme Corp — I remain very interested and would love to hear about next steps.<br><br>Thanks,<br>Jin</div>
+          </div>
+        </div>
+        <div>
+          <div class="eyebrow">The follow-up, written for you</div>
+          <h3>Stop staring at a blank email.</h3>
+          <p>When a follow-up comes due, Followup drafts it — pulling in the role, the company, and the contact so it's ready to send. Pick a template, tweak it, copy it or open it in your mail app, and mark it sent. Smart AI-personalized drafts are coming next.</p>
+          <ul>
+            <li>Templates for follow-ups, thank-yous, status checks &amp; outreach</li>
+            <li>Auto-fills your name and the recipient</li>
+            <li>Logs it to the job's timeline when you send</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <div class="eyebrow">However you think about your search</div>
+          <h3>List, board, table, or calendar.</h3>
+          <p>Drag applications through stages on a Kanban board, scan everything in a sortable table, or see interviews and follow-ups on a calendar. A built-in funnel shows how you're converting from applied to offer.</p>
+          <ul>
+            <li>Drag-and-drop pipeline with custom stages</li>
+            <li>Conversion funnel &amp; salary insights</li>
+            <li>Works great on your phone, with dark mode</li>
+          </ul>
+        </div>
+        <div class="visual">
+          <div class="pipeline">
+            <div class="col"><div class="h">Applied</div><div class="cardlet">Acme Corp</div><div class="cardlet">Loft</div></div>
+            <div class="col"><div class="h">Interview</div><div class="cardlet">Bright Labs</div></div>
+            <div class="col"><div class="h">Offer</div><div class="cardlet">Metro Health</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="wrap center">
+      <div class="eyebrow">How it works</div>
+      <h2>Up and running in two minutes.</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="n">1</div>
+          <h3>Add your jobs</h3>
+          <p>Paste a posting link and it fills in the role, company, and salary — or click to capture from any job site.</p>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <h3>Let it track the timing</h3>
+          <p>Followup watches each application and tells you when to follow up and when one's going cold.</p>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <h3>Follow up &amp; land it</h3>
+          <p>Send the drafted follow-up in a tap, log your interviews, and watch your pipeline move toward an offer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <div class="eyebrow center">Free to use</div>
+      <h2>Run your job search like it matters.</h2>
+      <p>Add your applications, and never let a good lead go cold again.</p>
+      <a href="/" class="btn-primary">Get started — it's free</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand"><span class="dot"></span> Followup</div>
+      A better way to run your job search · <a href="/" style="color:var(--blue);text-decoration:none">Open the app →</a>
+    </div>
+  </footer>
+</body>
+</html>
