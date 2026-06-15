@@ -196,11 +196,13 @@ function lastActivity(job) {
   return { label, ago, isInitialApply };
 }
 
-// Most recent timestamp of activity on a job (latest timeline event, else updated/created).
+// Timestamp of a job's most recent real activity — the latest timeline event,
+// falling back to when it was added. Deliberately ignores updatedAt, which gets
+// bumped by silent edits (snooze, interest, etc.) that aren't "activity".
 function activityTime(job) {
-  const dates = [...(job.timeline || []).filter(e => e.date).map(e => e.date), job.updatedAt, job.createdAt].filter(Boolean);
-  dates.sort();
-  return dates.length ? dates[dates.length - 1] : "";
+  const tl = (job.timeline || []).filter(e => e.date).map(e => e.date);
+  if (tl.length) { tl.sort(); return tl[tl.length - 1]; }
+  return job.createdAt || job.dateApplied || "";
 }
 
 function hasOutreach(job) {
