@@ -196,6 +196,13 @@ function lastActivity(job) {
   return { label, ago, isInitialApply };
 }
 
+// Most recent timestamp of activity on a job (latest timeline event, else updated/created).
+function activityTime(job) {
+  const dates = [...(job.timeline || []).filter(e => e.date).map(e => e.date), job.updatedAt, job.createdAt].filter(Boolean);
+  dates.sort();
+  return dates.length ? dates[dates.length - 1] : "";
+}
+
 function hasOutreach(job) {
   return (job.timeline || []).some(e =>
     (e.notes && e.notes.toLowerCase().includes("follow-up sent")) ||
@@ -2095,8 +2102,8 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
 
   const manualOverdue = tasks.filter(t => !t.done && t.dueDate < today);
   const manualToday   = tasks.filter(t => !t.done && t.dueDate === today);
-  const staleJobs     = jobs.filter(j => !j.archived && isStale(j) && !getFollowupStatus(j));
-  const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length + staleJobs.length;
+  const recentJobs    = jobs.filter(j => !j.archived).map(j => ({ job:j, t:activityTime(j) })).filter(x => x.t).sort((a,b) => b.t.localeCompare(a.t)).slice(0, 12).map(x => x.job);
+  const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length;
 
   if (jobs.filter(j => !j.archived).length === 0) {
     return <OnboardingCard onAdd={onAddJob} onLoadSample={onLoadSample} />;
@@ -2161,20 +2168,26 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       <Section title="Reminders due today" color={getStatusCfg("Applied").text} count={manualToday.length}>
         {manualToday.map(t => <TaskCard key={t.id} task={t} />)}
       </Section>
-      <Section title="No recent activity" color="var(--text-muted)" count={staleJobs.length}>
-        {staleJobs.map(job => (
-          <div key={job.id} onClick={() => onOpenPanel(job)}
-            style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:"var(--surface)", border:"1px solid var(--border)", borderLeft:`3px solid ${getStatusCfg(job.status).border}`, borderRadius:8, marginBottom:6, cursor:"pointer" }}>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.company} · {job.role}</div>
-              <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>
-                <span style={{ ...(() => { const c=getStatusCfg(job.status); return { background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:500 }; })() }}>{job.status}</span>
-                <span style={{ marginLeft:6 }}>· last updated {timeAgo(job.updatedAt||job.createdAt)}</span>
+      <Section title="Recent activity" color="var(--text-muted)" count={recentJobs.length}>
+        {recentJobs.map(job => {
+          const act = lastActivity(job);
+          const isContact = act && /follow.up|contact/i.test(act.label);
+          return (
+            <div key={job.id} onClick={() => onOpenPanel(job)}
+              style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:"var(--surface)", border:"1px solid var(--border)", borderLeft:`3px solid ${getStatusCfg(job.status).border}`, borderRadius:8, marginBottom:6, cursor:"pointer" }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.company} · {job.role}</div>
+                <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  <span style={{ ...(() => { const c=getStatusCfg(job.status); return { background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:4, padding:"1px 6px", fontSize:10, fontWeight:500 }; })() }}>{job.status}</span>
+                  {act && !act.isInitialApply
+                    ? <span style={{ marginLeft:6 }}>· {isContact ? "📤 " : "📋 "}<span style={{ color: isContact ? getStatusCfg("Offer").text : "var(--text-secondary)", fontWeight:500 }}>{act.label}</span> · {act.ago}</span>
+                    : <span style={{ marginLeft:6 }}>· {job.dateApplied ? `applied ${daysAgoStr(job.dateApplied)}` : `added ${timeAgo(job.createdAt)}`}</span>}
+                </div>
               </div>
+              <span style={{ fontSize:11, color:"var(--text-muted)", flexShrink:0 }}>›</span>
             </div>
-            <span style={{ fontSize:11, color:"var(--text-muted)", flexShrink:0 }}>›</span>
-          </div>
-        ))}
+          );
+        })}
       </Section>
       {draftJob && <DraftComposer job={draftJob} profileName={profileName} onClose={() => setDraftJob(null)} onMarkContacted={() => { logOutreach(draftJob); setDraftJob(null); }} />}
     </div>
