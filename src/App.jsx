@@ -2204,8 +2204,60 @@ function HelpSection({ title, children, defaultOpen = false }) {
   );
 }
 
+// Feedback form — relays to the owner's email via Web3Forms (email stays private;
+// only this anonymous access key is public). Get a free key at https://web3forms.com
+const WEB3FORMS_ACCESS_KEY = "YOUR_WEB3FORMS_ACCESS_KEY";
+
+function FeedbackForm() {
+  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle"); // idle | sending | sent | error
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!message.trim()) return;
+    setState("sending");
+    try {
+      const resp = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          access_key: WEB3FORMS_ACCESS_KEY,
+          subject: "Followup — new feedback",
+          from_name: "Followup app",
+          email: email.trim() || undefined,
+          message: message.trim(),
+        }),
+      });
+      const data = await resp.json();
+      if (data.success) { setState("sent"); setMessage(""); setEmail(""); }
+      else setState("error");
+    } catch { setState("error"); }
+  }
+
+  if (state === "sent") {
+    return <div style={{ fontSize: 13, color: "#27500A", background: "#EAF3DE", border: "1px solid #C0DD97", borderRadius: 8, padding: "10px 12px" }}>Thanks — your feedback was sent. 🙏</div>;
+  }
+  const field = { fontSize: 13, padding: "9px 11px", border: "1px solid var(--input-border)", borderRadius: 8, background: "var(--input-bg)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
+  return (
+    <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <textarea value={message} onChange={e => setMessage(e.target.value)} required rows={4}
+        placeholder="What's working, what's broken, what you'd love to see…"
+        style={{ ...field, resize: "vertical", lineHeight: 1.5 }} />
+      <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+        placeholder="Your email (optional — so we can reply)" style={field} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <button type="submit" disabled={state === "sending" || !message.trim()}
+          style={{ fontSize: 13, padding: "8px 16px", background: "#185FA5", color: "#fff", border: "none", borderRadius: 8, cursor: message.trim() ? "pointer" : "not-allowed", fontWeight: 600, opacity: state === "sending" ? 0.7 : 1 }}>
+          {state === "sending" ? "Sending…" : "Send feedback"}
+        </button>
+        {state === "error" && <span style={{ fontSize: 12, color: "#A32D2D" }}>Couldn't send — please try again.</span>}
+      </div>
+    </form>
+  );
+}
+
 function HelpModal({ onClose }) {
-  const SUPPORT_EMAIL = "hello@followup.app";
   const item = (name, desc) => (
     <div style={{ marginBottom: 8 }}>
       <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{name}</span> — {desc}
@@ -2269,7 +2321,8 @@ function HelpModal({ onClose }) {
 
           <HelpSection title="Need help?">
             <p style={{ marginBottom: 10 }}>Your data is saved to your account automatically. If something looks off, refreshing the page or signing out and back in fixes most issues.</p>
-            <p>Have feedback or found a bug? Email <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}>{SUPPORT_EMAIL}</a> — Followup is in active development and more is on the way.</p>
+            <p style={{ marginBottom: 12 }}>Have feedback or found a bug? Send it straight to us — Followup is in active development and more is on the way.</p>
+            <FeedbackForm />
           </HelpSection>
         </div>
       </div>
