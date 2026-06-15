@@ -277,10 +277,15 @@ let _lastJobIds = new Set();
 
 async function loadUserData() {
   if (!_uid) return { jobs: [], tasks: [], contacts: [], resumes: [] };
-  const [{ data: jobsData }, { data: userData }] = await Promise.all([
+  const [{ data: jobsData, error: jobsErr }, { data: userData, error: udErr }] = await Promise.all([
     supabase.from('jobs').select('*').eq('user_id', _uid),
-    supabase.from('user_data').select('tasks,contacts,resumes').eq('user_id', _uid).single(),
+    // maybeSingle: returns null (not an error) when the user has no user_data row yet,
+    // so brand-new accounts load fine while real query errors still surface below.
+    supabase.from('user_data').select('tasks,contacts,resumes').eq('user_id', _uid).maybeSingle(),
   ]);
+  // Treat any query error as a failure rather than silently falling back to empty —
+  // otherwise a later save would write that empty state back over the real data.
+  if (jobsErr || udErr) throw new Error((jobsErr || udErr).message || 'Failed to load data');
   const jobs = jobsData || [];
   _lastJobIds = new Set(jobs.map(j => j.id));
   return { jobs, tasks: userData?.tasks || [], contacts: userData?.contacts || [], resumes: userData?.resumes || [] };
@@ -3202,6 +3207,7 @@ export default function App() {
   const [contacts, setContacts] = useState([]);
   const [resumes, setResumes] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [contactModal, setContactModal] = useState(null); // null | "new" | contact object being edited
   const [panelContact, setPanelContact] = useState(null);
   const [modal, setModal] = useState(false);
@@ -3249,8 +3255,12 @@ export default function App() {
 
   useEffect(() => {
     if (!user) { setJobs([]); setTasks([]); setContacts([]); setResumes([]); setLoaded(false); return; }
+    setLoadError(false);
     loadUserData().then(({ jobs: j, tasks: t, contacts: c, resumes: r }) => {
       setJobs(j); setTasks(t); setContacts(c); setResumes(r); setLoaded(true);
+    }).catch(() => {
+      // Leave `loaded` false so the app (and its auto-saves) never run on empty data.
+      setLoadError(true);
     });
   }, [user]);
   // ── Browser job capture (bookmarklet) ──
@@ -3711,6 +3721,14 @@ export default function App() {
   if (!authChecked) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading…</div>;
   if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!user) return <AuthScreen />;
+  if (loadError) return (
+    <div style={{ padding:"3rem 1.5rem", maxWidth:420, margin:"3rem auto", textAlign:"center", color:"var(--text-primary)" }}>
+      <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
+      <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Couldn't load your data</div>
+      <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, marginBottom:18 }}>We hit a problem reaching the server, so we've paused to keep your data safe — nothing has been changed. Please try again.</div>
+      <button onClick={() => window.location.reload()} style={{ fontSize:13, padding:"9px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Retry</button>
+    </div>
+  );
   if (!loaded) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading your data…</div>;
 
   return (
