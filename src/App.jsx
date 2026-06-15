@@ -205,6 +205,15 @@ function activityTime(job) {
   return job.createdAt || job.dateApplied || "";
 }
 
+const TERMINAL_STATUSES = ["Rejected", "Withdrawn"];
+// Date a job entered a terminal (Rejected/Withdrawn) status, else null.
+function terminalSince(job) {
+  if (!TERMINAL_STATUSES.includes(job.status)) return null;
+  const tl = (job.timeline || []).filter(e => e.date && TERMINAL_STATUSES.includes(e.status)).map(e => e.date);
+  if (tl.length) { tl.sort(); return tl[tl.length - 1]; }
+  return job.updatedAt || job.createdAt || null;
+}
+
 function hasOutreach(job) {
   return (job.timeline || []).some(e =>
     (e.notes && e.notes.toLowerCase().includes("follow-up sent")) ||
@@ -2382,7 +2391,7 @@ function HelpModal({ onClose }) {
   );
 }
 
-function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange }) {
+function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange }) {
   const [tab, setTab] = useState("profile");
   const [nameField, setNameField] = useState(profileName || "");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
@@ -2430,7 +2439,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["profile","Profile"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
+          {[["profile","Profile"],["cleanup","Cleanup"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
           ))}
         </div>
@@ -2443,6 +2452,26 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
             <input type="text" placeholder="e.g. Jin Kweon" value={nameField} onChange={e=>setNameField(e.target.value)} style={inputStyle} />
             <button onClick={() => { onProfileNameChange(nameField.trim()); setMsg("Saved."); setTimeout(()=>setMsg(""),2000); }} style={{ marginTop:12, fontSize:13, padding:"9px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Save</button>
             {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px", marginTop:10 }}>{msg}</div>}
+          </div>
+        )}
+        {tab === "cleanup" && (
+          <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:18 }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Auto-archive rejected &amp; withdrawn jobs</div>
+              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Jobs you've marked Rejected or Withdrawn move to Archived automatically after this many days. They stay recoverable in the Archived view. Set to 0 to turn this off.</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <input type="number" min="0" value={autoArchiveDays} onChange={e=>onAutoArchiveDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
+                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
+              </div>
+            </div>
+            <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Prompt to review quiet applications</div>
+              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>When an active job you haven't rated Medium or High has had no activity for this many days, the Today page offers to archive it — nothing happens until you choose. Set to 0 to turn this off.</div>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <input type="number" min="0" value={quietPromptDays} onChange={e=>onQuietPromptDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
+                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
+              </div>
+            </div>
           </div>
         )}
         {tab === "password" && (
@@ -3273,6 +3302,9 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [profileName, setProfileName] = useState(() => { try { return localStorage.getItem("followup_profile_name") || ""; } catch { return ""; } });
+  const [autoArchiveDays, setAutoArchiveDays] = useState(() => { try { return localStorage.getItem("followup_autoarchive_days") ?? "30"; } catch { return "30"; } });
+  const [quietPromptDays, setQuietPromptDays] = useState(() => { try { return localStorage.getItem("followup_quietprompt_days") ?? "60"; } catch { return "60"; } });
+  const [quietDismissed, setQuietDismissed] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
@@ -3310,6 +3342,18 @@ export default function App() {
       setLoadError(true);
     });
   }, [user]);
+
+  // Auto-archive terminal (Rejected/Withdrawn) jobs after the configured number of days.
+  useEffect(() => {
+    if (!loaded) return;
+    const days = parseInt(autoArchiveDays);
+    if (!days || days <= 0) return;
+    const cutoff = Date.now() - days * 86400000;
+    const ids = new Set(jobs.filter(j => { const t = terminalSince(j); return !j.archived && t && new Date(t).getTime() < cutoff; }).map(j => j.id));
+    if (ids.size === 0) return;
+    const u = jobs.map(j => ids.has(j.id) ? { ...j, archived: true } : j);
+    setJobs(u); saveJobs(u);
+  }, [loaded]);
   // ── Browser job capture (bookmarklet) ──
   useEffect(() => {
     if (!loaded) return;
@@ -3507,6 +3551,21 @@ export default function App() {
     const u = jobs.map(j => selected.has(j.id) ? { ...j, archived:true } : j); setJobs(u); saveJobs(u);
     if (panelJob && selected.has(panelJob.id)) setPanelJob(null);
     clearSelect();
+  }
+
+  // Active, non-terminal jobs you haven't rated Medium/High that have gone quiet for the configured period.
+  const quietPromptN = parseInt(quietPromptDays);
+  const quietJobs = quietPromptN > 0 ? jobs.filter(j => {
+    if (j.archived || TERMINAL_STATUSES.includes(j.status) || (j.interest||0) >= 2) return false;
+    const t = activityTime(j);
+    return t && (Date.now() - new Date(t).getTime()) > quietPromptN * 86400000;
+  }) : [];
+  function archiveQuiet() {
+    const ids = new Set(quietJobs.map(j => j.id));
+    pushUndo(`Archived ${ids.size} quiet job${ids.size>1?"s":""}`, jobs);
+    const u = jobs.map(j => ids.has(j.id) ? { ...j, archived: true } : j);
+    setJobs(u); saveJobs(u);
+    setQuietDismissed(true);
   }
 
   function bulkDelete() {
@@ -4141,7 +4200,18 @@ export default function App() {
       {view==="calendar" && <CalendarView jobs={jobs} tasks={tasks} onOpenPanel={togglePanel} />}
 
       {/* Today view */}
-      {view==="today" && <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />}
+      {view==="today" && <>
+        {quietJobs.length > 0 && !quietDismissed && (
+          <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", justifyContent:"space-between", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderLeft:"3px solid #C27209", borderRadius:8, padding:"10px 14px", marginBottom:16 }}>
+            <div style={{ fontSize:13, color:"var(--text-secondary)" }}>📥 <b style={{ color:"var(--text-primary)", fontWeight:600 }}>{quietJobs.length}</b> application{quietJobs.length>1?"s have":" has"} had no activity in {quietPromptN}+ days.</div>
+            <div style={{ display:"flex", gap:8, flexShrink:0 }}>
+              <button onClick={archiveQuiet} style={{ fontSize:12, padding:"5px 12px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontWeight:600 }}>Archive {quietJobs.length}</button>
+              <button onClick={()=>setQuietDismissed(true)} style={{ fontSize:12, padding:"5px 10px", background:"var(--surface)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>Dismiss</button>
+            </div>
+          </div>
+        )}
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
+      </>}
 
       {/* Offers view */}
       {view==="offers" && <OffersView jobs={jobs} onOpenPanel={togglePanel} />}
@@ -4218,7 +4288,11 @@ export default function App() {
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} resumes={resumes}
         onResumesChange={r => { setResumes(r); saveResumes(r); }}
         profileName={profileName || user?.user_metadata?.full_name || ""}
-        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} }} />}
+        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} }}
+        autoArchiveDays={autoArchiveDays}
+        onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} }}
+        quietPromptDays={quietPromptDays}
+        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} }} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
