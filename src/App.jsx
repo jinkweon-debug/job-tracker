@@ -97,6 +97,7 @@ const EMPTY = {
   dateApplied: "", status: "Applied", contact: "", customFollowup: "", notes: "",
   createdAt: null, updatedAt: null, lastStatus: null, timeline: [], interviewDate: "",
   interviewTime: "",
+  interest: 0,
   tags: {}, prepChecklist: [], archived: false, followupDismissed: false,
   offerBase: "", offerBonus: "", offerEquity: "", offerStartDate: "", offerDeadline: "", offerNotes: "",
   resumeId: null,
@@ -764,6 +765,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
           <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{job.role}</div>
+          <div style={{ marginTop:7 }}><InterestStars value={job.interest||0} onChange={n=>onUpdateJob(job.id,{interest:n})} size={16} filledColor="#FFD37A" emptyColor="rgba(255,255,255,0.55)" showLabel /></div>
         </div>
         <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0 }}>✕</button>
       </div>
@@ -1257,6 +1259,9 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
               <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary min<input type="number" placeholder="90000" value={form.salaryMin} onChange={e => setForm(f=>({...f,salaryMin:e.target.value}))} style={{ fontSize:13 }} /></label>
               <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary max<input type="number" placeholder="120000" value={form.salaryMax} onChange={e => setForm(f=>({...f,salaryMax:e.target.value}))} style={{ fontSize:13 }} /></label>
             </div>
+            <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Interest
+              <div style={{ paddingTop:3 }}><InterestStars value={form.interest||0} onChange={n=>setForm(f=>({...f,interest:n}))} size={22} showLabel /></div>
+            </label>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
               <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Date applied<input type="date" value={form.dateApplied} onChange={e => setForm(f=>({...f,dateApplied:e.target.value}))} style={{ fontSize:13 }} /></label>
               <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Status
@@ -1324,6 +1329,27 @@ function ReminderMini({ job, onSave, onClose }) {
 }
 
 // ── List card ─────────────────────────────────────────────────────────────────
+// ── Interest rating (Low / Medium / High = 1 / 2 / 3 stars) ───────────────────
+const INTEREST_LABELS = ["Set interest", "Low interest", "Medium interest", "High interest"];
+function InterestStars({ value = 0, onChange, size = 14, filledColor = "#E8A317", emptyColor = "var(--text-muted)", showLabel = false }) {
+  const [hover, setHover] = useState(0);
+  const active = hover || value;
+  const ro = !onChange;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: showLabel ? 6 : 1 }} title={INTEREST_LABELS[value]} onMouseLeave={() => setHover(0)}>
+      <span style={{ display: "inline-flex", gap: 1 }}>
+        {[1, 2, 3].map(n => (
+          <span key={n}
+            onClick={ro ? undefined : (e) => { e.stopPropagation(); onChange(value === n ? 0 : n); }}
+            onMouseEnter={ro ? undefined : () => setHover(n)}
+            style={{ fontSize: size, lineHeight: 1, cursor: ro ? "default" : "pointer", color: n <= active ? filledColor : emptyColor, opacity: n <= active ? 1 : 0.5, userSelect: "none" }}>★</span>
+        ))}
+      </span>
+      {showLabel && value > 0 && <span style={{ fontSize: 11, color: emptyColor, fontWeight: 500 }}>{["", "Low", "Medium", "High"][value]}</span>}
+    </span>
+  );
+}
+
 function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, tasks }) {
   const fu = getFollowupStatus(job);
   const stale = isStale(job);
@@ -1352,6 +1378,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
             style={{ fontWeight:500, fontSize:14, color:"var(--accent)", cursor:"pointer" }}>
             {job.role}
           </span>
+          <InterestStars value={job.interest||0} onChange={onUpdateJob ? (n=>onUpdateJob(job.id,{interest:n})) : undefined} size={13} />
           <StatusSelect job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
           {onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={fu} />}
           {stale && !fu && <StaleBadge />}
@@ -1682,6 +1709,7 @@ function JobCardBody({ job, onPanelOpen, onUpdateJob }) {
     <>
       <div style={{ fontSize:12, color:"var(--text-primary)", fontWeight:700, marginBottom:2 }}>{job.company}</div>
       <div onClick={() => onPanelOpen(job)} style={{ fontWeight:500, fontSize:13, color:"var(--accent)", marginBottom:2, cursor:"pointer" }}>{job.role}</div>
+      {(job.interest||0) > 0 && <div style={{ marginBottom:3 }}><InterestStars value={job.interest} onChange={onUpdateJob ? (n=>onUpdateJob(job.id,{interest:n})) : undefined} size={12} /></div>}
       {activeTags.length > 0 && <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginBottom:4 }}>{activeTags.map(([cat,val]) => <TagBadge key={cat} category={cat} value={val} />)}</div>}
       {job.interviewDate && <div style={{ fontSize:10, color:getStatusCfg("Interview").text, marginBottom:3, fontWeight:500 }}>📅 {fmtDate(job.interviewDate+"T00:00:00")}</div>}
       {getFollowupStatus(job) && <div style={{ marginBottom:4 }}>{onUpdateJob ? <FollowupActions job={job} onUpdateJob={onUpdateJob} /> : <FollowupBadge info={getFollowupStatus(job)} />}</div>}
@@ -1966,6 +1994,9 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       rawAuto.push({ id:`auto-followup-${job.id}`, type:"followup", job, diff:fu.diff, fu });
   });
   const autoTasks = rawAuto.sort((a,b) => {
+    // High-interest jobs surface first, then by urgency.
+    const ib = (b.job.interest||0) - (a.job.interest||0);
+    if (ib) return ib;
     const key = d => d===0 ? 0 : d<0 ? -d : 1000+d;
     return key(a.diff) - key(b.diff);
   });
@@ -2000,6 +2031,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             <span onClick={() => onOpenPanel(job)} style={{ fontSize:13, fontWeight:500, color:"#185FA5", cursor:"pointer" }}>{label}</span>
             {tag && <span style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:tag.bg, color:tag.color, flexShrink:0 }}>{tag.label}</span>}
+            {(job.interest||0) > 0 && <InterestStars value={job.interest} size={11} />}
           </div>
           <div style={{ fontSize:11, color:border, marginTop:2, fontWeight:500 }}>{sublabel}</div>
           {(() => {
@@ -3712,6 +3744,7 @@ export default function App() {
       if (sortBy==="dateApplied") cmp = (a.dateApplied||"").localeCompare(b.dateApplied||"");
       else if (sortBy==="company") cmp = a.company.localeCompare(b.company);
       else if (sortBy==="status") cmp = a.status.localeCompare(b.status);
+      else if (sortBy==="interest") cmp = (a.interest||0) - (b.interest||0);
       return sortDir==="asc" ? cmp : -cmp;
     });
 
@@ -3796,6 +3829,7 @@ export default function App() {
                             <option value="dateApplied">Date applied</option>
                             <option value="company">Company</option>
                             <option value="status">Status</option>
+                            <option value="interest">Interest</option>
                           </select>
                           <button onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")} title={sortDir==="desc"?"Newest first":"Oldest first"} style={{ fontSize:13, padding:"5px 10px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", fontWeight:600 }}>
                             {sortDir==="desc" ? "↓" : "↑"}
