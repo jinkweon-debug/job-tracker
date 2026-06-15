@@ -2706,16 +2706,30 @@ function OffersView({ jobs, onOpenPanel }) {
 const CAL_TYPES = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#185FA5",          text:"#fff",                    border:"#0C447C" },
   followup:  { label:"Follow-ups", icon:"🔔", bg:"#FAEEDA",          text:"#633806",                 border:"#FAC775" },
-  task:      { label:"Reminders",  icon:"🔔", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
-  timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
+  task:      { label:"Reminders",  icon:"⏰", bg:"#EAF3DE",          text:"#27500A",                 border:"#C0DD97" },
+  timeline:  { label:"Milestones", icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
 };
 const CAL_TYPES_DARK = {
   interview: { label:"Interviews", icon:"🗓️", bg:"#1a3550", text:"#7BB8F0", border:"#2d5580" },
   followup:  { label:"Follow-ups", icon:"🔔", bg:"#3d2b10", text:"#FAC775", border:"#5c4020" },
-  task:      { label:"Reminders",  icon:"🔔", bg:"#1a3010", text:"#90C855", border:"#2a5020" },
-  timeline:  { label:"Timeline",   icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
+  task:      { label:"Reminders",  icon:"⏰", bg:"#1a3010", text:"#90C855", border:"#2a5020" },
+  timeline:  { label:"Milestones", icon:"📋", bg:"var(--surface-hover)", text:"var(--text-secondary)", border:"var(--border)" },
 };
 const getCalCfg = (type) => ((isDark() ? CAL_TYPES_DARK : CAL_TYPES)[type] || {});
+
+// Per-milestone icon + pipeline-stage colors so each calendar event reads at a glance.
+const MILESTONE_ICONS = { Applied:"📨", "Phone Screen":"📞", Interview:"🗓️", Offer:"🎉", Rejected:"❌", Withdrawn:"↩️", Note:"📝" };
+const CAL_TYPE_NAMES = { interview:"Interview", followup:"Follow-up", task:"Reminder" };
+function eventStyle(ev) {
+  if (ev.type === "timeline") {
+    const m = ev.milestone || "Note";
+    const icon = MILESTONE_ICONS[m] || "📋";
+    if (STATUS_CONFIG[m]) { const c = getStatusCfg(m); return { icon, bg:c.bg, text:c.text, border:c.border, name:m }; }
+    const c = getCalCfg("timeline"); return { icon, bg:c.bg, text:c.text, border:c.border, name:m };
+  }
+  const c = getCalCfg(ev.type);
+  return { icon:c.icon, bg:c.bg, text:c.text, border:c.border, name: CAL_TYPE_NAMES[ev.type] || c.label };
+}
 
 function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [calView, setCalView] = useState("month"); // "month" | "week" | "day" | "agenda"
@@ -2755,8 +2769,9 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         if (!e.date) return;
         const key = e.date.slice(0,10);
         if (e.status==="Interview" && key===j.interviewDate) return;
-        const label = e.type==="manual" ? (e.label||"Note") : e.status;
-        addEv(e.date, { type:"timeline", label:j.company, sub:label, job:j });
+        const isManual = e.type==="manual";
+        const label = isManual ? (e.label||"Note") : e.status;
+        addEv(e.date, { type:"timeline", label:j.company, sub:label, job:j, milestone: isManual ? "Note" : (e.status || "Note") });
       }));
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -2801,10 +2816,10 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
 
   // ── Event pill ──
   function EventPill({ ev, compact }) {
-    const cfg = getCalCfg(ev.type);
+    const cfg = eventStyle(ev);
     return (
       <div
-        title={`${cfg.label}: ${ev.label}${ev.sub ? ` — ${ev.sub}` : ""}`}
+        title={`${cfg.name}: ${ev.label}${ev.sub && ev.sub !== cfg.name ? ` — ${ev.sub}` : ""}`}
         style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}
         onClick={e => { e.stopPropagation(); ev.job && onOpenPanel(ev.job); }}>
         {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
@@ -2869,6 +2884,14 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
               <span style={{ fontSize:9, lineHeight:1 }}>{on ? "●" : "○"}</span> {cfg.icon} {cfg.label}
             </button>
           ); })}
+        </div>
+        <div style={{ marginTop:12, paddingTop:12, borderTop:"1px solid var(--border-subtle)" }}>
+          <div style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:5 }}>Milestone key</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+            {[["📨","Applied"],["📞","Phone screen"],["🗓️","Interview"],["🎉","Offer"],["❌","Rejected"],["↩️","Withdrawn"]].map(([ic,nm]) => (
+              <div key={nm} style={{ fontSize:11, color:"var(--text-secondary)", display:"flex", gap:7, alignItems:"center" }}><span style={{ width:16, textAlign:"center" }}>{ic}</span> {nm}</div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -2973,14 +2996,14 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
           ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day — try toggling event types or pick another day." />
           : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {evs.map((ev, i) => {
-                const cfg = getCalCfg(ev.type);
+                const cfg = eventStyle(ev);
                 const scfg = ev.job ? getStatusCfg(ev.job.status) : null;
                 return (
                   <div key={i} onClick={() => ev.job && onOpenPanel(ev.job)}
                     style={{ display:"flex", gap:12, alignItems:"flex-start", padding:"12px 14px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`4px solid ${cfg.border}`, borderRadius:8, cursor:ev.job?"pointer":"default" }}>
                     <span style={{ fontSize:18, flexShrink:0, marginTop:2 }}>{cfg.icon}</span>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:10, fontWeight:700, color:cfg.text, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>{cfg.label}</div>
+                      <div style={{ fontSize:10, fontWeight:700, color:cfg.text, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:4 }}>{cfg.name}</div>
                       <div style={{ fontSize:13, fontWeight:600, color:cfg.text, marginBottom:2 }}>{ev.label}</div>
                       {ev.sub && <div style={{ fontSize:12, color:cfg.text, opacity:0.8, marginBottom:4 }}>{ev.sub}</div>}
                       {scfg && <span style={{ fontSize:10, fontWeight:500, background:scfg.bg, color:scfg.text, border:`1px solid ${scfg.border}`, borderRadius:4, padding:"1px 6px" }}>{ev.job.status}</span>}
@@ -3041,7 +3064,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                 {/* Events column */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", gap:4 }}>
                   {evs.map((ev, ei) => {
-                    const cfg = getCalCfg(ev.type);
+                    const cfg = eventStyle(ev);
                     const scfg = ev.job ? getStatusCfg(ev.job.status) : null;
                     return (
                       <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
@@ -3050,7 +3073,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                         onMouseLeave={e => { e.currentTarget.style.filter="none"; }}>
                         <span style={{ fontSize:15, flexShrink:0 }}>{cfg.icon}</span>
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:9, fontWeight:700, color:cfg.text, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:2 }}>{cfg.label}</div>
+                          <div style={{ fontSize:9, fontWeight:700, color:cfg.text, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:2 }}>{cfg.name}</div>
                           <div style={{ fontSize:13, fontWeight:600, color:cfg.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.label}</div>
                           {ev.sub && <div style={{ fontSize:11, color:cfg.text, opacity:0.75, marginTop:1 }}>{ev.sub}</div>}
                         </div>
