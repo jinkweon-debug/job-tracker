@@ -2190,6 +2190,93 @@ function OnboardingCard({ onAdd, onLoadSample }) {
 }
 
 // ── Account settings modal ────────────────────────────────────────────────────
+// ── Guide & help ──────────────────────────────────────────────────────────────
+function HelpSection({ title, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ borderBottom: "1px solid var(--border)" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", padding: "12px 2px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>{title}</span>
+        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <div style={{ padding: "0 2px 16px", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65 }}>{children}</div>}
+    </div>
+  );
+}
+
+function HelpModal({ onClose }) {
+  const SUPPORT_EMAIL = "hello@followup.app";
+  const item = (name, desc) => (
+    <div style={{ marginBottom: 8 }}>
+      <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{name}</span> — {desc}
+    </div>
+  );
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: "1rem" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 560, maxHeight: "88vh", display: "flex", flexDirection: "column", background: "var(--surface)", borderRadius: 12, border: "1px solid var(--border)", boxShadow: "0 4px 24px rgba(0,0,0,0.12)" }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>Guide &amp; help</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "var(--text-muted)" }}>✕</button>
+        </div>
+        <div style={{ padding: "4px 20px 16px", overflowY: "auto" }}>
+          <HelpSection title="Start here" defaultOpen>
+            <p style={{ marginBottom: 10 }}>Followup is a job tracker that does more than store applications — it tells you what to do each day and helps you follow up.</p>
+            <p>The simplest routine: <b>add the jobs you apply to</b>, then <b>open the Today tab each morning</b> and clear what it surfaces — follow-ups that are due, interviews, and applications going cold.</p>
+          </HelpSection>
+
+          <HelpSection title="The views">
+            {item("Today", "Your daily action inbox — follow-ups due, interviews today, overdue reminders, and applications with no recent activity. Start here.")}
+            {item("List", "Every application as a card. Search, filter by status or tag, change status inline, add notes, and run bulk actions.")}
+            {item("Pipeline", "A drag-and-drop board grouped by status, plus a conversion funnel and a salary-range chart.")}
+            {item("Table", "A sortable spreadsheet view — good for scanning or comparing lots of applications at once.")}
+            {item("Calendar", "Interviews, follow-ups, reminders, and timeline events on a month / week / day / agenda calendar.")}
+            {item("Offers", "A focused view of roles at the offer stage so you can compare them side by side.")}
+            {item("Contacts", "A lightweight CRM for recruiters and contacts — track who you've reached out to and when.")}
+          </HelpSection>
+
+          <HelpSection title="Adding jobs">
+            {item("+ Add job", "Add a role manually — or paste a job posting link and Followup fills in the title, company, and salary for you.")}
+            {item("Capture button", "On desktop, drag the capture bookmarklet (Settings → Job capture) to your bookmarks bar. On any job posting, one click saves it with the details pre-filled.")}
+          </HelpSection>
+
+          <HelpSection title="Following up">
+            <p style={{ marginBottom: 10 }}>Followup reminds you to follow up on the right cadence: about <b>7 days</b> after applying, and <b>3 days</b> after a phone screen or interview. Anything with no activity for <b>14 days</b> gets flagged as going cold.</p>
+            {item("✍️ Draft", "On a due follow-up in Today, this drafts the email for you — pick a template, tweak it, then copy it, open it in your mail app, or mark it sent.")}
+            {item("✓ Contacted", "Logs the follow-up to the job's timeline and resets the timer.")}
+            {item("Snooze", "Not yet? Push the reminder out +3 days, +7 days, or −30 days.")}
+            <p style={{ marginTop: 8 }}>Email templates are also available inside each job's detail panel.</p>
+          </HelpSection>
+
+          <HelpSection title="Reminders & interviews">
+            {item("Interview dates", "Set a date and time on a job and Followup auto-creates a day-before reminder, plus a button to add it to Google Calendar.")}
+            {item("Manual reminders", "Use 🔔 Remind on a job, the detail panel, or “+ Add task” in Today to set your own reminders.")}
+            {item("Browser reminders", "Turn on desktop notifications from the ☰ menu to get nudged even when the app is closed.")}
+          </HelpSection>
+
+          <HelpSection title="Organizing & finding jobs">
+            {item("Statuses & tags", "Move jobs through stages, and tag them by work type, industry, and source.")}
+            {item("Salary & notes", "Record a salary range, free-form notes, and a timeline of every step on each job.")}
+            {item("Filters & search", "Filter by status (the bubbles), or by tag and outreach (the Filters menu). Press / to jump to search.")}
+            {item("Archive", "Done with a role? Archive it to hide it from active views without deleting it — find it again via the Archived toggle.")}
+          </HelpSection>
+
+          <HelpSection title="Settings, data & shortcuts">
+            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage resume versions, and get the capture bookmarklet — all in Account settings.")}
+            {item("Backup & export", "From the ☰ menu, export a JSON backup (or restore one), and export your jobs to CSV.")}
+            {item("Dark mode", "Toggle the 🌙 / ☀️ switch in the header.")}
+            {item("Shortcuts", "N = new job · / = search · Esc = close.")}
+          </HelpSection>
+
+          <HelpSection title="Need help?">
+            <p style={{ marginBottom: 10 }}>Your data is saved to your account automatically. If something looks off, refreshing the page or signing out and back in fixes most issues.</p>
+            <p>Have feedback or found a bug? Email <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 500 }}>{SUPPORT_EMAIL}</a> — Followup is in active development and more is on the way.</p>
+          </HelpSection>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange }) {
   const [tab, setTab] = useState("profile");
   const [nameField, setNameField] = useState(profileName || "");
@@ -3078,6 +3165,7 @@ export default function App() {
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [profileName, setProfileName] = useState(() => { try { return localStorage.getItem("followup_profile_name") || ""; } catch { return ""; } });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
@@ -3777,6 +3865,7 @@ export default function App() {
               </button>
               {menuOpen && (
                 <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
+                  <button onClick={() => { setShowHelp(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>❓ Guide &amp; help</button>
                   <button onClick={() => { setShowSettings(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>⚙️ Account settings</button>
                   <button onClick={() => { exportJSON(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>💾 Export backup (JSON)</button>
                   <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={e=>{importJSON(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
@@ -4010,6 +4099,7 @@ export default function App() {
         onResumesChange={r => { setResumes(r); saveResumes(r); }}
         profileName={profileName || user?.user_metadata?.full_name || ""}
         onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} }} />}
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
   );
