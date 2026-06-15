@@ -2206,7 +2206,7 @@ function HelpSection({ title, children, defaultOpen = false }) {
 
 // Feedback form — relays to the owner's email via Web3Forms (email stays private;
 // only this anonymous access key is public). Get a free key at https://web3forms.com
-const WEB3FORMS_ACCESS_KEY = "YOUR_WEB3FORMS_ACCESS_KEY";
+const WEB3FORMS_ACCESS_KEY = "f316ea86-ef75-48c2-ad7f-1cec6ca78066";
 
 function FeedbackForm() {
   const [message, setMessage] = useState("");
