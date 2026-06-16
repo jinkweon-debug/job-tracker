@@ -3098,6 +3098,12 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
     <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 10 : 16, alignItems: isMobile ? "stretch" : "flex-start" }}>
       {/* ── Left sidebar: mini month + toggles (stacks above the grid on mobile) ── */}
       <div style={{ flexShrink:0, width: isMobile ? "100%" : (sidebarOpen ? 204 : 36), transition: isMobile ? "none" : "width 0.18s ease" }}>
+        {isMobile && !sidebarOpen ? (
+          <button onClick={() => setSidebarOpen(true)} title="Show mini calendar & filters"
+            style={{ fontSize:12, fontWeight:500, padding:"5px 11px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:6, color:"var(--text-secondary)", cursor:"pointer", display:"inline-flex", alignItems:"center", gap:6 }}>
+            🗓️ Calendar options <span style={{ fontSize:13 }}>»</span>
+          </button>
+        ) : (
         <div style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
           {/* Sidebar header with collapse toggle */}
           <div style={{ padding:"7px 10px", background:"var(--surface-subtle)", borderBottom: sidebarOpen ? "1px solid var(--border)" : "none", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", minHeight:36 }}>
@@ -3114,6 +3120,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* ── Main area ── */}
