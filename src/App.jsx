@@ -2738,7 +2738,8 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [miniMonth, setMiniMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:true });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(() => { try { return window.innerWidth >= 640; } catch { return true; } });
 
   const today_ = todayStr();
 
@@ -3094,9 +3095,9 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   const viewLabels = { month:"Month", week:"Week", day:"Day", agenda:"Agenda" };
 
   return (
-    <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
-      {/* ── Left sidebar: mini month + toggles ── */}
-      <div style={{ flexShrink:0, width: sidebarOpen ? 204 : 36, transition:"width 0.18s ease" }}>
+    <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap: isMobile ? 10 : 16, alignItems: isMobile ? "stretch" : "flex-start" }}>
+      {/* ── Left sidebar: mini month + toggles (stacks above the grid on mobile) ── */}
+      <div style={{ flexShrink:0, width: isMobile ? "100%" : (sidebarOpen ? 204 : 36), transition: isMobile ? "none" : "width 0.18s ease" }}>
         <div style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
           {/* Sidebar header with collapse toggle */}
           <div style={{ padding:"7px 10px", background:"var(--surface-subtle)", borderBottom: sidebarOpen ? "1px solid var(--border)" : "none", display:"flex", alignItems:"center", justifyContent: sidebarOpen ? "space-between" : "center", minHeight:36 }}>
