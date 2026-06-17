@@ -302,19 +302,19 @@ let _uid = null; // set by App on auth change
 let _lastJobIds = new Set();
 
 async function loadUserData() {
-  if (!_uid) return { jobs: [], tasks: [], contacts: [], resumes: [] };
+  if (!_uid) return { jobs: [], tasks: [], contacts: [], resumes: [], settings: null };
   const [{ data: jobsData, error: jobsErr }, { data: userData, error: udErr }] = await Promise.all([
     supabase.from('jobs').select('*').eq('user_id', _uid),
     // maybeSingle: returns null (not an error) when the user has no user_data row yet,
     // so brand-new accounts load fine while real query errors still surface below.
-    supabase.from('user_data').select('tasks,contacts,resumes').eq('user_id', _uid).maybeSingle(),
+    supabase.from('user_data').select('tasks,contacts,resumes,settings').eq('user_id', _uid).maybeSingle(),
   ]);
   // Treat any query error as a failure rather than silently falling back to empty —
   // otherwise a later save would write that empty state back over the real data.
   if (jobsErr || udErr) throw new Error((jobsErr || udErr).message || 'Failed to load data');
   const jobs = jobsData || [];
   _lastJobIds = new Set(jobs.map(j => j.id));
-  return { jobs, tasks: userData?.tasks || [], contacts: userData?.contacts || [], resumes: userData?.resumes || [] };
+  return { jobs, tasks: userData?.tasks || [], contacts: userData?.contacts || [], resumes: userData?.resumes || [], settings: userData?.settings || null };
 }
 
 // Set by App so saveJobs/saveTasks can report status to the UI.
@@ -357,6 +357,15 @@ function saveResumes(resumes) {
   if (!_uid) return;
   _onSaveStatus?.("saving");
   supabase.from('user_data').upsert({ user_id: _uid, resumes, updated_at: new Date().toISOString() }).then(({ error }) => {
+    _onSaveStatus?.(error ? "error" : "saved");
+  });
+}
+
+// Account-level preferences (follow-up timing, auto-archive, name) — synced across devices.
+function saveSettings(settings) {
+  if (!_uid) return;
+  _onSaveStatus?.("saving");
+  supabase.from('user_data').upsert({ user_id: _uid, settings, updated_at: new Date().toISOString() }).then(({ error }) => {
     _onSaveStatus?.(error ? "error" : "saved");
   });
 }
@@ -3360,6 +3369,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   applyFollowupSettings(parseInt(followupAppliedDays), parseInt(followupWarmDays), parseInt(staleDays));
+  function persistSettings(extra) { saveSettings({ profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays, ...extra }); }
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
@@ -3388,8 +3398,17 @@ export default function App() {
   useEffect(() => {
     if (!user) { setJobs([]); setTasks([]); setContacts([]); setResumes([]); setLoaded(false); return; }
     setLoadError(false);
-    loadUserData().then(({ jobs: j, tasks: t, contacts: c, resumes: r }) => {
-      setJobs(j); setTasks(t); setContacts(c); setResumes(r); setLoaded(true);
+    loadUserData().then(({ jobs: j, tasks: t, contacts: c, resumes: r, settings: s }) => {
+      setJobs(j); setTasks(t); setContacts(c); setResumes(r);
+      if (s) {
+        if (s.profileName != null) setProfileName(s.profileName);
+        if (s.autoArchiveDays != null) setAutoArchiveDays(String(s.autoArchiveDays));
+        if (s.quietPromptDays != null) setQuietPromptDays(String(s.quietPromptDays));
+        if (s.followupAppliedDays != null) setFollowupAppliedDays(String(s.followupAppliedDays));
+        if (s.followupWarmDays != null) setFollowupWarmDays(String(s.followupWarmDays));
+        if (s.staleDays != null) setStaleDays(String(s.staleDays));
+      }
+      setLoaded(true);
     }).catch(() => {
       // Leave `loaded` false so the app (and its auto-saves) never run on empty data.
       setLoadError(true);
@@ -4359,17 +4378,17 @@ export default function App() {
       {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} resumes={resumes}
         onResumesChange={r => { setResumes(r); saveResumes(r); }}
         profileName={profileName || user?.user_metadata?.full_name || ""}
-        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} }}
+        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }}
         autoArchiveDays={autoArchiveDays}
-        onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} }}
+        onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} persistSettings({ autoArchiveDays: v }); }}
         quietPromptDays={quietPromptDays}
-        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} }}
+        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} persistSettings({ quietPromptDays: v }); }}
         followupAppliedDays={followupAppliedDays}
-        onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} }}
+        onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} persistSettings({ followupAppliedDays: v }); }}
         followupWarmDays={followupWarmDays}
-        onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} }}
+        onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }}
         staleDays={staleDays}
-        onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} }} />}
+        onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
