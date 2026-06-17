@@ -3947,7 +3947,7 @@ export default function App() {
                 {filterOpen && (
                   <>
                     <div onClick={() => setFilterOpen(false)} style={{ position:"fixed", inset:0, zIndex:99 }} />
-                    <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", padding:"14px 16px", minWidth:240, display:"flex", flexDirection:"column", gap:12 }}>
+                    <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", padding:"14px 16px", minWidth:240, display:"flex", flexDirection:"column", gap:12 }}>
                       {/* Sort */}
                       <div>
                         <div style={{ fontSize:11, color:"var(--text-muted)", fontWeight:600, marginBottom:6 }}>SORT BY</div>
@@ -4027,7 +4027,7 @@ export default function App() {
                 {boardFilterOpen && (
                   <>
                     <div onClick={() => setBoardFilterOpen(false)} style={{ position:"fixed", inset:0, zIndex:99 }} />
-                    <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", padding:"14px 16px", minWidth:240, display:"flex", flexDirection:"column", gap:12 }}>
+                    <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:100, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", padding:"14px 16px", minWidth:240, display:"flex", flexDirection:"column", gap:12 }}>
                       {/* Outreach */}
                       <div>
                         <div style={{ fontSize:11, color:"var(--text-muted)", fontWeight:600, marginBottom:6 }}>OUTREACH</div>
