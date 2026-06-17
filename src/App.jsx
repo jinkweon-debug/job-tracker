@@ -90,7 +90,7 @@ function TagSelector({ tags = {}, onChange }) {
 }
 
 const INTERVIEW_STATUSES = ["Phone Screen", "Interview"];
-const FOLLOWUP_DAYS = { "Applied": 7, "Phone Screen": 3, "Interview": 3 };
+let FOLLOWUP_DAYS = { "Applied": 7, "Phone Screen": 3, "Interview": 3 };
 
 const EMPTY = {
   id: null, role: "", company: "", link: "", salaryMin: "", salaryMax: "",
@@ -176,7 +176,14 @@ function getFollowupDate(job) {
   return d.toISOString().slice(0, 10);
 }
 
-const STALE_DAYS = 14;
+let STALE_DAYS = 14;
+// Lets Settings override the follow-up cadence + cold-flag threshold (synced from App, like _isDark).
+function applyFollowupSettings(appliedDays, warmDays, staleDays) {
+  const a = appliedDays > 0 ? appliedDays : 7;
+  const w = warmDays > 0 ? warmDays : 3;
+  FOLLOWUP_DAYS = { "Applied": a, "Phone Screen": w, "Interview": w };
+  STALE_DAYS = staleDays > 0 ? staleDays : 14;
+}
 const ACTIVE_STATUSES = new Set(["Applied", "Phone Screen", "Interview"]);
 
 function lastActivity(job) {
@@ -2393,7 +2400,7 @@ function HelpModal({ onClose }) {
   );
 }
 
-function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange }) {
+function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, staleDays, onStaleDaysChange }) {
   const [tab, setTab] = useState("profile");
   const [nameField, setNameField] = useState(profileName || "");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
@@ -2441,7 +2448,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["profile","Profile"],["cleanup","Cleanup"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
+          {[["profile","Profile"],["cleanup","Automation"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
           ))}
         </div>
@@ -2459,6 +2466,15 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
         {tab === "cleanup" && (
           <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:18 }}>
             <div>
+              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Follow-up reminders</div>
+              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>How long Followup waits before nudging you to follow up, and when it flags a job as going cold.</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after applying</label>
+                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after a phone screen or interview</label>
+                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={staleDays} onChange={e=>onStaleDaysChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days with no activity → flag as going cold</label>
+              </div>
+            </div>
+            <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
               <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Auto-archive rejected &amp; withdrawn jobs</div>
               <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Jobs you've marked Rejected or Withdrawn move to Archived automatically after this many days. They stay recoverable in the Archived view. Set to 0 to turn this off.</div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -3338,8 +3354,12 @@ export default function App() {
   const [autoArchiveDays, setAutoArchiveDays] = useState(() => { try { return localStorage.getItem("followup_autoarchive_days") ?? "30"; } catch { return "30"; } });
   const [quietPromptDays, setQuietPromptDays] = useState(() => { try { return localStorage.getItem("followup_quietprompt_days") ?? "60"; } catch { return "60"; } });
   const [quietDismissed, setQuietDismissed] = useState(false);
+  const [followupAppliedDays, setFollowupAppliedDays] = useState(() => { try { return localStorage.getItem("followup_applied_days") ?? "7"; } catch { return "7"; } });
+  const [followupWarmDays, setFollowupWarmDays] = useState(() => { try { return localStorage.getItem("followup_warm_days") ?? "3"; } catch { return "3"; } });
+  const [staleDays, setStaleDays] = useState(() => { try { return localStorage.getItem("followup_stale_days") ?? "14"; } catch { return "14"; } });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
+  applyFollowupSettings(parseInt(followupAppliedDays), parseInt(followupWarmDays), parseInt(staleDays));
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
@@ -4325,7 +4345,13 @@ export default function App() {
         autoArchiveDays={autoArchiveDays}
         onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} }}
         quietPromptDays={quietPromptDays}
-        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} }} />}
+        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} }}
+        followupAppliedDays={followupAppliedDays}
+        onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} }}
+        followupWarmDays={followupWarmDays}
+        onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} }}
+        staleDays={staleDays}
+        onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} }} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
     </div>
