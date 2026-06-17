@@ -3930,9 +3930,9 @@ export default function App() {
       </div>
 
       {/* Toolbar */}
-      <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center", flexWrap: isMobile ? "wrap" : "nowrap" }}>
-        {/* Left side — view-specific controls */}
-        <div style={{ display:"flex", gap:8, flex:1, alignItems:"center", minWidth:0, width: isMobile ? "100%" : "auto" }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:"0.75rem" }}>
+        {/* Row 2 — view controls (search + filters), only where relevant */}
+        <div style={{ order:2, display: (view==="list"||view==="board") ? "flex" : "none", gap:8, alignItems:"center", minWidth:0, width:"100%" }}>
           {(view==="list"||view==="board") && <input placeholder="Search role or company..." value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:"1 1 160px", minWidth:0, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 10px" }} />}
           {view==="list" && (() => {
             const activeFilterCount = (filter!=="All"?1:0) + (outreachFilter!=="all"?1:0) + (sortBy!=="dateApplied"||sortDir!=="desc"?1:0) + activeTagFilters.length;
@@ -3993,6 +3993,15 @@ export default function App() {
                           })}
                         </div>
                       </div>
+                      {/* Archived */}
+                      {archivedCount > 0 && (
+                        <div style={{ borderTop:"1px solid var(--border-subtle)", paddingTop:10 }}>
+                          <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); setFilterOpen(false); }}
+                            style={{ fontSize:12, padding:"6px 10px", width:"100%", textAlign:"left", background:showArchived?"#FBEFD9":"var(--surface-hover)", color:showArchived?"#633806":"var(--text-secondary)", border:`1px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
+                            📦 {showArchived ? "Showing archived — back to active" : `Show archived jobs (${archivedCount})`}
+                          </button>
+                        </div>
+                      )}
                       {/* Reset */}
                       {activeFilterCount > 0 && (
                         <button onClick={() => { setFilter("All"); setSortBy("dateApplied"); setSortDir("desc"); setOutreachFilter("all"); setTagFilter({}); }}
@@ -4049,6 +4058,15 @@ export default function App() {
                           })}
                         </div>
                       </div>
+                      {/* Archived */}
+                      {archivedCount > 0 && (
+                        <div style={{ borderTop:"1px solid var(--border-subtle)", paddingTop:10 }}>
+                          <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); setBoardFilterOpen(false); }}
+                            style={{ fontSize:12, padding:"6px 10px", width:"100%", textAlign:"left", background:showArchived?"#FBEFD9":"var(--surface-hover)", color:showArchived?"#633806":"var(--text-secondary)", border:`1px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
+                            📦 {showArchived ? "Showing archived — back to active" : `Show archived jobs (${archivedCount})`}
+                          </button>
+                        </div>
+                      )}
                       {/* Reset */}
                       {boardActiveCount > 0 && (
                         <button onClick={() => { setOutreachFilter("all"); setTagFilter({}); }}
@@ -4063,8 +4081,8 @@ export default function App() {
             );
           })()}
         </div>
-        {/* Right side — always fixed */}
-        <div style={{ display:"flex", flexDirection: isMobile ? "column" : "row", gap:8, alignItems: isMobile ? "stretch" : "center", flexShrink:0, width: isMobile ? "100%" : "auto", justifyContent: isMobile ? undefined : "flex-end" }}>
+        {/* Row 1 — navigation: view switcher + primary actions */}
+        <div style={{ order:1, display:"flex", flexDirection: isMobile ? "column" : "row", gap:8, alignItems: isMobile ? "stretch" : "center", width:"100%", justifyContent: isMobile ? undefined : "space-between" }}>
           <div className="view-switcher" style={{ flexShrink: isMobile ? 0 : 1, minWidth:0, paddingTop:8, marginTop:-8, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "visible" : "visible" }}>
             <div style={isMobile
               ? { display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:1, background:"#B5D4F4", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }
@@ -4082,9 +4100,9 @@ export default function App() {
             </div>
           </div>
           <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:"flex-end", width: isMobile ? "100%" : "auto" }}>
-            {archivedCount > 0 && (
-              <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:showArchived?"#633806":"var(--surface)", color:showArchived?"#fff":"var(--text-secondary)", border:`1.5px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
-                📦 {showArchived ? "← Active jobs" : `Archived (${archivedCount})`}
+            {showArchived && (
+              <button onClick={() => { setShowArchived(false); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:"#633806", color:"#fff", border:"1.5px solid #FAC775", borderRadius:6, cursor:"pointer", fontWeight:500 }}>
+                📦 ← Back to active jobs
               </button>
             )}
             {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
