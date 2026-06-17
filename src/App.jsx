@@ -2352,15 +2352,15 @@ function HelpModal({ onClose }) {
         <div style={{ padding: "4px 20px 16px", overflowY: "auto" }}>
           <HelpSection title="Start here" defaultOpen>
             <p style={{ marginBottom: 10 }}>Followup is a job tracker that does more than store applications — it tells you what to do each day and helps you follow up.</p>
-            <p>The simplest routine: <b>add the jobs you apply to</b>, then <b>open the Today tab each morning</b> and clear what it surfaces — follow-ups that are due, interviews, and applications going cold.</p>
+            <p>The simplest routine: <b>add the jobs you apply to</b>, then <b>open the Today tab each morning</b> and clear what it surfaces — follow-ups that are due, interviews, and reminders.</p>
           </HelpSection>
 
           <HelpSection title="The views">
-            {item("Today", "Your daily action inbox — follow-ups due, interviews today, overdue reminders, and applications with no recent activity. Start here.")}
+            {item("Today", "Your daily action inbox — follow-ups due (highest-interest first), interviews today, overdue reminders, plus a recent-activity feed of your latest moves. Start here.")}
             {item("List", "Every application as a card. Search, filter by status or tag, change status inline, add notes, and run bulk actions.")}
             {item("Pipeline", "A drag-and-drop board grouped by status, plus a conversion funnel and a salary-range chart.")}
             {item("Table", "A sortable spreadsheet view — good for scanning or comparing lots of applications at once.")}
-            {item("Calendar", "Interviews, follow-ups, reminders, and timeline events on a month / week / day / agenda calendar.")}
+            {item("Calendar", "Interviews, follow-ups, reminders, and milestones on a month / week / day / agenda calendar — each event color- and icon-coded by type (📨 applied, 🗓️ interview, 🎉 offer, ❌ rejected…).")}
             {item("Offers", "A focused view of roles at the offer stage so you can compare them side by side.")}
             {item("Contacts", "A lightweight CRM for recruiters and contacts — track who you've reached out to and when.")}
           </HelpSection>
@@ -2371,10 +2371,11 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="Following up">
-            <p style={{ marginBottom: 10 }}>Followup reminds you to follow up on the right cadence: about <b>7 days</b> after applying, and <b>3 days</b> after a phone screen or interview. Anything with no activity for <b>14 days</b> gets flagged as going cold.</p>
+            <p style={{ marginBottom: 10 }}>Followup reminds you on a set cadence — by default <b>7 days</b> after applying and <b>3 days</b> after a phone screen or interview, with anything quiet for <b>14 days</b> flagged as going cold. Change all three in Settings → Automation. High-interest jobs rise to the top of your follow-ups.</p>
             {item("✍️ Draft", "On a due follow-up in Today, this drafts the email for you — pick a template, tweak it, then copy it, open it in your mail app, or mark it sent.")}
             {item("✓ Contacted", "Logs the follow-up to the job's timeline and resets the timer.")}
             {item("Snooze", "Not yet? Push the reminder out +3 days, +7 days, or −30 days.")}
+            {item("✕ Stop following up", "Cancel a follow-up entirely so it stops reminding you. Reversible anytime from the job's detail panel.")}
             <p style={{ marginTop: 8 }}>Email templates are also available inside each job's detail panel.</p>
           </HelpSection>
 
@@ -2385,14 +2386,16 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="Organizing & finding jobs">
+            {item("Interest ⭐", "Rate how much you want each job — tap the stars (Low / Medium / High) on any card or in the detail panel. High-interest jobs sort up and get prioritized in Today. Sort by interest from the Filters menu.")}
             {item("Statuses & tags", "Move jobs through stages, and tag them by work type, industry, and source.")}
             {item("Salary & notes", "Record a salary range, free-form notes, and a timeline of every step on each job.")}
-            {item("Filters & search", "Filter by status (the bubbles), or by tag and outreach (the Filters menu). Press / to jump to search.")}
-            {item("Archive", "Done with a role? Archive it to hide it from active views without deleting it — find it again via the Archived toggle.")}
+            {item("Filters & search", "Filter by status (the bubbles), or by tag, outreach, and sort order (the Filters menu). Press / to jump to search.")}
+            {item("Archive", "Archive a finished role from its detail panel (or bulk-select in List) to hide it without deleting it. To view archived jobs, open Filters → “Show archived jobs.”")}
           </HelpSection>
 
           <HelpSection title="Settings, data & shortcuts">
             {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage resume versions, and get the capture bookmarklet — all in Account settings.")}
+            {item("Automation", "In Settings → Automation, tune your follow-up timing, auto-archiving of rejected/withdrawn jobs, and the quiet-job review prompt. These preferences sync across all your devices.")}
             {item("Backup & export", "From the ☰ menu, export a JSON backup (or restore one), and export your jobs to CSV.")}
             {item("Dark mode", "Toggle the 🌙 / ☀️ switch in the header.")}
             {item("Shortcuts", "N = new job · / = search · Esc = close.")}
