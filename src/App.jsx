@@ -2020,6 +2020,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
   });
 
   function snooze(job, days) { onUpdateJob(job.id, { customFollowup: dateInNDays(days) }); }
+  function dismissFollowup(job) { onUpdateJob(job.id, { followupDismissed: true }); }
   function logOutreach(job) {
     const now = new Date().toISOString();
     const resetDays = FOLLOWUP_DAYS[job.status] || 7;
@@ -2073,6 +2074,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
               <button onClick={() => snooze(job, 30)} title="Snooze 30 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>−30d</button>
             </div>
+            <button onClick={() => dismissFollowup(job)} title="Cancel this follow-up entirely — stop reminding me" style={{ fontSize:10, padding:"2px 6px", background:"none", color:"var(--text-muted)", border:"none", cursor:"pointer", textDecoration:"underline", whiteSpace:"nowrap" }}>✕ Stop following up</button>
           </div>
         )}
       </div>
