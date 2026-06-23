@@ -3962,7 +3962,7 @@ export default function App() {
   if (!loaded) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading your data…</div>;
 
   return (
-    <div style={{ padding:"1rem", fontFamily:"system-ui, sans-serif", paddingRight:!isMobile&&panelJob?"356px":"1rem", transition:"padding-right 0.25s", maxWidth:1200, margin:"0 auto" }}>
+    <div style={{ padding:"1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom:"1.25rem", padding:"14px 20px", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Followup</h2>
