@@ -100,8 +100,16 @@ const EMPTY = {
   interest: 0,
   tags: {}, prepChecklist: [], archived: false, followupDismissed: false,
   offerBase: "", offerBonus: "", offerEquity: "", offerStartDate: "", offerDeadline: "", offerNotes: "",
-  resumeId: null,
+  documentIds: [],
 };
+
+// Document library: resumes, cover letters, portfolios, etc. live in one array
+// (persisted to the legacy `resumes` column) and are tagged by `type`. Entries
+// created before types existed have no `type` and default to "Resume".
+const DOC_TYPES = ["Resume", "Cover letter", "Portfolio", "Other"];
+const docType = d => d.type || "Resume";
+// A job's attached document ids — migrates the legacy single `resumeId`.
+const jobDocIds = job => job.documentIds || (job.resumeId != null ? [job.resumeId] : []);
 
 const PREP_DEFAULTS = {
   "Phone Screen": [
@@ -353,10 +361,11 @@ function saveContacts(contacts) {
   });
 }
 
-function saveResumes(resumes) {
+// Persisted to the legacy `resumes` column, which now holds all document types.
+function saveDocuments(documents) {
   if (!_uid) return;
   _onSaveStatus?.("saving");
-  supabase.from('user_data').upsert({ user_id: _uid, resumes, updated_at: new Date().toISOString() }).then(({ error }) => {
+  supabase.from('user_data').upsert({ user_id: _uid, resumes: documents, updated_at: new Date().toISOString() }).then(({ error }) => {
     _onSaveStatus?.(error ? "error" : "saved");
   });
 }
@@ -519,8 +528,15 @@ function Timeline({ timeline, onUpdate, compact = false }) {
   const [addOpen, setAddOpen] = useState(false);
   const [newEntry, setNewEntry] = useState({ label:"", date:todayStr(), notes:"" });
 
-  // Sort all entries chronologically; manual entries have an `id` field
-  const sorted = [...(timeline||[])].sort((a,b) => (a.date||"").localeCompare(b.date||""));
+  // Sort all entries chronologically; manual entries have an `id` field.
+  // The first status reached always leads the timeline — manual entries (pinned
+  // to noon) can otherwise sort ahead of a same-day status set later in the day.
+  const genesis = (timeline||[]).find(e => e.type !== "manual");
+  const sorted = [...(timeline||[])].sort((a,b) => {
+    if (a === genesis) return -1;
+    if (b === genesis) return 1;
+    return (a.date||"").localeCompare(b.date||"");
+  });
   const dot = compact ? 10 : 12;
   const trackW = compact ? 20 : 24;
   const gap = compact ? 10 : 12;
@@ -763,14 +779,14 @@ function PanelSection({ label, count, defaultOpen = false, children }) {
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, resumes }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, documents }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [addingContact, setAddingContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
 
   function startEdit() {
-    setForm({ ...job, tags: job.tags||{}, timeline: job.timeline||[] });
+    setForm({ ...job, tags: job.tags||{}, timeline: job.timeline||[], documentIds: jobDocIds(job) });
     setEditing(true);
   }
   function cancelEdit() { setEditing(false); }
@@ -846,13 +862,24 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Custom follow-up date
               <input type="date" value={form.customFollowup||""} onChange={e=>setForm(f=>({...f,customFollowup:e.target.value}))} style={inputStyle} />
             </label>
-            {resumes && resumes.length > 0 && (
-              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:3 }}>Resume version used
-                <select value={form.resumeId||""} onChange={e=>setForm(f=>({...f,resumeId:e.target.value?Number(e.target.value):null}))} style={inputStyle}>
-                  <option value="">— None —</option>
-                  {resumes.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </label>
+            {documents && documents.length > 0 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>Documents used</span>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:6, background:"var(--input-bg)" }}>
+                  {DOC_TYPES.filter(t => documents.some(d => docType(d)===t)).map(t => (
+                    <div key={t} style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{t}</div>
+                      {documents.filter(d => docType(d)===t).map(d => (
+                        <label key={d.id} style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-primary)", cursor:"pointer" }}>
+                          <input type="checkbox" checked={(form.documentIds||[]).includes(d.id)}
+                            onChange={e=>setForm(f=>{ const ids=new Set(f.documentIds||[]); if(e.target.checked)ids.add(d.id); else ids.delete(d.id); return {...f,documentIds:[...ids]}; })} />
+                          {d.name}
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
             {form.status === "Offer" && (
               <div style={{ display:"flex", flexDirection:"column", gap:10, padding:"10px 12px", background:"var(--surface-subtle)", border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:8 }}>
@@ -919,11 +946,11 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                 </div>
               ))}
               {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
-              {job.resumeId && (() => { const r = (resumes||[]).find(x=>x.id===job.resumeId); return r ? (
-                <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Resume</span>
-                  {r.link ? <a href={r.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>{r.name} ↗</a> : <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{r.name}</span>}
+              {jobDocIds(job).map(id => (documents||[]).find(d=>d.id===id)).filter(Boolean).map(d => (
+                <div key={d.id} style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>{docType(d)}</span>
+                  {d.link ? <a href={d.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>{d.name} ↗</a> : <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{d.name}</span>}
                 </div>
-              ) : null; })()}
+              ))}
               {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
             </div>
             {(job.offerBase || job.offerBonus || job.offerEquity || job.offerStartDate || job.offerDeadline || job.offerNotes) && (
@@ -2407,7 +2434,7 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="Settings, data & shortcuts">
-            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage resume versions, and get the capture bookmarklet — all in Account settings.")}
+            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage your documents (resumes, cover letters, portfolios), and get the capture bookmarklet — all in Account settings.")}
             {item("Automation", "In Settings → Automation, tune your follow-up timing, auto-archiving of rejected/withdrawn jobs, and the quiet-job review prompt. These preferences sync across all your devices.")}
             {item("Backup & export", "From the ☰ menu, export a JSON backup (or restore one), and export your jobs to CSV.")}
             {item("Dark mode", "Toggle the 🌙 / ☀️ switch in the header.")}
@@ -2425,21 +2452,21 @@ function HelpModal({ onClose }) {
   );
 }
 
-function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, staleDays, onStaleDaysChange }) {
+function SettingsModal({ user, onClose, documents, onDocumentsChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, staleDays, onStaleDaysChange }) {
   const [tab, setTab] = useState("profile");
   const [nameField, setNameField] = useState(profileName || "");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
   const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
-  const [newResume, setNewResume] = useState({ name:"", link:"", notes:"" });
+  const [newDoc, setNewDoc] = useState({ type:"Resume", name:"", link:"", notes:"" });
   const bookmarkletRef = useRef(null);
 
-  function addResume() {
-    if (!newResume.name.trim()) return;
-    onResumesChange([...resumes, { id: Date.now(), name: newResume.name.trim(), link: newResume.link.trim(), notes: newResume.notes.trim(), createdAt: new Date().toISOString() }]);
-    setNewResume({ name:"", link:"", notes:"" });
+  function addDocument() {
+    if (!newDoc.name.trim()) return;
+    onDocumentsChange([...documents, { id: Date.now(), type: newDoc.type, name: newDoc.name.trim(), link: newDoc.link.trim(), notes: newDoc.notes.trim(), createdAt: new Date().toISOString() }]);
+    setNewDoc(d => ({ type:d.type, name:"", link:"", notes:"" })); // keep the type selected for adding several in a row
   }
-  function deleteResume(id) {
-    onResumesChange(resumes.filter(r => r.id !== id));
+  function deleteDocument(id) {
+    onDocumentsChange(documents.filter(d => d.id !== id));
   }
 
   async function changePassword(e) {
@@ -2473,7 +2500,7 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
           <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
         </div>
         <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["profile","Profile"],["cleanup","Automation"],["password","Password"],["capture","Job capture"],["resumes","Resumes"]].map(([t,label]) => (
+          {[["profile","Profile"],["cleanup","Automation"],["password","Password"],["capture","Job capture"],["documents","Documents"]].map(([t,label]) => (
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
           ))}
         </div>
@@ -2551,30 +2578,38 @@ function SettingsModal({ user, onClose, resumes, onResumesChange, profileName, o
             </div>
           </div>
         )}
-        {tab === "resumes" && (
+        {tab === "documents" && (
           <div style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Resume versions</div>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Documents</div>
             <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
-              Track different resume versions (e.g. tailored for specific roles) with a link to the file. Then select which version you used on each job's detail panel.
+              Track resumes, cover letters, portfolios, and other files (with a link to each). Then attach the ones you used on each job's detail panel.
             </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
-              {resumes.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No resume versions yet.</div>}
-              {resumes.map(r => (
-                <div key={r.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{r.name}</div>
-                    {r.link && <a href={r.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
-                    {r.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{r.notes}</div>}
-                  </div>
-                  <button onClick={() => deleteResume(r.id)} title="Delete" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0 }}>✕</button>
+            <div style={{ display:"flex", flexDirection:"column", gap:14, marginBottom:14 }}>
+              {documents.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No documents yet.</div>}
+              {DOC_TYPES.filter(t => documents.some(d => docType(d)===t)).map(t => (
+                <div key={t} style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{t}</div>
+                  {documents.filter(d => docType(d)===t).map(d => (
+                    <div key={d.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{d.name}</div>
+                        {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
+                        {d.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{d.notes}</div>}
+                      </div>
+                      <button onClick={() => deleteDocument(d.id)} title="Delete" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0 }}>✕</button>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:8, paddingTop:10, borderTop:"1px solid var(--border)" }}>
-              <input type="text" placeholder="Name (e.g. Resume - PM roles)" value={newResume.name} onChange={e=>setNewResume(f=>({...f,name:e.target.value}))} style={inputStyle} />
-              <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newResume.link} onChange={e=>setNewResume(f=>({...f,link:e.target.value}))} style={inputStyle} />
-              <input type="text" placeholder="Notes (optional)" value={newResume.notes} onChange={e=>setNewResume(f=>({...f,notes:e.target.value}))} style={inputStyle} />
-              <button onClick={addResume} disabled={!newResume.name.trim()} style={{ fontSize:13, padding:"8px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>+ Add resume version</button>
+              <select value={newDoc.type} onChange={e=>setNewDoc(f=>({...f,type:e.target.value}))} style={inputStyle}>
+                {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input type="text" placeholder="Name (e.g. Resume — PM roles)" value={newDoc.name} onChange={e=>setNewDoc(f=>({...f,name:e.target.value}))} style={inputStyle} />
+              <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newDoc.link} onChange={e=>setNewDoc(f=>({...f,link:e.target.value}))} style={inputStyle} />
+              <input type="text" placeholder="Notes (optional)" value={newDoc.notes} onChange={e=>setNewDoc(f=>({...f,notes:e.target.value}))} style={inputStyle} />
+              <button onClick={addDocument} disabled={!newDoc.name.trim()} style={{ fontSize:13, padding:"8px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>+ Add document</button>
             </div>
           </div>
         )}
@@ -3355,7 +3390,7 @@ export default function App() {
   const [jobs, setJobs] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [contacts, setContacts] = useState([]);
-  const [resumes, setResumes] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [contactModal, setContactModal] = useState(null); // null | "new" | contact object being edited
@@ -3412,10 +3447,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) { setJobs([]); setTasks([]); setContacts([]); setResumes([]); setLoaded(false); return; }
+    if (!user) { setJobs([]); setTasks([]); setContacts([]); setDocuments([]); setLoaded(false); return; }
     setLoadError(false);
     loadUserData().then(({ jobs: j, tasks: t, contacts: c, resumes: r, settings: s }) => {
-      setJobs(j); setTasks(t); setContacts(c); setResumes(r);
+      setJobs(j); setTasks(t); setContacts(c); setDocuments(r);
       if (s) {
         if (s.profileName != null) setProfileName(s.profileName);
         if (s.autoArchiveDays != null) setAutoArchiveDays(String(s.autoArchiveDays));
@@ -4358,7 +4393,7 @@ export default function App() {
           setContacts(u); saveContacts(u);
         }}
         onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }}
-        resumes={resumes} />}
+        documents={documents} />}
       {contactModal && (
         <ContactModal
           contact={contactModal === "new" ? null : contactModal}
@@ -4391,8 +4426,8 @@ export default function App() {
           }}
         />
       )}
-      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} resumes={resumes}
-        onResumesChange={r => { setResumes(r); saveResumes(r); }}
+      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} documents={documents}
+        onDocumentsChange={d => { setDocuments(d); saveDocuments(d); }}
         profileName={profileName || user?.user_metadata?.full_name || ""}
         onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }}
         autoArchiveDays={autoArchiveDays}
