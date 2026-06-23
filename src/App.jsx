@@ -1235,7 +1235,17 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
   const [tab, setTab] = useState("details");
   const [fetchUrl, setFetchUrl] = useState("");
   const [fetchState, setFetchState] = useState("idle"); // idle | loading | error
+  const [errors, setErrors] = useState(new Set());
   const showInterviewDate = INTERVIEW_STATUSES.includes(form.status);
+
+  function handleSave() {
+    const missing = [];
+    if (!form.company || !form.company.trim()) missing.push("company");
+    if (!form.role || !form.role.trim()) missing.push("role");
+    if (missing.length) { setErrors(new Set(missing)); setTab("details"); return; }
+    setErrors(new Set());
+    onSave();
+  }
 
   async function fetchFromLink() {
     const url = fetchUrl.trim();
@@ -1267,7 +1277,7 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
             <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"7px", border:"none", cursor:"pointer", fontWeight:500, background:tab===t?"#185FA5":"var(--surface)", color:tab===t?"#fff":"var(--text-secondary)", textTransform:"capitalize" }}>{t}</button>
           ))}
         </div>
-        <style>{`.mf input,.mf select,.mf textarea{border:1px solid #bbb !important;border-radius:6px !important;padding:6px 10px !important;background:#fafafa !important;}.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:#888 !important;outline:none !important;}`}</style>
+        <style>{`.mf input,.mf select,.mf textarea{border:1px solid #bbb !important;border-radius:6px !important;padding:6px 10px !important;background:#fafafa !important;}.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:#888 !important;outline:none !important;}.mf input.err{border-color:#D4453E !important;background:#FFF5F5 !important;}`}</style>
 
         {tab === "details" && (
           <div className="mf" style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -1286,7 +1296,9 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
             )}
             {[["Company *","company","text","e.g. Acme Corp"],["Role title *","role","text","e.g. Senior Product Manager"],["Job posting URL","link","url","https://..."],["Contact / recruiter","contact","text","Name or email"]].map(([label,key,type,ph]) => (
               <label key={key} style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{label}
-                <input type={type} placeholder={ph} value={form[key]} onChange={e => setForm(f => ({...f,[key]:e.target.value}))} style={{ fontSize:13 }} />
+                <input type={type} placeholder={ph} value={form[key]} className={errors.has(key) ? "err" : undefined}
+                  onChange={e => { const v=e.target.value; setForm(f => ({...f,[key]:v})); if (errors.has(key) && v.trim()) setErrors(p => { const n=new Set(p); n.delete(key); return n; }); }} style={{ fontSize:13 }} />
+                {errors.has(key) && <span style={{ fontSize:11, color:"#D4453E", fontWeight:500 }}>This field is required.</span>}
               </label>
             ))}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
@@ -1331,11 +1343,12 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
 
         {tab === "timeline" && <Timeline timeline={form.timeline||[]} onUpdate={tl => setForm(f=>({...f,timeline:tl}))} />}
 
-        <div style={{ display:"flex", gap:8, marginTop:"1.25rem", justifyContent:"space-between", alignItems:"center" }}>
+        {errors.size > 0 && <p style={{ fontSize:12, color:"#D4453E", fontWeight:500, margin:"14px 0 0", textAlign:"right" }}>Please fill in the required field{errors.size>1?"s":""} highlighted above.</p>}
+        <div style={{ display:"flex", gap:8, marginTop: errors.size>0 ? "8px" : "1.25rem", justifyContent:"space-between", alignItems:"center" }}>
           {isEdit && <button onClick={onDelete} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete job</button>}
           <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
             <button onClick={onClose} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
-            <button onClick={onSave} disabled={!form.role||!form.company} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Save</button>
+            <button onClick={handleSave} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Save</button>
           </div>
         </div>
       </div>
