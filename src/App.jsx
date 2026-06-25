@@ -3708,7 +3708,9 @@ export default function App() {
   }
 
   function exportJSON() {
-    const data = JSON.stringify({ jobs, tasks, exportedAt: new Date().toISOString() }, null, 2);
+    // Full account backup — every synced collection plus account settings.
+    const settings = { profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays };
+    const data = JSON.stringify({ version: 2, exportedAt: new Date().toISOString(), jobs, tasks, contacts, documents, settings }, null, 2);
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type:"application/json"})); a.download = `job-tracker-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
   }
 
@@ -3719,11 +3721,37 @@ export default function App() {
       try {
         const parsed = JSON.parse(evt.target.result);
         if (!Array.isArray(parsed.jobs)) { alert("Invalid backup file."); return; }
-        if (!window.confirm(`This will replace all current data with ${parsed.jobs.length} jobs from the backup. Continue?`)) return;
-        setJobs(parsed.jobs); saveJobs(parsed.jobs);
-        if (parsed.tasks) { setTasks(parsed.tasks); saveTasks(parsed.tasks); }
-        e.target.value = "";
+        // Back-compat: older backups stored the document library under `resumes`,
+        // and pre-v2 backups omit contacts/documents/settings entirely.
+        const docs = Array.isArray(parsed.documents) ? parsed.documents
+          : (Array.isArray(parsed.resumes) ? parsed.resumes : null);
+        const summary = [`${parsed.jobs.length} jobs`];
+        if (Array.isArray(parsed.tasks)) summary.push(`${parsed.tasks.length} tasks`);
+        if (Array.isArray(parsed.contacts)) summary.push(`${parsed.contacts.length} contacts`);
+        if (docs) summary.push(`${docs.length} documents`);
+        if (parsed.settings) summary.push("settings");
+        if (!window.confirm(`This will overwrite your current data with the backup's ${summary.join(", ")}. Continue?`)) return;
         pushUndo("Restored from JSON backup", jobs);
+        setJobs(parsed.jobs); saveJobs(parsed.jobs);
+        if (Array.isArray(parsed.tasks)) { setTasks(parsed.tasks); saveTasks(parsed.tasks); }
+        if (Array.isArray(parsed.contacts)) { setContacts(parsed.contacts); saveContacts(parsed.contacts); }
+        if (docs) { setDocuments(docs); saveDocuments(docs); }
+        if (parsed.settings) {
+          const s = parsed.settings;
+          const apply = (key, lsKey, setter) => { if (s[key] != null) { const v = String(s[key]); setter(v); try { localStorage.setItem(lsKey, v); } catch {} } };
+          apply("profileName", "followup_profile_name", setProfileName);
+          apply("autoArchiveDays", "followup_autoarchive_days", setAutoArchiveDays);
+          apply("quietPromptDays", "followup_quietprompt_days", setQuietPromptDays);
+          apply("followupAppliedDays", "followup_applied_days", setFollowupAppliedDays);
+          apply("followupWarmDays", "followup_warm_days", setFollowupWarmDays);
+          apply("staleDays", "followup_stale_days", setStaleDays);
+          saveSettings({
+            profileName: s.profileName ?? profileName, autoArchiveDays: s.autoArchiveDays ?? autoArchiveDays,
+            quietPromptDays: s.quietPromptDays ?? quietPromptDays, followupAppliedDays: s.followupAppliedDays ?? followupAppliedDays,
+            followupWarmDays: s.followupWarmDays ?? followupWarmDays, staleDays: s.staleDays ?? staleDays,
+          });
+        }
+        e.target.value = "";
       } catch { alert("Could not read backup file — make sure it's a valid JSON backup from this app."); }
     };
     reader.readAsText(file);
