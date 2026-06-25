@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import { supabase } from './supabase';
 
 function useIsMobile() {
@@ -110,6 +110,35 @@ const DOC_TYPES = ["Resume", "Cover letter", "Portfolio", "Other"];
 const docType = d => d.type || "Resume";
 // A job's attached document ids — migrates the legacy single `resumeId`.
 const jobDocIds = job => job.documentIds || (job.resumeId != null ? [job.resumeId] : []);
+
+// Brand mark: a message bubble with an up arrow (a follow-up is a message; the
+// arrow is the "up" in Followup). On light surfaces it sits on the blue→indigo
+// gradient tile; pass `onDark` for the gradient header (white glyph, faint tile).
+// Mirrors public/favicon.svg — keep the two in sync if the mark changes.
+function FollowupMark({ size = 32, onDark = false }) {
+  const gid = useId();
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{ display:"block", flexShrink:0 }}>
+      {onDark ? (
+        <rect width="64" height="64" rx="15" fill="#ffffff" opacity="0.16" />
+      ) : (
+        <>
+          <defs>
+            <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#185FA5" />
+              <stop offset="1" stopColor="#3C3489" />
+            </linearGradient>
+          </defs>
+          <rect width="64" height="64" rx="15" fill={`url(#${gid})`} />
+        </>
+      )}
+      <rect x="16" y="16" width="32" height="22" rx="6.5" fill="none" stroke="#fff" strokeWidth="3.4" />
+      <path d="M24 38 L21 45 L29 38" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M32 33 V22" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M27 27 L32 22 L37 27" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const PREP_DEFAULTS = {
   "Phone Screen": [
@@ -2285,7 +2314,7 @@ function OnboardingCard({ onAdd, onLoadSample }) {
   return (
     <div style={{ maxWidth:580, margin:"2rem auto", padding:"2rem", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
       <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-        <div style={{ fontSize:28, marginBottom:8 }}>👋</div>
+        <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><FollowupMark size={44} /></div>
         <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Followup</div>
         <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up — so applications don't go cold and warm intros don't slip.</div>
       </div>
@@ -3262,7 +3291,10 @@ function ResetPasswordScreen({ onDone }) {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Followup</div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:6 }}>
+            <FollowupMark size={30} />
+            <span style={{ fontSize:24, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Followup</span>
+          </div>
           <div style={{ fontSize:13, color:"var(--text-muted)" }}>Set a new password</div>
         </div>
         {done ? (
@@ -3336,7 +3368,10 @@ function AuthScreen() {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
       <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
         <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-          <div style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", marginBottom:6 }}>Followup</div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:6 }}>
+            <FollowupMark size={30} />
+            <span style={{ fontSize:24, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Followup</span>
+          </div>
           <div style={{ fontSize:13, color:"var(--text-muted)" }}>{subtitles[mode]}</div>
         </div>
         {mode !== "forgot" && (
@@ -3993,7 +4028,10 @@ export default function App() {
     <div style={{ padding:"1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom:"1.25rem", padding:"14px 20px", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Followup</h2>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <FollowupMark size={26} onDark />
+          <h2 style={{ fontSize:20, fontWeight:500, color:"#fff", margin:0 }}>Followup</h2>
+        </div>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span className="header-hint" style={{ fontSize:11, color:"rgba(255,255,255,0.5)" }}>N = new · / = search · Esc = close</span>
           {saveStatus !== "idle" && (
