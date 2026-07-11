@@ -321,9 +321,9 @@ function FollowupActions({ job, onUpdateJob }) {
               ✓ Contacted
             </button>
             <div style={{ display:"flex", gap:4 }}>
-              <button onClick={() => snooze(3)} title="Remind me in 3 days" style={{ flex:1, fontSize:11, padding:"4px 0", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
-              <button onClick={() => snooze(7)} title="Remind me in 7 days" style={{ flex:1, fontSize:11, padding:"4px 0", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
-              <button onClick={dismiss} title="Stop reminding me" style={{ flex:1, fontSize:11, padding:"4px 0", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+              <button onClick={() => snooze(3)} title="Remind me in 3 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>+3d</button>
+              <button onClick={() => snooze(7)} title="Remind me in 7 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>+7d</button>
+              <button onClick={dismiss} title="Stop reminding me" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>✕</button>
             </div>
           </div>
         </>
@@ -482,15 +482,15 @@ function InterviewDatePrompt({ status, job, anchorRef, onConfirm, onSkip }) {
     <div ref={ref} style={{ position:"fixed", top:pos.top, left:pos.left, zIndex:500, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", padding:"14px 16px", width:270 }}>
       <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)", marginBottom:8 }}>{status} date & time</div>
       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ flex:3, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", boxSizing:"border-box" }} />
-        <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ flex:2, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", boxSizing:"border-box" }} />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ flex:3, fontSize: window.innerWidth<640?16:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", boxSizing:"border-box" }} />
+        <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ flex:2, fontSize: window.innerWidth<640?16:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", boxSizing:"border-box" }} />
       </div>
       <div style={{ display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap" }}>
-        <button onClick={onSkip} style={{ fontSize:12, padding:"4px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>Skip</button>
-        <button onClick={() => onConfirm(date, time)} style={{ fontSize:12, padding:"4px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Save</button>
+        <button onClick={onSkip} style={{ fontSize:12, padding:"8px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>Skip</button>
+        <button onClick={() => onConfirm(date, time)} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44 }}>Save</button>
         <a href={buildCalUrl()} target="_blank" rel="noreferrer"
           onClick={() => onConfirm(date, time)}
-          style={{ fontSize:12, padding:"4px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:5, cursor:"pointer", fontWeight:500, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4 }}>
+          style={{ fontSize:12, padding:"8px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:5, cursor:"pointer", fontWeight:500, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4, minHeight:44 }}>
           📅 + Calendar
         </a>
       </div>
@@ -813,6 +813,9 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   const [form, setForm] = useState({});
   const [addingContact, setAddingContact] = useState(false);
   const [newContactName, setNewContactName] = useState("");
+  const [showOverflow, setShowOverflow] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isMobile = useIsMobile();
 
   function startEdit() {
     setForm({ ...job, tags: job.tags||{}, timeline: job.timeline||[], documentIds: jobDocIds(job) });
@@ -835,7 +838,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   const availableContacts = (contacts||[]).filter(c => !(c.relatedJobIds||[]).includes(job.id));
   const showInterviewDate = editing && INTERVIEW_STATUSES.includes(form.status);
 
-  const inputStyle = { fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const inputStyle = { fontSize: isMobile ? 16 : 13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
   return (
     <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:360, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
@@ -1009,7 +1012,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                       <div style={{ fontSize:12, fontWeight:500, color:"var(--text-primary)" }}>{c.name}</div>
                       {(c.title||c.company) && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{[c.title,c.company].filter(Boolean).join(" @ ")}</div>}
                     </div>
-                    <button onClick={() => onUnlinkContact(c.id)} title="Unlink" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
+                    <button onClick={() => onUnlinkContact(c.id)} title="Unlink" style={{ fontSize:11, padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
                   </div>
                 ))}
                 {availableContacts.length > 0 && (
@@ -1023,12 +1026,12 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                   <div style={{ display:"flex", gap:6 }}>
                     <input autoFocus type="text" placeholder="Contact name" value={newContactName} onChange={e=>setNewContactName(e.target.value)}
                       onKeyDown={e => { if (e.key==="Enter" && newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } if (e.key==="Escape") { setAddingContact(false); setNewContactName(""); } }}
-                      style={{ fontSize:12, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", flex:1 }} />
-                    <button onClick={() => { if (newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } }} style={{ fontSize:12, padding:"4px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Add</button>
-                    <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"4px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+                      style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", background:"var(--input-bg)", color:"var(--text-primary)", flex:1 }} />
+                    <button onClick={() => { if (newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } }} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44 }}>Add</button>
+                    <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"8px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
                   </div>
                 ) : (
-                  <button onClick={() => { setNewContactName(job.contact || ""); setAddingContact(true); }} style={{ fontSize:12, padding:"5px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left" }}>+ New contact</button>
+                  <button onClick={() => { setNewContactName(job.contact || ""); setAddingContact(true); }} style={{ fontSize:12, padding:"8px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left", minHeight:44 }}>+ New contact</button>
                 )}
               </div>
             </PanelSection>
@@ -1052,18 +1055,37 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
       <div style={{ padding:"12px 20px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center", background:"var(--surface)", gap:8, flexWrap:"wrap" }}>
         {editing ? (
           <>
-            <button onClick={cancelEdit} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
-            <button onClick={saveEdit} disabled={!form.role||!form.company} style={{ fontSize:13, padding:"6px 20px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, marginLeft:"auto" }}>Save changes</button>
+            <button onClick={cancelEdit} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Cancel</button>
+            <button onClick={saveEdit} disabled={!form.role||!form.company} style={{ fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, marginLeft:"auto", minHeight:44 }}>Save changes</button>
           </>
         ) : (
           <>
-            <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete</button>
+            <div style={{ position:"relative" }}>
+              <button onClick={() => setShowOverflow(!showOverflow)} style={{ fontSize:14, padding:"8px 10px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>⋯</button>
+              {showOverflow && (
+                <div style={{ position:"absolute", top:50, left:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:6, boxShadow:"0 2px 8px rgba(0,0,0,0.12)", zIndex:200, minWidth:150 }}>
+                  <button onClick={() => setShowDeleteConfirm(true)} style={{ display:"block", width:"100%", padding:"10px 14px", fontSize:13, background:"none", color:getStatusCfg("Rejected").text, border:"none", cursor:"pointer", textAlign:"left", fontWeight:500, minHeight:44 }}>Delete</button>
+                </div>
+              )}
+            </div>
+            {showDeleteConfirm && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:300 }}>
+                <div style={{ background:"var(--surface)", borderRadius:8, padding:"20px", maxWidth:300, boxShadow:"0 4px 20px rgba(0,0,0,0.2)", display:"flex", flexDirection:"column", gap:14 }}>
+                  <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>Delete this job?</div>
+                  <div style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.5 }}>This action cannot be undone.</div>
+                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                    <button onClick={() => { setShowDeleteConfirm(false); setShowOverflow(false); }} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Cancel</button>
+                    <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
               {job.archived
-                ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1.5px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>↩ Restore</button>
-                : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>📦 Archive</button>
+                ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1.5px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>↩ Restore</button>
+                : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>📦 Archive</button>
               }
-              {!job.archived && <button onClick={startEdit} style={{ fontSize:13, padding:"6px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Edit</button>}
+              {!job.archived && <button onClick={startEdit} style={{ fontSize:13, padding:"8px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Edit</button>}
             </div>
           </>
         )}
@@ -1292,6 +1314,7 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
   const [fetchUrl, setFetchUrl] = useState("");
   const [fetchState, setFetchState] = useState("idle"); // idle | loading | error
   const [errors, setErrors] = useState(new Set());
+  const isMobile = useIsMobile();
   const showInterviewDate = INTERVIEW_STATUSES.includes(form.status);
 
   function handleSave() {
@@ -1330,7 +1353,7 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
         <h3 style={{ margin:"0 0 1rem", fontWeight:500, fontSize:16, color:"var(--text-primary)" }}>{isEdit?"Edit application":"Add application"}</h3>
         <div style={{ display:"flex", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden", marginBottom:"1rem" }}>
           {["details","tags","timeline"].map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"7px", border:"none", cursor:"pointer", fontWeight:500, background:tab===t?"#185FA5":"var(--surface)", color:tab===t?"#fff":"var(--text-secondary)", textTransform:"capitalize" }}>{t}</button>
+            <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"8px 10px", border:"none", cursor:"pointer", fontWeight:500, background:tab===t?"#185FA5":"var(--surface)", color:tab===t?"#fff":"var(--text-secondary)", textTransform:"capitalize", minHeight:44 }}>{t}</button>
           ))}
         </div>
         <style>{`.mf input,.mf select,.mf textarea{border:1px solid #bbb !important;border-radius:6px !important;padding:6px 10px !important;background:#fafafa !important;}.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:#888 !important;outline:none !important;}.mf input.err{border-color:#D4453E !important;background:#FFF5F5 !important;}`}</style>
@@ -1341,9 +1364,9 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
               <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"10px 12px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8 }}>
                 <label style={{ fontSize:12, fontWeight:600, color:"var(--text-secondary)" }}>Paste a job posting link</label>
                 <div style={{ display:"flex", gap:6 }}>
-                  <input type="url" placeholder="https://..." value={fetchUrl} onChange={e=>setFetchUrl(e.target.value)} style={{ fontSize:13, flex:1 }} />
+                  <input type="url" placeholder="https://..." value={fetchUrl} onChange={e=>setFetchUrl(e.target.value)} style={{ fontSize: isMobile ? 16 : 13, flex:1 }} />
                   <button type="button" onClick={fetchFromLink} disabled={fetchState==="loading"||!fetchUrl.trim()}
-                    style={{ fontSize:12, padding:"6px 12px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor: fetchUrl.trim()?"pointer":"not-allowed", fontWeight:500, opacity: fetchState==="loading"?0.7:1, whiteSpace:"nowrap" }}>
+                    style={{ fontSize:12, padding:"8px 12px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor: fetchUrl.trim()?"pointer":"not-allowed", fontWeight:500, opacity: fetchState==="loading"?0.7:1, whiteSpace:"nowrap", minHeight:44 }}>
                     {fetchState==="loading" ? "Fetching…" : "Fetch details"}
                   </button>
                 </div>
@@ -1353,21 +1376,21 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
             {[["Company *","company","text","e.g. Acme Corp"],["Role title *","role","text","e.g. Senior Product Manager"],["Job posting URL","link","url","https://..."],["Contact / recruiter","contact","text","Name or email"]].map(([label,key,type,ph]) => (
               <label key={key} style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{label}
                 <input type={type} placeholder={ph} value={form[key]} className={errors.has(key) ? "err" : undefined}
-                  onChange={e => { const v=e.target.value; setForm(f => ({...f,[key]:v})); if (errors.has(key) && v.trim()) setErrors(p => { const n=new Set(p); n.delete(key); return n; }); }} style={{ fontSize:13 }} />
+                  onChange={e => { const v=e.target.value; setForm(f => ({...f,[key]:v})); if (errors.has(key) && v.trim()) setErrors(p => { const n=new Set(p); n.delete(key); return n; }); }} style={{ fontSize: isMobile ? 16 : 13 }} />
                 {errors.has(key) && <span style={{ fontSize:11, color:"#D4453E", fontWeight:500 }}>This field is required.</span>}
               </label>
             ))}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary min<input type="number" placeholder="90000" value={form.salaryMin} onChange={e => setForm(f=>({...f,salaryMin:e.target.value}))} style={{ fontSize:13 }} /></label>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary max<input type="number" placeholder="120000" value={form.salaryMax} onChange={e => setForm(f=>({...f,salaryMax:e.target.value}))} style={{ fontSize:13 }} /></label>
+              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary min<input type="number" placeholder="90000" value={form.salaryMin} onChange={e => setForm(f=>({...f,salaryMin:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
+              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary max<input type="number" placeholder="120000" value={form.salaryMax} onChange={e => setForm(f=>({...f,salaryMax:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
             </div>
             <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Interest
               <div style={{ paddingTop:3 }}><InterestStars value={form.interest||0} onChange={n=>setForm(f=>({...f,interest:n}))} size={22} showLabel /></div>
             </label>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Date applied<input type="date" value={form.dateApplied} onChange={e => setForm(f=>({...f,dateApplied:e.target.value}))} style={{ fontSize:13 }} /></label>
+              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Date applied<input type="date" value={form.dateApplied} onChange={e => setForm(f=>({...f,dateApplied:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
               <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Status
-                <select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))} style={{ fontSize:13 }}>
+                <select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }}>
                   {Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)}
                 </select>
               </label>
@@ -1375,16 +1398,16 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
             {showInterviewDate && (
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{form.status} date
-                  <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize:13 }} />
+                  <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
                 </label>
                 <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Time
-                  <input type="time" value={form.interviewTime||""} onChange={e => setForm(f=>({...f,interviewTime:e.target.value}))} style={{ fontSize:13 }} />
+                  <input type="time" value={form.interviewTime||""} onChange={e => setForm(f=>({...f,interviewTime:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
                 </label>
               </div>
             )}
             <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>
               Custom follow-up date <span style={{ fontWeight:400, color:"var(--text-secondary)" }}>(overrides auto)</span>
-              <input type="date" value={form.customFollowup} onChange={e => setForm(f=>({...f,customFollowup:e.target.value}))} style={{ fontSize:13 }} />
+              <input type="date" value={form.customFollowup} onChange={e => setForm(f=>({...f,customFollowup:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
             </label>
             <p style={{ fontSize:12, color:"var(--text-muted)", margin:"4px 0 0" }}>Notes can be added from the detail panel after saving.</p>
           </div>
@@ -1401,10 +1424,10 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
 
         {errors.size > 0 && <p style={{ fontSize:12, color:"#D4453E", fontWeight:500, margin:"14px 0 0", textAlign:"right" }}>Please fill in the required field{errors.size>1?"s":""} highlighted above.</p>}
         <div style={{ display:"flex", gap:8, marginTop: errors.size>0 ? "8px" : "1.25rem", justifyContent:"space-between", alignItems:"center" }}>
-          {isEdit && <button onClick={onDelete} style={{ fontSize:13, padding:"6px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>Delete job</button>}
+          {isEdit && <button onClick={onDelete} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>Delete job</button>}
           <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
-            <button onClick={onClose} style={{ fontSize:13, padding:"6px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Cancel</button>
-            <button onClick={handleSave} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500 }}>Save</button>
+            <button onClick={onClose} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>Cancel</button>
+            <button onClick={handleSave} style={{ fontSize:13, padding:"8px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>Save</button>
           </div>
         </div>
       </div>
@@ -1416,17 +1439,18 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
 function ReminderMini({ job, onSave, onClose }) {
   const [date, setDate] = useState(dateInNDays(1));
   const [note, setNote] = useState(`Follow up with ${job.company}`);
+  const isMobile = useIsMobile();
   function save() { if (!date) return; onSave(date, note); onClose(); }
   return (
     <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, marginTop:6 }}>
       <span style={{ fontSize:11, color:"var(--text-secondary)", fontWeight:500, whiteSpace:"nowrap" }}>🔔 Remind me on</span>
       <input type="date" value={date} min={todayStr()} onChange={e => setDate(e.target.value)}
-        style={{ fontSize:12, border:"1px solid var(--input-border)", borderRadius:5, padding:"3px 6px", background:"var(--input-bg)", color:"var(--text-primary)" }} />
+        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:5, padding:"6px", background:"var(--input-bg)", color:"var(--text-primary)" }} />
       <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional)"
-        style={{ fontSize:12, border:"1px solid var(--input-border)", borderRadius:5, padding:"3px 8px", flex:1, minWidth:120, background:"var(--input-bg)", color:"var(--text-primary)" }}
+        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:5, padding:"6px 8px", flex:1, minWidth:120, background:"var(--input-bg)", color:"var(--text-primary)" }}
         onKeyDown={e => { if (e.key==="Enter") save(); if (e.key==="Escape") onClose(); }} />
-      <button onClick={save} style={{ fontSize:12, padding:"3px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500 }}>Set</button>
-      <button onClick={onClose} style={{ fontSize:12, padding:"3px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>✕</button>
+      <button onClick={save} style={{ fontSize:12, padding:"6px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Set</button>
+      <button onClick={onClose} style={{ fontSize:12, padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
     </div>
   );
 }
