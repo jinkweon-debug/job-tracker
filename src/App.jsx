@@ -2453,7 +2453,6 @@ function OnboardingCard({ onAdd, onLoadSample }) {
   );
 }
 
-// ── Account settings modal ────────────────────────────────────────────────────
 // ── Guide & help ──────────────────────────────────────────────────────────────
 function HelpSection({ title, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -2567,7 +2566,7 @@ function HelpModal({ onClose }) {
           <HelpSection title="Reminders & interviews">
             {item("Interview dates", "Set a date and time on a job and Followup auto-creates a day-before reminder, plus a button to add it to Google Calendar.")}
             {item("Manual reminders", "Use 🔔 Remind on a job, the detail panel, or “+ Add task” in Today to set your own reminders.")}
-            {item("Browser reminders", "Turn on desktop notifications from the ☰ menu to get nudged even when the app is closed.")}
+            {item("Browser reminders", "Turn on desktop notifications from your Profile screen (Backup & data) to get nudged even when the app is closed.")}
           </HelpSection>
 
           <HelpSection title="Organizing & finding jobs">
@@ -2579,9 +2578,9 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="Settings, data & shortcuts">
-            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage your documents (resumes, cover letters, portfolios), and get the capture bookmarklet — all in Account settings.")}
-            {item("Automation", "In Settings → Automation, tune your follow-up timing, auto-archiving of rejected/withdrawn jobs, and the quiet-job review prompt. These preferences sync across all your devices.")}
-            {item("Backup & export", "From the ☰ menu, export a JSON backup (or restore one), and export your jobs to CSV.")}
+            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage your documents (resumes, cover letters, portfolios), and get the capture bookmarklet — all in your Profile screen (👤 Profile tab on mobile, Profile button on desktop).")}
+            {item("Automation", "In Profile → Follow-up automation, tune your follow-up timing, auto-archiving of rejected/withdrawn jobs, and the quiet-job review prompt. These preferences sync across all your devices.")}
+            {item("Backup & export", "In Profile → Backup & data, export a JSON backup (or restore one), and export your jobs to CSV.")}
             {item("Dark mode", "Toggle the 🌙 / ☀️ switch in the header.")}
             {item("Shortcuts", "N = new job · / = search · Esc = close.")}
           </HelpSection>
@@ -2597,13 +2596,10 @@ function HelpModal({ onClose }) {
   );
 }
 
-function SettingsModal({ user, onClose, documents, onDocumentsChange, profileName, onProfileNameChange, autoArchiveDays, onAutoArchiveDaysChange, quietPromptDays, onQuietPromptDaysChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, staleDays, onStaleDaysChange }) {
-  const [tab, setTab] = useState("profile");
-  const [nameField, setNameField] = useState(profileName || "");
-  const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
-  const [error, setError] = useState(""); const [msg, setMsg] = useState(""); const [loading, setLoading] = useState(false);
+// ── Documents (part of Profile → Your stuff) ──────────────────────────────────
+function DocumentsView({ documents, onDocumentsChange }) {
   const [newDoc, setNewDoc] = useState({ type:"Resume", name:"", link:"", notes:"" });
-  const bookmarkletRef = useRef(null);
+  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
   function addDocument() {
     if (!newDoc.name.trim()) return;
@@ -2614,151 +2610,180 @@ function SettingsModal({ user, onClose, documents, onDocumentsChange, profileNam
     onDocumentsChange(documents.filter(d => d.id !== id));
   }
 
+  return (
+    <div style={{ maxWidth:480 }}>
+      <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", marginBottom:6 }}>📁 Documents</div>
+      <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:16 }}>
+        Track resumes, cover letters, portfolios, and other files (with a link to each). Then attach the ones you used on each job's detail panel.
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:14, marginBottom:14 }}>
+        {documents.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No documents yet.</div>}
+        {DOC_TYPES.filter(t => documents.some(d => docType(d)===t)).map(t => (
+          <div key={t} style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{t}</div>
+            {documents.filter(d => docType(d)===t).map(d => (
+              <div key={d.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{d.name}</div>
+                  {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
+                  {d.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{d.notes}</div>}
+                </div>
+                <button onClick={() => deleteDocument(d.id)} title="Delete" style={{ fontSize:11, padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0, minHeight:44, minWidth:44 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:8, paddingTop:10, borderTop:"1px solid var(--border)" }}>
+        <select value={newDoc.type} onChange={e=>setNewDoc(f=>({...f,type:e.target.value}))} style={inputStyle}>
+          {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <input type="text" placeholder="Name (e.g. Resume — PM roles)" value={newDoc.name} onChange={e=>setNewDoc(f=>({...f,name:e.target.value}))} style={inputStyle} />
+        <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newDoc.link} onChange={e=>setNewDoc(f=>({...f,link:e.target.value}))} style={inputStyle} />
+        <input type="text" placeholder="Notes (optional)" value={newDoc.notes} onChange={e=>setNewDoc(f=>({...f,notes:e.target.value}))} style={inputStyle} />
+        <button onClick={addDocument} disabled={!newDoc.name.trim()} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>+ Add document</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Profile screen — merges the old Settings modal + ☰ hamburger menu into one
+// unified screen (tab destination on mobile, route on desktop). "Your stuff"
+// groups Contacts/Documents/Archived; the bookmarklet section is desktop-only.
+function ProfileScreen({
+  user, isMobile,
+  profileName, onProfileNameChange,
+  autoArchiveDays, onAutoArchiveDaysChange,
+  quietPromptDays, onQuietPromptDaysChange,
+  followupAppliedDays, onFollowupAppliedChange,
+  followupWarmDays, onFollowupWarmChange,
+  staleDays, onStaleDaysChange,
+  contactsCount, documentsCount, archivedCount,
+  onOpenContacts, onOpenDocuments, onOpenArchived, onShowHelp,
+  exportJSON, importJSON, exportCSV, importCSV, enableNotifications,
+}) {
+  const [nameField, setNameField] = useState(profileName || "");
+  const [nameMsg, setNameMsg] = useState("");
+  const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
+  const [pwError, setPwError] = useState(""); const [pwMsg, setPwMsg] = useState(""); const [pwLoading, setPwLoading] = useState(false);
+  const bookmarkletRef = useRef(null);
+
   async function changePassword(e) {
-    e.preventDefault(); setError(""); setMsg("");
-    if (pw !== conf) { setError("Passwords don't match"); return; }
-    if (pw.length < 6) { setError("Password must be at least 6 characters"); return; }
-    setLoading(true);
-    // Re-authenticate first
+    e.preventDefault(); setPwError(""); setPwMsg("");
+    if (pw !== conf) { setPwError("Passwords don't match"); return; }
+    if (pw.length < 6) { setPwError("Password must be at least 6 characters"); return; }
+    setPwLoading(true);
     const { error: signInErr } = await supabase.auth.signInWithPassword({ email: user.email, password: cur });
-    if (signInErr) { setError("Current password is incorrect"); setLoading(false); return; }
+    if (signInErr) { setPwError("Current password is incorrect"); setPwLoading(false); return; }
     const { error } = await supabase.auth.updateUser({ password: pw });
-    if (error) { setError(error.message); } else { setMsg("Password updated successfully."); setCur(""); setPw(""); setConf(""); }
-    setLoading(false);
+    if (error) { setPwError(error.message); } else { setPwMsg("Password updated successfully."); setCur(""); setPw(""); setConf(""); }
+    setPwLoading(false);
   }
 
   const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const navRow = { display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"12px 14px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer", fontSize:14, color:"var(--text-primary)", fontWeight:500, minHeight:44, textAlign:"left" };
 
   const bookmarkletCode = `javascript:(function(){function m(n){var e=document.querySelector('meta[property="'+n+'"]')||document.querySelector('meta[name="'+n+'"]');return e?e.content:'';}function t(sels){for(var i=0;i<sels.length;i++){var e=document.querySelector(sels[i]);if(e&&e.textContent.trim())return e.textContent.trim();}return '';}function p(s){s=String(s).trim();if(/k$/i.test(s))return Math.round(parseFloat(s)*1000);return Math.round(parseFloat(s.replace(/,/g,'')));}var role='',company='',salMin='',salMax='';try{var ld=document.querySelectorAll('script[type="application/ld+json"]');for(var i=0;i<ld.length;i++){var data=JSON.parse(ld[i].textContent);var arr=Array.isArray(data)?data:[data];for(var j=0;j<arr.length;j++){var d=arr[j];if(d['@type']==='JobPosting'){role=d.title||role;company=(d.hiringOrganization&&d.hiringOrganization.name)||company;if(d.baseSalary){var bs=d.baseSalary.value||d.baseSalary;if(bs){if(bs.minValue!=null)salMin=bs.minValue;if(bs.maxValue!=null)salMax=bs.maxValue;if(bs.value!=null&&!salMin&&!salMax)salMin=salMax=bs.value;}}}}}}catch(e){}if(!role)role=t(['h1.job-details-jobs-unified-top-card__job-title','.t-24.job-details-jobs-unified-top-card__job-title','h1.top-card-layout__title','[data-testid="jobsearch-JobInfoHeader-title"]','.jobsearch-JobInfoHeader-title']);if(!company)company=t(['.job-details-jobs-unified-top-card__company-name','.topcard__org-name-link','[data-testid="inlineHeader-companyName"]','.jobsearch-CompanyInfoContainer a']);if(!role){role=m('og:title')||document.title;role=role.replace(/\\s*[|\\-–]\\s*(LinkedIn|Indeed.*|Glassdoor.*)$/i,'').trim();}if(!company)company=m('og:site_name');if(!salMin&&!salMax){try{var bodyTxt=document.body.innerText||'';var rx=/\\$\\s?(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s?[kK])\\s*(?:-|–|to)\\s*\\$?\\s?(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s?[kK])/;var mm=bodyTxt.match(rx);if(mm){salMin=p(mm[1]);salMax=p(mm[2]);}}catch(e){}}var link=location.href;var jk=new URLSearchParams(location.search).get('vjk')||new URLSearchParams(location.search).get('jk');if(jk&&location.hostname.indexOf('indeed.')>-1)link='https://'+location.hostname+'/viewjob?jk='+jk;var url='https://job-tracker-tau-eight.vercel.app/?capture=1&role='+encodeURIComponent(role)+'&company='+encodeURIComponent(company)+'&link='+encodeURIComponent(link)+'&salMin='+encodeURIComponent(salMin)+'&salMax='+encodeURIComponent(salMax);window.open(url,'_blank');})();`;
 
   // React 19 blocks javascript: hrefs set via JSX as an XSS precaution — set it via the DOM API instead.
-  // The <a> only exists in the DOM when the "capture" tab is active, so re-run when tab changes.
   useEffect(() => {
     if (bookmarkletRef.current) bookmarkletRef.current.setAttribute('href', bookmarkletCode);
-  }, [tab]);
+  }, []);
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}>
-      <div style={{ width:"100%", maxWidth:420, background:"var(--surface)", borderRadius:12, border:"1px solid var(--border)", boxShadow:"0 4px 24px rgba(0,0,0,0.12)" }}>
-        <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-          <div style={{ fontSize:15, fontWeight:600, color:"var(--text-primary)" }}>Account settings</div>
-          <button onClick={onClose} style={{ background:"none", border:"none", fontSize:16, cursor:"pointer", color:"var(--text-muted)" }}>✕</button>
-        </div>
-        <div style={{ display:"flex", borderBottom:"1px solid var(--border)" }}>
-          {[["profile","Profile"],["cleanup","Automation"],["password","Password"],["capture","Job capture"],["documents","Documents"]].map(([t,label]) => (
-            <button key={t} onClick={() => setTab(t)} style={{ flex:1, fontSize:13, padding:"9px", border:"none", cursor:"pointer", fontWeight:500, background:"none", color: tab===t ? "var(--accent)" : "var(--text-muted)", borderBottom: tab===t ? "2px solid var(--accent)" : "2px solid transparent" }}>{label}</button>
-          ))}
-        </div>
-        {tab === "profile" && (
-          <div style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Your name</div>
-            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:12 }}>
-              Used to sign off your follow-up email drafts — it replaces “[Your name]” automatically.
-            </div>
-            <input type="text" placeholder="e.g. Jin Kweon" value={nameField} onChange={e=>setNameField(e.target.value)} style={inputStyle} />
-            <button onClick={() => { onProfileNameChange(nameField.trim()); setMsg("Saved."); setTimeout(()=>setMsg(""),2000); }} style={{ marginTop:12, fontSize:13, padding:"9px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Save</button>
-            {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px", marginTop:10 }}>{msg}</div>}
-          </div>
-        )}
-        {tab === "cleanup" && (
-          <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:18 }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Follow-up reminders</div>
-              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>How long Followup waits before nudging you to follow up, and when it flags a job as going cold.</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after applying</label>
-                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after a phone screen or interview</label>
-                <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={staleDays} onChange={e=>onStaleDaysChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days with no activity → flag as going cold</label>
-              </div>
-            </div>
-            <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Auto-archive rejected &amp; withdrawn jobs</div>
-              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Jobs you've marked Rejected or Withdrawn move to Archived automatically after this many days. They stay recoverable in the Archived view. Set to 0 to turn this off.</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <input type="number" min="0" value={autoArchiveDays} onChange={e=>onAutoArchiveDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
-                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
-              </div>
-            </div>
-            <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Prompt to review quiet applications</div>
-              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>When an active job you haven't rated Medium or High has had no activity for this many days, the Today page offers to archive it — nothing happens until you choose. Set to 0 to turn this off.</div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <input type="number" min="0" value={quietPromptDays} onChange={e=>onQuietPromptDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
-                <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
-              </div>
-            </div>
-          </div>
-        )}
-        {tab === "password" && (
-          <div style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:16 }}>Signed in as <span style={{ fontWeight:500, color:"var(--text-primary)" }}>{user.email}</span></div>
-            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:12 }}>Change password</div>
-            <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
-              <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
-              <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
-              {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
-              {msg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{msg}</div>}
-              <button type="submit" disabled={loading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:loading?0.7:1 }}>
-                {loading ? "Saving…" : "Update password"}
-              </button>
-            </form>
-          </div>
-        )}
-        {tab === "capture" && (
-          <div style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Capture jobs from any site</div>
-            <div style={{ fontSize:11, fontWeight:600, color:"var(--accent)", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:6, padding:"6px 10px", marginBottom:12 }}>
-              💻 Desktop browsers only — mobile browsers don't support dragging bookmarklets to a bookmarks bar. On mobile, use "+ Add job" instead.
-            </div>
-            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
-              Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Followup with the role, company, and link pre-filled.
-            </div>
-            <a ref={bookmarkletRef} onClick={e => e.preventDefault()} draggable
-              style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
-              📋 Capture job
-            </a>
-            <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:14, lineHeight:1.6 }}>
-              Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically — you can edit the prefilled details before saving.
-            </div>
-          </div>
-        )}
-        {tab === "documents" && (
-          <div style={{ padding:"16px 20px" }}>
-            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:8 }}>Documents</div>
-            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
-              Track resumes, cover letters, portfolios, and other files (with a link to each). Then attach the ones you used on each job's detail panel.
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:14, marginBottom:14 }}>
-              {documents.length === 0 && <div style={{ fontSize:12, color:"var(--text-muted)" }}>No documents yet.</div>}
-              {DOC_TYPES.filter(t => documents.some(d => docType(d)===t)).map(t => (
-                <div key={t} style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{t}</div>
-                  {documents.filter(d => docType(d)===t).map(d => (
-                    <div key={d.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{d.name}</div>
-                        {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
-                        {d.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{d.notes}</div>}
-                      </div>
-                      <button onClick={() => deleteDocument(d.id)} title="Delete" style={{ fontSize:11, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0 }}>✕</button>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:8, paddingTop:10, borderTop:"1px solid var(--border)" }}>
-              <select value={newDoc.type} onChange={e=>setNewDoc(f=>({...f,type:e.target.value}))} style={inputStyle}>
-                {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <input type="text" placeholder="Name (e.g. Resume — PM roles)" value={newDoc.name} onChange={e=>setNewDoc(f=>({...f,name:e.target.value}))} style={inputStyle} />
-              <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newDoc.link} onChange={e=>setNewDoc(f=>({...f,link:e.target.value}))} style={inputStyle} />
-              <input type="text" placeholder="Notes (optional)" value={newDoc.notes} onChange={e=>setNewDoc(f=>({...f,notes:e.target.value}))} style={inputStyle} />
-              <button onClick={addDocument} disabled={!newDoc.name.trim()} style={{ fontSize:13, padding:"8px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>+ Add document</button>
-            </div>
-          </div>
-        )}
+    <div style={{ display:"flex", flexDirection:"column", gap:16, maxWidth:560 }}>
+      <div>
+        <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>Signed in as</div>
+        <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>{user.email}</div>
       </div>
+
+      <div style={{ padding:"14px 16px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Your name</div>
+        <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Used to sign off your follow-up email drafts — it replaces "[Your name]" automatically.</div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <input type="text" placeholder="e.g. Jin Kweon" value={nameField} onChange={e=>setNameField(e.target.value)} style={{ ...inputStyle, flex:1, minWidth:160 }} />
+          <button onClick={() => { onProfileNameChange(nameField.trim()); setNameMsg("Saved."); setTimeout(()=>setNameMsg(""),2000); }} style={{ fontSize:13, padding:"8px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Save</button>
+        </div>
+        {nameMsg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px", marginTop:10 }}>{nameMsg}</div>}
+      </div>
+
+      <div>
+        <div style={{ fontSize:12, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8 }}>🗂 Your stuff</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <button onClick={onOpenContacts} style={navRow}><span>🤝 Contacts</span><span style={{ color:"var(--text-muted)", fontWeight:400 }}>{contactsCount} ›</span></button>
+          <button onClick={onOpenDocuments} style={navRow}><span>📁 Documents</span><span style={{ color:"var(--text-muted)", fontWeight:400 }}>{documentsCount} ›</span></button>
+          <button onClick={onOpenArchived} style={navRow}><span>📦 Archived jobs</span><span style={{ color:"var(--text-muted)", fontWeight:400 }}>{archivedCount} ›</span></button>
+        </div>
+      </div>
+
+      <PanelSection label="🔔 Follow-up automation" defaultOpen={false}>
+        <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
+          <div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>How long Followup waits before nudging you to follow up, and when it flags a job as going cold.</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after applying</label>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after a phone screen or interview</label>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={staleDays} onChange={e=>onStaleDaysChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days with no activity → flag as going cold</label>
+            </div>
+          </div>
+          <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Auto-archive rejected &amp; withdrawn jobs</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Jobs you've marked Rejected or Withdrawn move to Archived automatically after this many days. They stay recoverable in the Archived view. Set to 0 to turn this off.</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <input type="number" min="0" value={autoArchiveDays} onChange={e=>onAutoArchiveDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
+              <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
+            </div>
+          </div>
+          <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Prompt to review quiet applications</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>When an active job you haven't rated Medium or High has had no activity for this many days, the Today page offers to archive it — nothing happens until you choose. Set to 0 to turn this off.</div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <input type="number" min="0" value={quietPromptDays} onChange={e=>onQuietPromptDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
+              <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
+            </div>
+          </div>
+        </div>
+      </PanelSection>
+
+      <PanelSection label="🔑 Password" defaultOpen={false}>
+        <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
+          <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
+          <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
+          {pwError && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{pwError}</div>}
+          {pwMsg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{pwMsg}</div>}
+          <button type="submit" disabled={pwLoading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:pwLoading?0.7:1, minHeight:44 }}>
+            {pwLoading ? "Saving…" : "Update password"}
+          </button>
+        </form>
+      </PanelSection>
+
+      {!isMobile && (
+        <PanelSection label="🔖 Capture jobs from any site" defaultOpen={false}>
+          <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:14 }}>
+            Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Followup with the role, company, and link pre-filled.
+          </div>
+          <a ref={bookmarkletRef} onClick={e => e.preventDefault()} draggable
+            style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
+            📋 Capture job
+          </a>
+          <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:14, lineHeight:1.6 }}>
+            Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically — you can edit the prefilled details before saving.
+          </div>
+        </PanelSection>
+      )}
+
+      <PanelSection label="💾 Backup & data" defaultOpen={false}>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <button onClick={exportJSON} style={navRow}>💾 Export backup (JSON)</button>
+          <label style={navRow}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={importJSON} style={{ display:"none" }} /></label>
+          <button onClick={exportCSV} style={navRow}>Export CSV</button>
+          <label style={navRow}>Import CSV<input type="file" accept=".csv" onChange={importCSV} style={{ display:"none" }} /></label>
+          <button onClick={enableNotifications} style={navRow}>{typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}</button>
+        </div>
+      </PanelSection>
+
+      <button onClick={onShowHelp} style={navRow}><span>❓ Guide &amp; help</span><span style={{ color:"var(--text-muted)" }}>›</span></button>
     </div>
   );
 }
@@ -3558,9 +3583,6 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState("today");
   const [hiddenCols, setHiddenCols] = useState({});
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [showProfileSheet, setShowProfileSheet] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [profileName, setProfileName] = useState(() => { try { return localStorage.getItem("followup_profile_name") || ""; } catch { return ""; } });
   const [autoArchiveDays, setAutoArchiveDays] = useState(() => { try { return localStorage.getItem("followup_autoarchive_days") ?? "30"; } catch { return "30"; } });
@@ -3580,7 +3602,6 @@ export default function App() {
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
-  const menuRef = useRef(null);
   const dragId = useRef(null);
 
   // ── Auth + data loading ──
@@ -3658,11 +3679,6 @@ export default function App() {
       return () => clearTimeout(t);
     }
   }, [saveStatus]);
-  useEffect(() => {
-    function h(e) { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); }
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
   useEffect(() => {
     if (panelJob) { const u = jobs.find(j => j.id===panelJob.id); if (u) setPanelJob(u); }
   }, [jobs]);
@@ -4131,17 +4147,6 @@ export default function App() {
   const counts = Object.fromEntries(Object.keys(STATUS_CONFIG).map(s=>[s,jobs.filter(j=>j.status===s&&!j.archived).length]));
   const todayTasks = tasks.filter(t=>!t.done&&t.dueDate<=todayStr()).length + jobs.filter(j=>!j.archived&&j.interviewDate===todayStr()).length + jobs.filter(j=>{ const fu=getFollowupStatus(j); return fu?.urgent && fu.diff >= -30; }).length;
 
-  // Shared menu items — rendered in the desktop ☰ dropdown and the mobile Profile sheet
-  const profileMenuItems = [
-    { key:"help", label:"❓ Guide & help", onClick: () => { setShowHelp(true); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"settings", label:"⚙️ Account settings", onClick: () => { setShowSettings(true); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"export-json", label:"💾 Export backup (JSON)", onClick: () => { exportJSON(); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"import-json", label:"📂 Restore backup (JSON)", isFile:true, accept:".json", onFile: e => { importJSON(e); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"export-csv", label:"Export CSV", onClick: () => { exportCSV(); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"import-csv", label:"Import CSV", isFile:true, accept:".csv", onFile: e => { importCSV(e); setMenuOpen(false); setShowProfileSheet(false); } },
-    { key:"notifications", label: typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders", onClick: () => { enableNotifications(); } },
-  ];
-
   if (!authChecked) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading…</div>;
   if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!user) return <AuthScreen />;
@@ -4383,23 +4388,10 @@ export default function App() {
                 </button>
               )}
               {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
-              {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
-              <div style={{ position:"relative" }} ref={menuRef}>
-                <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
-                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-                </button>
-                {menuOpen && (
-                  <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
-                    {profileMenuItems.map(item => item.isFile ? (
-                      <label key={item.key} style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>{item.label}<input type="file" accept={item.accept} onChange={item.onFile} style={{ display:"none" }} /></label>
-                    ) : (
-                      <button key={item.key} onClick={item.onClick} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>{item.label}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {!showArchived && !["contacts","profile","documents"].includes(view) && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
+              <button onClick={() => setView("profile")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background: view==="profile"?"#185FA5":"var(--surface)", color: view==="profile"?"#fff":"var(--text-secondary)", border:`1.5px solid ${view==="profile"?"#0C447C":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:6 }}>
+                👤 Profile
+              </button>
             </div>
           </div>
         )}
@@ -4569,13 +4561,48 @@ export default function App() {
         <>
           {isMobile && (
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, gap:8 }}>
-              <button onClick={() => { setView("today"); setShowProfileSheet(false); }} style={{ fontSize:13, padding:"8px 10px", background:"none", border:"none", color:"var(--accent)", cursor:"pointer", fontWeight:500, minHeight:44 }}>← Back</button>
+              <button onClick={() => setView("profile")} style={{ fontSize:13, padding:"8px 10px", background:"none", border:"none", color:"var(--accent)", cursor:"pointer", fontWeight:500, minHeight:44 }}>← Back</button>
               <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"8px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer", minHeight:44 }}>+ Add contact</button>
             </div>
           )}
           <ContactsView contacts={contacts} jobs={jobs} search={search}
             onOpenPanel={c => setPanelContact(p => p?.id === c?.id ? null : c)}
             onAdd={() => setContactModal("new")} />
+        </>
+      )}
+
+      {/* Profile screen — merges old Settings modal + ☰ hamburger menu; tab on mobile, route on desktop */}
+      {view==="profile" && (
+        <ProfileScreen
+          user={user} isMobile={isMobile}
+          profileName={profileName || user?.user_metadata?.full_name || ""}
+          onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }}
+          autoArchiveDays={autoArchiveDays}
+          onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} persistSettings({ autoArchiveDays: v }); }}
+          quietPromptDays={quietPromptDays}
+          onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} persistSettings({ quietPromptDays: v }); }}
+          followupAppliedDays={followupAppliedDays}
+          onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} persistSettings({ followupAppliedDays: v }); }}
+          followupWarmDays={followupWarmDays}
+          onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }}
+          staleDays={staleDays}
+          onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }}
+          contactsCount={contacts.length}
+          documentsCount={documents.length}
+          archivedCount={archivedCount}
+          onOpenContacts={() => setView("contacts")}
+          onOpenDocuments={() => setView("documents")}
+          onOpenArchived={() => { setShowArchived(true); setView("list"); }}
+          onShowHelp={() => setShowHelp(true)}
+          exportJSON={exportJSON} importJSON={importJSON} exportCSV={exportCSV} importCSV={importCSV} enableNotifications={enableNotifications}
+        />
+      )}
+
+      {/* Documents view — reached from Profile → Your stuff */}
+      {view==="documents" && (
+        <>
+          <button onClick={() => setView("profile")} style={{ display:"block", fontSize:13, padding:"8px 10px", marginBottom:8, background:"none", border:"none", color:"var(--accent)", cursor:"pointer", fontWeight:500, minHeight:44 }}>← Back to Profile</button>
+          <DocumentsView documents={documents} onDocumentsChange={d => { setDocuments(d); saveDocuments(d); }} />
         </>
       )}
 
@@ -4641,20 +4668,6 @@ export default function App() {
           }}
         />
       )}
-      {showSettings && <SettingsModal user={user} onClose={() => setShowSettings(false)} documents={documents}
-        onDocumentsChange={d => { setDocuments(d); saveDocuments(d); }}
-        profileName={profileName || user?.user_metadata?.full_name || ""}
-        onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }}
-        autoArchiveDays={autoArchiveDays}
-        onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} persistSettings({ autoArchiveDays: v }); }}
-        quietPromptDays={quietPromptDays}
-        onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} persistSettings({ quietPromptDays: v }); }}
-        followupAppliedDays={followupAppliedDays}
-        onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} persistSettings({ followupAppliedDays: v }); }}
-        followupWarmDays={followupWarmDays}
-        onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }}
-        staleDays={staleDays}
-        onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
 
@@ -4666,7 +4679,7 @@ export default function App() {
             { key:"jobs", icon:"💼", label:"Jobs", onClick:()=>setView("list"), active: ["list","board","offers"].includes(view) },
             { key:"add", icon:"➕", label:"Add", onClick:openAdd, active:false, isFab:true },
             { key:"calendar", icon:"📅", label:"Calendar", onClick:()=>setView("calendar"), active: view==="calendar" },
-            { key:"profile", icon:"👤", label:"Profile", onClick:()=>setShowProfileSheet(s=>!s), active: showProfileSheet || view==="contacts" },
+            { key:"profile", icon:"👤", label:"Profile", onClick:()=>setView("profile"), active: ["profile","contacts","documents"].includes(view) },
           ].map(tab => (
             <button key={tab.key} onClick={tab.onClick}
               style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, border:"none", background:"none", cursor:"pointer", position:"relative", minHeight:44,
@@ -4677,23 +4690,6 @@ export default function App() {
             </button>
           ))}
         </div>
-      )}
-
-      {/* Mobile Profile sheet — reuses the desktop ☰ menu items until P1b's full Profile screen */}
-      {isMobile && showProfileSheet && (
-        <>
-          <div onClick={() => setShowProfileSheet(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", zIndex:410 }} />
-          <div style={{ position:"fixed", bottom:60, left:0, right:0, background:"var(--surface)", borderTop:"1px solid var(--border)", borderRadius:"14px 14px 0 0", zIndex:420, boxShadow:"0 -4px 20px rgba(0,0,0,0.15)", maxHeight:"70vh", overflowY:"auto" }}>
-            <div style={{ padding:"10px 16px", borderBottom:"1px solid var(--border-subtle)", fontSize:13, fontWeight:600, color:"var(--text-secondary)" }}>{profileName || user?.user_metadata?.full_name || user.email}</div>
-            <button onClick={() => { setView("contacts"); setShowProfileSheet(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)", minHeight:44 }}>🤝 Contacts</button>
-            {profileMenuItems.map(item => item.isFile ? (
-              <label key={item.key} style={{ display:"block", fontSize:14, padding:"12px 16px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)", minHeight:44 }}>{item.label}<input type="file" accept={item.accept} onChange={item.onFile} style={{ display:"none" }} /></label>
-            ) : (
-              <button key={item.key} onClick={item.onClick} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)", minHeight:44 }}>{item.label}</button>
-            ))}
-            <button onClick={() => { supabase.auth.signOut(); setShowProfileSheet(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", cursor:"pointer", color:"#A32D2D", fontWeight:500, minHeight:44 }}>🚪 Sign out</button>
-          </div>
-        </>
       )}
     </div>
   );
