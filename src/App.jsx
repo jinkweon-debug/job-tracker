@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { supabase } from './supabase';
 import { useInstallPrompt } from './useInstallPrompt';
+import { useSwipeGesture } from './useSwipeGesture';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 640);
@@ -1570,7 +1571,7 @@ function InterestStars({ value = 0, onChange, size = 14, filledColor = "#E8A317"
   );
 }
 
-function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, tasks }) {
+function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, onArchive, tasks }) {
   const fu = getFollowupStatus(job);
   const stale = isStale(job);
   const reminderCount = (tasks||[]).filter(t => t.jobId===job.id && !t.done).length;
@@ -1580,12 +1581,43 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
   const [notesEditing, setNotesEditing] = useState(false);
   const hasTimeline = job.timeline && job.timeline.length > 0;
   const activeTags = Object.entries(job.tags || {}).filter(([,v]) => v);
+  const isMobile = useIsMobile();
+
+  // Swipe right = log a follow-up now (same effect as FollowupActions'
+  // "✓ Contacted"); swipe left = archive. Mobile only — hover actions below
+  // cover the desktop case.
+  function swipeFollowUp() {
+    const now = new Date().toISOString();
+    const resetDays = FOLLOWUP_DAYS[job.status] || 7;
+    onUpdateJob(job.id, {
+      customFollowup: dateInNDays(resetDays),
+      timeline: [...(job.timeline||[]), { id:crypto.randomUUID(), status:job.status, date:now, notes:"Follow-up sent" }],
+    });
+  }
+  function swipeArchive() { onArchive?.(job.id); }
+  const { ref: swipeRef, dx } = useSwipeGesture({
+    onSwipeRight: swipeFollowUp,
+    onSwipeLeft: swipeArchive,
+    disabled: !isMobile || !onArchive,
+  });
 
   const btnStyle = (active) => { const ac = getStatusCfg("Applied"); return { fontSize:11, padding:"2px 8px", background:active?ac.bg:"var(--surface-hover)", color:active?ac.text:"var(--text-muted)", border:`1px solid ${active?ac.border:"var(--border)"}`, borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }; };
 
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ background:fu?.urgent?(isDark()?"#2d1a1a":"#FFF8F8"):"var(--surface)", padding:"12px 16px" }}>
+    <div style={{ position:"relative", overflow:"hidden" }}>
+      {isMobile && onArchive && (
+        <div style={{ position:"absolute", inset:0, display:"flex" }}>
+          <div style={{ width: Math.max(dx,0), background:getStatusCfg("Offer").bg, display:"flex", alignItems:"center", paddingLeft:16, overflow:"hidden", transition: dx===0 ? "width 0.15s ease-out" : "none" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:getStatusCfg("Offer").text, whiteSpace:"nowrap" }}>✓ Follow up</span>
+          </div>
+          <div style={{ flex:1 }} />
+          <div style={{ width: Math.max(-dx,0), background:getStatusCfg("Rejected").bg, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:16, overflow:"hidden", transition: dx===0 ? "width 0.15s ease-out" : "none" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:getStatusCfg("Rejected").text, whiteSpace:"nowrap" }}>🗑 Archive</span>
+          </div>
+        </div>
+      )}
+    <div ref={swipeRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{ background:fu?.urgent?(isDark()?"#2d1a1a":"#FFF8F8"):"var(--surface)", padding:"12px 16px", position:"relative", transform: isMobile ? `translateX(${dx}px)` : undefined, transition: dx===0 ? "transform 0.15s ease-out" : "none" }}>
       <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
 
         {/* Row 1: Company · Role · edit icon · Status · badges */}
@@ -1656,6 +1688,7 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
         {reminderOpen && <ReminderMini job={job} onSave={(date, note) => onAddReminder(job.id, date, note)} onClose={() => setReminderOpen(false)} />}
       </div>
       {timelineOpen && <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid #e5e5e5" }}><Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} /></div>}
+    </div>
     </div>
   );
 }
@@ -1960,34 +1993,51 @@ function BoardTable({ jobs, search, visibleStatuses, onDrop, onPanelOpen, dragId
   const colJobs = visibleStatuses.map(s => jobs.filter(j => j.status===s && (!search||`${j.role} ${j.company}`.toLowerCase().includes(search.toLowerCase()))).sort((a,b) => (b.dateApplied||"").localeCompare(a.dateApplied||"")));
   const maxRows = Math.max(...colJobs.map(c => c.length), 1);
 
+  // Mobile: one status column at a time, swiped between — desktop drag-and-drop
+  // doesn't translate to touch, so status changes here go through the <select>.
+  const [colIdx, setColIdx] = useState(0);
+  useEffect(() => { setColIdx(i => Math.min(i, Math.max(0, colCount-1))); }, [colCount]);
+  const { ref: pipelineSwipeRef, dx: pipelineDx } = useSwipeGesture({
+    onSwipeLeft: () => setColIdx(i => Math.min(colCount-1, i+1)),
+    onSwipeRight: () => setColIdx(i => Math.max(0, i-1)),
+    disabled: !isMobile,
+  });
+
   if (isMobile) {
+    const cfg = getStatusCfg(visibleStatuses[colIdx]);
+    const list = colJobs[colIdx] || [];
     return (
-      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-        {visibleStatuses.map((s, i) => {
-          const cfg = getStatusCfg(s);
-          const list = colJobs[i];
-          return (
-            <div key={s} style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
-              <div style={{ background:cfg.bg, padding:"8px 12px", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ fontSize:12, fontWeight:500, color:cfg.text }}>{s}</span>
-                <span style={{ fontSize:11, fontWeight:500, color:cfg.text, background:isDark()?"rgba(0,0,0,0.25)":"rgba(255,255,255,0.7)", borderRadius:10, padding:"1px 7px" }}>{list.length}</span>
-              </div>
-              {list.length === 0 ? (
-                <div style={{ padding:"10px 12px", fontSize:12, color:"var(--text-muted)", background:"var(--surface)" }}>No jobs</div>
-              ) : list.map((job, idx) => (
-                <div key={job.id} style={{ padding:"10px 12px", borderTop:idx>0?"1px solid var(--border)":"none", background:"var(--surface)" }}>
-                  <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-                    <select value={job.status} onChange={e => onUpdateJob(job.id, { status: e.target.value })}
-                      style={{ fontSize:11, padding:"3px 6px", borderRadius:6, border:"1px solid var(--input-border)", background:"var(--input-bg)", color:"var(--text-primary)" }}>
-                      {Object.keys(STATUS_CONFIG).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  </div>
-                  <JobCardBody job={job} onPanelOpen={onPanelOpen} onUpdateJob={onUpdateJob} />
-                </div>
+      <div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8, gap:8 }}>
+          <button onClick={() => setColIdx(i => Math.max(0,i-1))} disabled={colIdx===0}
+            style={{ fontSize:16, padding:"6px 10px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:6, color: colIdx===0 ? "var(--text-muted)" : "var(--accent)", opacity: colIdx===0?0.4:1, cursor: colIdx===0?"default":"pointer", minHeight:44, minWidth:44 }}>‹</button>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+            <span style={{ fontSize:13, fontWeight:600, color:cfg.text }}>{visibleStatuses[colIdx]} ({list.length})</span>
+            <div style={{ display:"flex", gap:5 }}>
+              {visibleStatuses.map((s,i) => (
+                <span key={s} onClick={() => setColIdx(i)}
+                  style={{ width:6, height:6, borderRadius:"50%", background: i===colIdx ? "var(--accent)" : "var(--border)", cursor:"pointer" }} />
               ))}
             </div>
-          );
-        })}
+          </div>
+          <button onClick={() => setColIdx(i => Math.min(colCount-1,i+1))} disabled={colIdx===colCount-1}
+            style={{ fontSize:16, padding:"6px 10px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:6, color: colIdx===colCount-1 ? "var(--text-muted)" : "var(--accent)", opacity: colIdx===colCount-1?0.4:1, cursor: colIdx===colCount-1?"default":"pointer", minHeight:44, minWidth:44 }}>›</button>
+        </div>
+        <div ref={pipelineSwipeRef} style={{ border:"1px solid var(--border)", borderRadius:8, overflow:"hidden", transform:`translateX(${pipelineDx}px)`, transition: pipelineDx===0 ? "transform 0.15s ease-out" : "none" }}>
+          {list.length === 0 ? (
+            <div style={{ padding:"10px 12px", fontSize:12, color:"var(--text-muted)", background:"var(--surface)" }}>No jobs</div>
+          ) : list.map((job, idx) => (
+            <div key={job.id} style={{ padding:"10px 12px", borderTop:idx>0?"1px solid var(--border)":"none", background:"var(--surface)" }}>
+              <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+                <select value={job.status} onChange={e => onUpdateJob(job.id, { status: e.target.value })}
+                  style={{ fontSize:11, padding:"3px 6px", borderRadius:6, border:"1px solid var(--input-border)", background:"var(--input-bg)", color:"var(--text-primary)" }}>
+                  {Object.keys(STATUS_CONFIG).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+              <JobCardBody job={job} onPanelOpen={onPanelOpen} onUpdateJob={onUpdateJob} />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -3047,13 +3097,13 @@ function eventStyle(ev) {
 }
 
 function CalendarView({ jobs, tasks, onOpenPanel }) {
-  const [calView, setCalView] = useState("month"); // "month" | "week" | "day" | "agenda"
+  const isMobile = useIsMobile();
+  const [calView, setCalView] = useState(() => isMobile ? "agenda" : "month"); // "month" | "week" | "day" | "agenda" — agenda is the mobile default (month grid doesn't fit 375px)
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   // Mini-month sidebar has its own browsable month independent of anchor
   const [miniMonth, setMiniMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:true });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
-  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(() => { try { return window.innerWidth >= 640; } catch { return true; } });
 
   const today_ = todayStr();
@@ -3740,6 +3790,17 @@ export default function App() {
     const salaryMax = params.get("salMax") || "";
     setForm({ ...EMPTY, id: Date.now(), timeline: [], tags: {}, role, company, link, salaryMin, salaryMax, dateApplied: todayStr() });
     setModal(true);
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [loaded]);
+
+  // ── PWA manifest shortcuts ("Add job" / "Today", long-press the home-screen icon) ──
+  useEffect(() => {
+    if (!loaded) return;
+    const params = new URLSearchParams(window.location.search);
+    const shortcut = params.get("shortcut");
+    if (!shortcut) return;
+    if (shortcut === "add") openAdd();
+    else if (shortcut === "today") setView("today");
     window.history.replaceState({}, "", window.location.pathname);
   }, [loaded]);
 
@@ -4579,7 +4640,7 @@ export default function App() {
                       <input type="checkbox" checked={selected.has(job.id)} onChange={() => toggleSelect(job.id)} style={{ cursor:"pointer" }} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <ListCard job={job} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} tasks={tasks} />
+                      <ListCard job={job} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} onArchive={archiveJob} tasks={tasks} />
                     </div>
                   </div>
                 ))}
