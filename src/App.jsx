@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { supabase } from './supabase';
+import { useInstallPrompt } from './useInstallPrompt';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 640);
@@ -2647,6 +2648,69 @@ function DocumentsView({ documents, onDocumentsChange }) {
   );
 }
 
+// ── PWA install ─────────────────────────────────────────────────────────────
+// iOS/Safari never fires beforeinstallprompt, so it gets manual instructions
+// instead of the native browser prompt desktop/Android get.
+function IOSInstallModal({ onClose }) {
+  const step = { display:"flex", gap:10, alignItems:"flex-start" };
+  const num = { flexShrink:0, width:24, height:24, borderRadius:"50%", background:"#185FA5", color:"#fff", fontSize:12, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" };
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:300, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:420, background:"var(--surface)", borderRadius:"16px 16px 0 0", padding:"20px 20px calc(20px + env(safe-area-inset-bottom))", boxShadow:"0 -4px 24px rgba(0,0,0,0.2)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+          <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)" }}>Add Followup to your home screen</div>
+          <button onClick={onClose} style={{ fontSize:13, padding:"6px 10px", background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", minHeight:44 }}>✕</button>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={step}><span style={num}>1</span><span style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.6 }}>Tap the <strong>Share</strong> button in Safari's toolbar (the square with an arrow pointing up).</span></div>
+          <div style={step}><span style={num}>2</span><span style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.6 }}>Scroll down and tap <strong>Add to Home Screen</strong>.</span></div>
+          <div style={step}><span style={num}>3</span><span style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.6 }}>Tap <strong>Add</strong> — Followup will appear as an icon on your home screen.</span></div>
+        </div>
+        <button onClick={onClose} style={{ marginTop:18, width:"100%", fontSize:13, padding:"10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Got it</button>
+      </div>
+    </div>
+  );
+}
+
+// One-time site-wide banner — shown once until dismissed (localStorage), then
+// never again. Desktop/Android trigger the native prompt; iOS opens the modal.
+function InstallBanner({ isIOS, onInstall, onShowIOSInstructions, onDismiss }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, marginBottom:"0.75rem", padding:"9px 14px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8 }}>
+      <span style={{ fontSize:12, color:"var(--text-secondary)" }}>💡 Install Followup for quicker access from your home screen.</span>
+      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+        <button onClick={isIOS ? onShowIOSInstructions : onInstall} style={{ fontSize:12, padding:"6px 12px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontWeight:600, minHeight:36 }}>Install</button>
+        <button onClick={onDismiss} title="Dismiss" style={{ fontSize:13, padding:"6px 8px", background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", minHeight:36, minWidth:36 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
+// Dismissible card in the Profile screen — a standing way to install even
+// after the one-time banner is gone, as long as install is still available.
+function InstallCard({ installPrompt, isIOS, isInstalled, onInstall, onShowIOSInstructions }) {
+  const [dismissed, setDismissed] = useState(() => { try { return sessionStorage.getItem("followup_install_card_dismissed") === "true"; } catch { return false; } });
+  if (isInstalled || dismissed || (!installPrompt && !isIOS)) return null;
+
+  function dismiss() {
+    setDismissed(true);
+    try { sessionStorage.setItem("followup_install_card_dismissed", "true"); } catch {}
+  }
+
+  return (
+    <div style={{ padding:"14px 16px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+      <div>
+        <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)" }}>📲 Install Followup</div>
+        <div style={{ fontSize:12, color:"var(--text-muted)", marginTop:2 }}>Add it to your home screen for quicker access.</div>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+        <button onClick={isIOS ? onShowIOSInstructions : onInstall} style={{ fontSize:12, padding:"8px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Install</button>
+        <button onClick={dismiss} title="Dismiss" style={{ fontSize:13, padding:"6px 8px", background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Profile screen — merges the old Settings modal + ☰ hamburger menu into one
 // unified screen (tab destination on mobile, route on desktop). "Your stuff"
 // groups Contacts/Documents/Archived; the bookmarklet section is desktop-only.
@@ -2661,6 +2725,7 @@ function ProfileScreen({
   contactsCount, documentsCount, archivedCount,
   onOpenContacts, onOpenDocuments, onOpenArchived, onShowHelp,
   exportJSON, importJSON, exportCSV, importCSV, enableNotifications,
+  installPrompt, isIOS, isInstalled, onInstall, onShowIOSInstructions,
 }) {
   const [nameField, setNameField] = useState(profileName || "");
   const [nameMsg, setNameMsg] = useState("");
@@ -2696,6 +2761,8 @@ function ProfileScreen({
         <div style={{ fontSize:12, color:"var(--text-muted)", marginBottom:4 }}>Signed in as</div>
         <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>{user.email}</div>
       </div>
+
+      <InstallCard installPrompt={installPrompt} isIOS={isIOS} isInstalled={isInstalled} onInstall={onInstall} onShowIOSInstructions={onShowIOSInstructions} />
 
       <div style={{ padding:"14px 16px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10 }}>
         <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Your name</div>
@@ -3560,6 +3627,17 @@ function AuthScreen() {
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const isMobile = useIsMobile();
+  const { installPrompt, isIOS, isInstalled } = useInstallPrompt();
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(() => { try { return localStorage.getItem("followup_install_banner_dismissed") === "true"; } catch { return false; } });
+  const [showIOSInstallModal, setShowIOSInstallModal] = useState(false);
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+  }
+  function dismissInstallBanner() {
+    setInstallBannerDismissed(true);
+    try { localStorage.setItem("followup_install_banner_dismissed", "true"); } catch {}
+  }
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -4162,6 +4240,17 @@ export default function App() {
 
   return (
     <div style={{ padding: isMobile ? "1rem 1rem 84px" : "1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
+      {showIOSInstallModal && <IOSInstallModal onClose={() => setShowIOSInstallModal(false)} />}
+
+      {!installBannerDismissed && !isInstalled && (installPrompt || isIOS) && (
+        <InstallBanner
+          installPrompt={installPrompt} isIOS={isIOS}
+          onInstall={handleInstall}
+          onShowIOSInstructions={() => setShowIOSInstallModal(true)}
+          onDismiss={dismissInstallBanner}
+        />
+      )}
+
       {/* Header */}
       <div style={{ marginBottom:"1.25rem", padding:"14px 20px", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -4595,6 +4684,8 @@ export default function App() {
           onOpenArchived={() => { setShowArchived(true); setView("list"); }}
           onShowHelp={() => setShowHelp(true)}
           exportJSON={exportJSON} importJSON={importJSON} exportCSV={exportCSV} importCSV={importCSV} enableNotifications={enableNotifications}
+          installPrompt={installPrompt} isIOS={isIOS} isInstalled={isInstalled}
+          onInstall={handleInstall} onShowIOSInstructions={() => setShowIOSInstallModal(true)}
         />
       )}
 
