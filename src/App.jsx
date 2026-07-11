@@ -90,6 +90,7 @@ function TagSelector({ tags = {}, onChange }) {
 }
 
 const INTERVIEW_STATUSES = ["Phone Screen", "Interview"];
+const STATUS_STEPS = ["Applied", "Phone Screen", "Interview", "Offer"]; // linear pipeline for the stepper (TERMINAL_STATUSES declared below)
 let FOLLOWUP_DAYS = { "Applied": 7, "Phone Screen": 3, "Interview": 3 };
 
 const EMPTY = {
@@ -519,6 +520,58 @@ function StatusSelect({ job, onChange }) {
   );
 }
 
+// ── Status stepper (DetailPanel) ──────────────────────────────────────────────
+// Horizontal progress track over the 4 pipeline stages. Tapping a stage sets that
+// status (prompting for a date on Phone Screen / Interview). Rejected & Withdrawn
+// are terminal side-states shown as a separate control, not on the track.
+function StatusStepper({ job, onChange }) {
+  const [prompt, setPrompt] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const anchorRef = useRef(null);
+  const isTerminal = TERMINAL_STATUSES.includes(job.status);
+  const currentIdx = STATUS_STEPS.indexOf(job.status);
+
+  function pick(s) {
+    if (s === job.status) return;
+    if (INTERVIEW_STATUSES.includes(s)) { setPendingStatus(s); setPrompt(true); }
+    else onChange(s, "", "");
+  }
+
+  return (
+    <div>
+      <div ref={anchorRef} style={{ display:"flex", alignItems:"stretch", gap:4 }}>
+        {STATUS_STEPS.map((s, i) => {
+          const cfg = getStatusCfg(s);
+          const done = !isTerminal && i <= currentIdx;
+          const isCurrent = !isTerminal && i === currentIdx;
+          return (
+            <button key={s} onClick={() => pick(s)} title={s}
+              style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, background:"none", border:"none", cursor:"pointer", padding:0, minHeight:44 }}>
+              <div style={{ width:"100%", height:6, borderRadius:3, background: done ? cfg.border : "var(--border)" }} />
+              <span style={{ fontSize:10, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? cfg.text : (done ? "var(--text-secondary)" : "var(--text-muted)"), textAlign:"center", lineHeight:1.2 }}>{s}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display:"flex", gap:6, marginTop:8, alignItems:"center", flexWrap:"wrap" }}>
+        {TERMINAL_STATUSES.map(s => {
+          const cfg = getStatusCfg(s);
+          const active = job.status === s;
+          return (
+            <button key={s} onClick={() => onChange(s, "", "")}
+              style={{ fontSize:11, padding:"5px 10px", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:32,
+                background: active ? cfg.bg : "var(--surface)", color: active ? cfg.text : "var(--text-muted)",
+                border: `1.5px solid ${active ? cfg.border : "var(--border)"}` }}>
+              {s === "Rejected" ? "❌" : "↩️"} {s}
+            </button>
+          );
+        })}
+      </div>
+      {prompt && <InterviewDatePrompt status={pendingStatus} job={job} anchorRef={anchorRef} onConfirm={(date, time) => { onChange(pendingStatus, date, time); setPrompt(false); }} onSkip={() => { onChange(pendingStatus, "", ""); setPrompt(false); }} />}
+    </div>
+  );
+}
+
 // ── Notes popover ─────────────────────────────────────────────────────────────
 function NotesPopover({ job, onSave, onClose }) {
   const [text, setText] = useState(job.notes || "");
@@ -815,6 +868,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   const [newContactName, setNewContactName] = useState("");
   const [showOverflow, setShowOverflow] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [tab, setTab] = useState("overview"); // overview | activity | notes
   const isMobile = useIsMobile();
 
   function startEdit() {
@@ -840,16 +894,57 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
 
   const inputStyle = { fontSize: isMobile ? 16 : 13, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
+  // Responsive shell: bottom sheet on mobile, right drawer (420px) on desktop.
+  const shellStyle = isMobile
+    ? { position:"fixed", left:0, right:0, bottom:0, top:"8vh", background:"var(--surface)", borderTop:"1px solid var(--border)", borderRadius:"16px 16px 0 0", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"0 -4px 24px rgba(0,0,0,0.2)" }
+    : { position:"fixed", top:0, right:0, bottom:0, width:420, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" };
+
+  const quickBtn = { display:"flex", alignItems:"center", justifyContent:"center", gap:5, flex:1, fontSize:12, padding:"9px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, minHeight:44 };
+
   return (
-    <div className="detail-panel" style={{ position:"fixed", top:0, right:0, bottom:0, width:360, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" }}>
-      {/* Header */}
-      <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
-          <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{job.role}</div>
-          <div style={{ marginTop:7 }}><InterestStars value={job.interest||0} onChange={n=>onUpdateJob(job.id,{interest:n})} size={16} filledColor="#FFD37A" emptyColor="rgba(255,255,255,0.55)" showLabel /></div>
+    <>
+      {isMobile && <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", zIndex:149 }} />}
+    <div className="detail-panel" style={shellStyle}>
+      {/* Pinned header */}
+      <div style={{ flexShrink:0 }}>
+        {isMobile && <div style={{ display:"flex", justifyContent:"center", paddingTop:8 }}><div style={{ width:36, height:4, borderRadius:2, background:"rgba(255,255,255,0.5)", position:"relative", top:8 }} /></div>}
+        <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius: isMobile ? "16px 16px 0 0" : 0 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{job.company}</div>
+            <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{job.role}</div>
+            <div style={{ marginTop:7 }}><InterestStars value={job.interest||0} onChange={n=>onUpdateJob(job.id,{interest:n})} size={16} filledColor="#FFD37A" emptyColor="rgba(255,255,255,0.55)" showLabel /></div>
+          </div>
+          <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0, minHeight:44, minWidth:44 }}>✕</button>
         </div>
-        <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0 }}>✕</button>
+        {!editing && (
+          <div style={{ padding:"14px 20px 12px", borderBottom:"1px solid var(--border)", display:"flex", flexDirection:"column", gap:12, background:"var(--surface)" }}>
+            {/* Status stepper */}
+            <StatusStepper job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
+            <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+              {fu && <FollowupBadge info={fu} />}
+              {job.followupDismissed && (
+                <span style={{ fontSize:10, color:"var(--text-muted)", background:"var(--surface-hover)", border:"1px solid var(--border)", borderRadius:6, padding:"2px 7px", display:"flex", alignItems:"center", gap:5 }}>
+                  🔕 Reminders off
+                  <button onClick={() => onUpdateJob(job.id, { followupDismissed: false })} style={{ fontSize:10, color:"#185FA5", background:"none", border:"none", cursor:"pointer", padding:0, fontWeight:600 }}>Re-enable</button>
+                </span>
+              )}
+            </div>
+            {/* Quick actions */}
+            {!job.archived && (
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={startEdit} style={quickBtn}>✏️ Edit</button>
+                <button onClick={() => setTab("activity")} style={quickBtn}>🔔 Remind</button>
+                <button onClick={() => setTab("activity")} style={quickBtn}>📧 Email</button>
+              </div>
+            )}
+            {/* Tabs */}
+            <div style={{ display:"flex", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
+              {[["overview","Overview"],["activity","Activity"],["notes","Notes"]].map(([key,label]) => (
+                <button key={key} onClick={() => setTab(key)} style={{ flex:1, fontSize:12, padding:"8px 4px", border:"none", cursor:"pointer", fontWeight: tab===key?600:500, background: tab===key?"#185FA5":"var(--surface)", color: tab===key?"#fff":"var(--text-secondary)", minHeight:40 }}>{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -945,19 +1040,9 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               <TagSelector tags={form.tags||{}} onChange={tags=>setForm(f=>({...f,tags}))} />
             </div>
           </div>
-        ) : (
-          /* ── View mode ── */
+        ) : tab === "overview" ? (
+          /* ── Overview tab ── */
           <>
-            <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-              <StatusSelect job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
-              {fu && <FollowupBadge info={fu} />}
-              {job.followupDismissed && (
-                <span style={{ fontSize:10, color:"var(--text-muted)", background:"var(--surface-hover)", border:"1px solid var(--border)", borderRadius:6, padding:"2px 7px", display:"flex", alignItems:"center", gap:5 }}>
-                  🔕 Reminders off
-                  <button onClick={() => onUpdateJob(job.id, { followupDismissed: false })} style={{ fontSize:10, color:"#185FA5", background:"none", border:"none", cursor:"pointer", padding:0, fontWeight:600 }}>Re-enable</button>
-                </span>
-              )}
-            </div>
             {activeTags.length > 0 && (
               <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
                 {activeTags.map(([cat, val]) => <TagBadge key={cat} category={cat} value={val} />)}
@@ -1003,7 +1088,6 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                 {job.offerNotes && <div style={{ fontSize:12, color:"var(--text-secondary)", whiteSpace:"pre-wrap", lineHeight:1.5 }}>{job.offerNotes}</div>}
               </div>
             )}
-            <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
             <PanelSection label="🤝 Contacts" count={linkedContacts.length || null} defaultOpen={linkedContacts.length > 0}>
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                 {linkedContacts.map(c => (
@@ -1035,8 +1119,12 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                 )}
               </div>
             </PanelSection>
-            <PanelSection label="📧 Email templates" defaultOpen={false}>
-              <EmailTemplates job={job} />
+          </>
+        ) : tab === "activity" ? (
+          /* ── Activity tab ── */
+          <>
+            <PanelSection label="📋 Timeline" count={timelineCount || null} defaultOpen={true}>
+              <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
             </PanelSection>
             <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0}>
               <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} onTaskDone={onTaskDone} onTaskDelete={onTaskDelete} />
@@ -1044,10 +1132,13 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <PanelSection label="✅ Prep checklist" count={checklistCount > 0 ? `${(job.prepChecklist||[]).filter(i=>i.done).length}/${checklistCount}` : null} defaultOpen={checklistCount > 0}>
               <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
             </PanelSection>
-            <PanelSection label="📋 Timeline" count={timelineCount || null} defaultOpen={timelineCount > 0}>
-              <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
+            <PanelSection label="📧 Email templates" defaultOpen={false}>
+              <EmailTemplates job={job} />
             </PanelSection>
           </>
+        ) : (
+          /* ── Notes tab ── */
+          <InlineNotes label="General notes" value={job.notes || ""} onSave={notes => onNotesSave(job.id, notes, null)} />
         )}
       </div>
 
@@ -1091,6 +1182,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
         )}
       </div>
     </div>
+    </>
   );
 }
 
