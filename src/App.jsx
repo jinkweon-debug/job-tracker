@@ -3467,6 +3467,7 @@ export default function App() {
   const [view, setView] = useState("today");
   const [hiddenCols, setHiddenCols] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [profileName, setProfileName] = useState(() => { try { return localStorage.getItem("followup_profile_name") || ""; } catch { return ""; } });
@@ -3573,6 +3574,9 @@ export default function App() {
   useEffect(() => {
     if (panelJob) { const u = jobs.find(j => j.id===panelJob.id); if (u) setPanelJob(u); }
   }, [jobs]);
+  useEffect(() => {
+    if (isMobile && view === "sheet") setView("list");
+  }, [isMobile, view]);
 
   // ── Follow-up notifications ──
   function fireNotification(title, body) {
@@ -4035,6 +4039,17 @@ export default function App() {
   const counts = Object.fromEntries(Object.keys(STATUS_CONFIG).map(s=>[s,jobs.filter(j=>j.status===s&&!j.archived).length]));
   const todayTasks = tasks.filter(t=>!t.done&&t.dueDate<=todayStr()).length + jobs.filter(j=>!j.archived&&j.interviewDate===todayStr()).length + jobs.filter(j=>{ const fu=getFollowupStatus(j); return fu?.urgent && fu.diff >= -30; }).length;
 
+  // Shared menu items — rendered in the desktop ☰ dropdown and the mobile Profile sheet
+  const profileMenuItems = [
+    { key:"help", label:"❓ Guide & help", onClick: () => { setShowHelp(true); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"settings", label:"⚙️ Account settings", onClick: () => { setShowSettings(true); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"export-json", label:"💾 Export backup (JSON)", onClick: () => { exportJSON(); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"import-json", label:"📂 Restore backup (JSON)", isFile:true, accept:".json", onFile: e => { importJSON(e); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"export-csv", label:"Export CSV", onClick: () => { exportCSV(); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"import-csv", label:"Import CSV", isFile:true, accept:".csv", onFile: e => { importCSV(e); setMenuOpen(false); setShowProfileSheet(false); } },
+    { key:"notifications", label: typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders", onClick: () => { enableNotifications(); } },
+  ];
+
   if (!authChecked) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading…</div>;
   if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!user) return <AuthScreen />;
@@ -4049,7 +4064,7 @@ export default function App() {
   if (!loaded) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading your data…</div>;
 
   return (
-    <div style={{ padding:"1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
+    <div style={{ padding: isMobile ? "1rem 1rem 84px" : "1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom:"1.25rem", padding:"14px 20px", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)", borderRadius:10, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -4088,6 +4103,17 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {/* Mobile Jobs sub-header — List/Pipeline toggle + Offers shortcut (Table stays desktop-only) */}
+      {isMobile && (view==="list"||view==="board") && (
+        <div style={{ display:"flex", gap:8, marginBottom:"0.75rem", alignItems:"center" }}>
+          <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden", flex:1 }}>
+            <button onClick={() => setView("list")} style={{ flex:1, fontSize:12, padding:"8px 4px", border:"none", cursor:"pointer", fontWeight:500, background: view==="list"?"#185FA5":"var(--surface)", color: view==="list"?"#fff":"#185FA5", minHeight:44 }}>List</button>
+            <button onClick={() => setView("board")} style={{ flex:1, fontSize:12, padding:"8px 4px", border:"none", cursor:"pointer", fontWeight:500, background: view==="board"?"#185FA5":"var(--surface)", color: view==="board"?"#fff":"#185FA5", minHeight:44 }}>Pipeline</button>
+          </div>
+          <button onClick={() => setView("offers")} style={{ fontSize:12, padding:"8px 10px", whiteSpace:"nowrap", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>🎉 Offers</button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:"0.75rem" }}>
@@ -4241,54 +4267,50 @@ export default function App() {
             );
           })()}
         </div>
-        {/* Row 1 — navigation: view switcher + primary actions */}
-        <div style={{ order:1, display:"flex", flexDirection: isMobile ? "column" : "row", gap:8, alignItems: isMobile ? "stretch" : "center", width:"100%", justifyContent: isMobile ? undefined : "space-between" }}>
-          <div className="view-switcher" style={{ flexShrink: isMobile ? 0 : 1, minWidth:0, paddingTop:8, marginTop:-8, width: isMobile ? "100%" : "auto", overflowX: isMobile ? "visible" : "visible" }}>
-            <div style={isMobile
-              ? { display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:1, background:"#B5D4F4", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"hidden" }
-              : { display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible", width:"auto" }}>
-              {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["offers","Offers"],["contacts","Contacts"]].map(([v,label],i,arr) => (
-                <button key={v} onClick={() => setView(v)}
-                  style={{ fontSize: isMobile?11:12, padding: isMobile?"6px 4px":"5px 12px", cursor:"pointer", fontWeight:500, border:"none", flexShrink:0,
-                    background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
-                    borderRight: !isMobile && i<arr.length-1 ? "1px solid #B5D4F4" : "none", position:"relative",
-                    borderRadius: isMobile ? 0 : (i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0), whiteSpace:"nowrap", textAlign:"center" }}>
-                  {label}
-                  {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:"flex-end", width: isMobile ? "100%" : "auto" }}>
-            {showArchived && (
-              <button onClick={() => { setShowArchived(false); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:"#633806", color:"#fff", border:"1.5px solid #FAC775", borderRadius:6, cursor:"pointer", fontWeight:500 }}>
-                📦 ← Back to active jobs
-              </button>
-            )}
-            {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
-            {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
-            <div style={{ position:"relative" }} ref={menuRef}>
-              <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
-                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-                <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
-              </button>
-              {menuOpen && (
-                <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
-                  <button onClick={() => { setShowHelp(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>❓ Guide &amp; help</button>
-                  <button onClick={() => { setShowSettings(true); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>⚙️ Account settings</button>
-                  <button onClick={() => { exportJSON(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>💾 Export backup (JSON)</button>
-                  <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>📂 Restore backup (JSON)<input type="file" accept=".json" onChange={e=>{importJSON(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
-                  <button onClick={() => { exportCSV(); setMenuOpen(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-secondary)" }}>Export CSV</button>
-                  <label style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-secondary)", borderBottom:"0.5px solid var(--border-subtle)" }}>Import CSV<input type="file" accept=".csv" onChange={e=>{importCSV(e);setMenuOpen(false);}} style={{ display:"none" }} /></label>
-                  <button onClick={enableNotifications} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color: typeof Notification !== "undefined" && Notification.permission==="granted" ? "#27500A" : "var(--text-secondary)" }}>
-                    {typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}
+        {/* Row 1 — navigation: view switcher + primary actions (desktop only; mobile uses bottom tab bar) */}
+        {!isMobile && (
+          <div style={{ order:1, display:"flex", flexDirection:"row", gap:8, alignItems:"center", width:"100%", justifyContent:"space-between" }}>
+            <div className="view-switcher" style={{ flexShrink:1, minWidth:0, paddingTop:8, marginTop:-8 }}>
+              <div style={{ display:"flex", border:"1.5px solid #B5D4F4", borderRadius:6, overflow:"visible", width:"auto" }}>
+                {[["list","List"],["board","Pipeline"],["sheet","Table"],["calendar","Calendar"],["today","Today"],["offers","Offers"],["contacts","Contacts"]].map(([v,label],i,arr) => (
+                  <button key={v} onClick={() => setView(v)}
+                    style={{ fontSize:12, padding:"5px 12px", cursor:"pointer", fontWeight:500, border:"none", flexShrink:0,
+                      background:view===v?"#185FA5":"var(--surface)", color:view===v?"#fff":"#185FA5",
+                      borderRight: i<arr.length-1 ? "1px solid #B5D4F4" : "none", position:"relative",
+                      borderRadius: i===0?"4px 0 0 4px":i===arr.length-1?"0 4px 4px 0":0, whiteSpace:"nowrap", textAlign:"center" }}>
+                    {label}
+                    {v==="today"&&todayTasks>0&&<span style={{ position:"absolute", top:-6, right:-6, background:"#A32D2D", color:"#fff", borderRadius:"50%", width:16, height:16, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, zIndex:10 }}>{todayTasks}</span>}
                   </button>
-                </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:8, alignItems:"center", justifyContent:"flex-end" }}>
+              {showArchived && (
+                <button onClick={() => { setShowArchived(false); setSelected(new Set()); }} style={{ fontSize:12, padding:"5px 12px", whiteSpace:"nowrap", background:"#633806", color:"#fff", border:"1.5px solid #FAC775", borderRadius:6, cursor:"pointer", fontWeight:500 }}>
+                  📦 ← Back to active jobs
+                </button>
               )}
+              {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
+              {!showArchived && view!=="contacts" && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
+              <div style={{ position:"relative" }} ref={menuRef}>
+                <button onClick={() => setMenuOpen(o=>!o)} style={{ fontSize:13, padding:"6px 12px", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", display:"flex", flexDirection:"column", gap:3, alignItems:"center", justifyContent:"center", height:34 }}>
+                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+                  <span style={{ display:"block", width:16, height:1.5, background:"var(--text-secondary)", borderRadius:2 }} />
+                </button>
+                {menuOpen && (
+                  <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, boxShadow:"0 4px 12px rgba(0,0,0,0.15)", zIndex:50, minWidth:180, overflow:"hidden" }}>
+                    {profileMenuItems.map(item => item.isFile ? (
+                      <label key={item.key} style={{ display:"block", fontSize:13, padding:"9px 14px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)" }}>{item.label}<input type="file" accept={item.accept} onChange={item.onFile} style={{ display:"none" }} /></label>
+                    ) : (
+                      <button key={item.key} onClick={item.onClick} style={{ display:"block", width:"100%", textAlign:"left", fontSize:13, padding:"9px 14px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)" }}>{item.label}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Status bubble bar */}
@@ -4445,13 +4467,24 @@ export default function App() {
       </>}
 
       {/* Offers view */}
-      {view==="offers" && <OffersView jobs={jobs} onOpenPanel={togglePanel} />}
+      {view==="offers" && <>
+        {isMobile && <button onClick={() => setView("list")} style={{ display:"block", fontSize:13, padding:"8px 10px", marginBottom:8, background:"none", border:"none", color:"var(--accent)", cursor:"pointer", fontWeight:500, minHeight:44 }}>← Back to Jobs</button>}
+        <OffersView jobs={jobs} onOpenPanel={togglePanel} />
+      </>}
 
       {/* Contacts view */}
       {view==="contacts" && (
-        <ContactsView contacts={contacts} jobs={jobs} search={search}
-          onOpenPanel={c => setPanelContact(p => p?.id === c?.id ? null : c)}
-          onAdd={() => setContactModal("new")} />
+        <>
+          {isMobile && (
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8, gap:8 }}>
+              <button onClick={() => { setView("today"); setShowProfileSheet(false); }} style={{ fontSize:13, padding:"8px 10px", background:"none", border:"none", color:"var(--accent)", cursor:"pointer", fontWeight:500, minHeight:44 }}>← Back</button>
+              <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"8px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer", minHeight:44 }}>+ Add contact</button>
+            </div>
+          )}
+          <ContactsView contacts={contacts} jobs={jobs} search={search}
+            onOpenPanel={c => setPanelContact(p => p?.id === c?.id ? null : c)}
+            onAdd={() => setContactModal("new")} />
+        </>
       )}
 
       {modal && <Modal form={form} setForm={setForm} onSave={save} onClose={() => setModal(false)} onDelete={() => { del(form.id); setModal(false); }} isEdit={!!jobs.find(j=>j.id===form.id)} />}
@@ -4532,6 +4565,44 @@ export default function App() {
         onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }} />}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
+
+      {/* Mobile bottom tab bar */}
+      {isMobile && (
+        <div style={{ position:"fixed", bottom:0, left:0, right:0, height:60, background:"var(--surface)", borderTop:"1px solid var(--border)", display:"flex", alignItems:"stretch", zIndex:400, boxShadow:"0 -2px 12px rgba(0,0,0,0.08)" }}>
+          {[
+            { key:"today", icon:"📥", label:"Today", onClick:()=>setView("today"), active: view==="today", badge: todayTasks>0?todayTasks:null },
+            { key:"jobs", icon:"💼", label:"Jobs", onClick:()=>setView("list"), active: ["list","board","offers"].includes(view) },
+            { key:"add", icon:"➕", label:"Add", onClick:openAdd, active:false, isFab:true },
+            { key:"calendar", icon:"📅", label:"Calendar", onClick:()=>setView("calendar"), active: view==="calendar" },
+            { key:"profile", icon:"👤", label:"Profile", onClick:()=>setShowProfileSheet(s=>!s), active: showProfileSheet || view==="contacts" },
+          ].map(tab => (
+            <button key={tab.key} onClick={tab.onClick}
+              style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, border:"none", background:"none", cursor:"pointer", position:"relative", minHeight:44,
+                color: tab.active ? "#185FA5" : "var(--text-secondary)" }}>
+              <span style={{ fontSize: tab.isFab ? 22 : 18, lineHeight:1 }}>{tab.icon}</span>
+              <span style={{ fontSize:10, fontWeight: tab.active ? 600 : 500 }}>{tab.label}</span>
+              {tab.badge && <span style={{ position:"absolute", top:2, right:"28%", background:"#A32D2D", color:"#fff", borderRadius:"50%", width:15, height:15, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700 }}>{tab.badge}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Mobile Profile sheet — reuses the desktop ☰ menu items until P1b's full Profile screen */}
+      {isMobile && showProfileSheet && (
+        <>
+          <div onClick={() => setShowProfileSheet(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", zIndex:410 }} />
+          <div style={{ position:"fixed", bottom:60, left:0, right:0, background:"var(--surface)", borderTop:"1px solid var(--border)", borderRadius:"14px 14px 0 0", zIndex:420, boxShadow:"0 -4px 20px rgba(0,0,0,0.15)", maxHeight:"70vh", overflowY:"auto" }}>
+            <div style={{ padding:"10px 16px", borderBottom:"1px solid var(--border-subtle)", fontSize:13, fontWeight:600, color:"var(--text-secondary)" }}>{profileName || user?.user_metadata?.full_name || user.email}</div>
+            <button onClick={() => { setView("contacts"); setShowProfileSheet(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)", minHeight:44 }}>🤝 Contacts</button>
+            {profileMenuItems.map(item => item.isFile ? (
+              <label key={item.key} style={{ display:"block", fontSize:14, padding:"12px 16px", cursor:"pointer", color:"var(--text-primary)", borderBottom:"0.5px solid var(--border-subtle)", minHeight:44 }}>{item.label}<input type="file" accept={item.accept} onChange={item.onFile} style={{ display:"none" }} /></label>
+            ) : (
+              <button key={item.key} onClick={item.onClick} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", borderBottom:"0.5px solid var(--border-subtle)", cursor:"pointer", color:"var(--text-primary)", minHeight:44 }}>{item.label}</button>
+            ))}
+            <button onClick={() => { supabase.auth.signOut(); setShowProfileSheet(false); }} style={{ display:"block", width:"100%", textAlign:"left", fontSize:14, padding:"12px 16px", background:"none", border:"none", cursor:"pointer", color:"#A32D2D", fontWeight:500, minHeight:44 }}>🚪 Sign out</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
