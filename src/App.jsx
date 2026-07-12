@@ -4729,9 +4729,9 @@ export default function App() {
               {/* Floating bulk-action bar — fixed to bottom of viewport */}
               {selected.size > 0 && (
                 <div className="bulk-action-bar" style={{
-                  position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)",
-                  display:"flex", gap:8, alignItems:"center",
-                  padding:"11px 18px",
+                  position:"fixed", bottom: isMobile ? 76 : 28, left:"50%", transform:"translateX(-50%)",
+                  display:"flex", gap: isMobile ? 5 : 8, alignItems:"center",
+                  padding: isMobile ? "9px 10px" : "11px 18px",
                   background:"#185FA5",
                   borderRadius:14,
                   boxShadow:"0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.15)",
@@ -4739,30 +4739,32 @@ export default function App() {
                   flexWrap:"nowrap",
                   whiteSpace:"nowrap",
                   backdropFilter:"blur(4px)",
+                  maxWidth: isMobile ? "calc(100vw - 24px)" : undefined,
+                  overflowX: isMobile ? "auto" : undefined,
                 }}>
-                  <span style={{ fontSize:13, color:"#fff", fontWeight:600, marginRight:4 }}>
-                    {selected.size} selected
+                  <span style={{ fontSize:13, color:"#fff", fontWeight:600, marginRight: isMobile ? 0 : 4 }}>
+                    {selected.size}{!isMobile && " selected"}
                   </span>
-                  <div style={{ width:1, height:18, background:"rgba(255,255,255,0.3)", margin:"0 4px" }} />
-                  <select defaultValue="" onChange={e => { bulkStatus(e.target.value); e.target.value=""; }} style={{ fontSize:12, borderRadius:6, padding:"5px 8px", border:"none", cursor:"pointer", background:"rgba(255,255,255,0.15)", color:"#fff" }}>
-                    <option value="" disabled style={{ color:"#000" }}>Change status…</option>
+                  {!isMobile && <div style={{ width:1, height:18, background:"rgba(255,255,255,0.3)", margin:"0 4px" }} />}
+                  <select defaultValue="" onChange={e => { bulkStatus(e.target.value); e.target.value=""; }} style={{ fontSize:12, borderRadius:6, padding: isMobile ? "5px 4px" : "5px 8px", border:"none", cursor:"pointer", background:"rgba(255,255,255,0.15)", color:"#fff", maxWidth: isMobile ? 76 : undefined }}>
+                    <option value="" disabled style={{ color:"#000" }}>{isMobile ? "Status…" : "Change status…"}</option>
                     {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s} style={{ color:"#000" }}>{s}</option>)}
                   </select>
                   {!showArchived && (
-                    <button onClick={bulkArchive} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, padding:"5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
-                      <Icon name="archive" size={13} /> Archive
+                    <button onClick={bulkArchive} style={{ display:"flex", alignItems:"center", gap: isMobile ? 3 : 6, fontSize:12, padding: isMobile ? "5px 8px" : "5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
+                      <Icon name="archive" size={13} /> {!isMobile && "Archive"}
                     </button>
                   )}
                   {showArchived && (
-                    <button onClick={() => { selected.forEach(id => restoreJob(id)); clearSelect(); }} style={{ fontSize:12, padding:"5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
-                      ↩ Restore
+                    <button onClick={() => { selected.forEach(id => restoreJob(id)); clearSelect(); }} style={{ fontSize:12, padding: isMobile ? "5px 8px" : "5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
+                      ↩{!isMobile && " Restore"}
                     </button>
                   )}
-                  <button onClick={bulkDelete} style={{ fontSize:12, padding:"5px 13px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
-                    🗑 Delete
+                  <button onClick={bulkDelete} style={{ fontSize:12, padding: isMobile ? "5px 8px" : "5px 13px", background:"#FCEBEB", color:"#791F1F", border:"1.5px solid #F09595", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
+                    🗑{!isMobile && " Delete"}
                   </button>
-                  <div style={{ width:1, height:18, background:"rgba(255,255,255,0.3)", margin:"0 4px" }} />
-                  <button onClick={clearSelect} style={{ fontSize:12, padding:"5px 11px", background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.85)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:8, cursor:"pointer" }}>
+                  {!isMobile && <div style={{ width:1, height:18, background:"rgba(255,255,255,0.3)", margin:"0 4px" }} />}
+                  <button onClick={clearSelect} style={{ fontSize:12, padding: isMobile ? "5px 8px" : "5px 11px", background:"rgba(255,255,255,0.12)", color:"rgba(255,255,255,0.85)", border:"1px solid rgba(255,255,255,0.3)", borderRadius:8, cursor:"pointer" }}>
                     ✕
                   </button>
                 </div>
