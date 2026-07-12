@@ -13,6 +13,46 @@ function useIsMobile() {
   return mobile;
 }
 
+// ── Icon system — Lucide-style inline strokes replacing emoji in nav/primary actions ──
+function Icon({ name, size = 18, style }) {
+  const common = { width:size, height:size, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round", strokeLinejoin:"round", style, "aria-hidden":true };
+  switch (name) {
+    case "inbox": return <svg {...common}><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" /></svg>;
+    case "briefcase": return <svg {...common}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>;
+    case "plus": return <svg {...common}><path d="M12 5v14M5 12h14" /></svg>;
+    case "calendar": return <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>;
+    case "user": return <svg {...common}><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" /></svg>;
+    case "sun": return <svg {...common}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>;
+    case "moon": return <svg {...common}><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" /></svg>;
+    case "bell": return <svg {...common}><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 21a2 2 0 0 0 4 0" /></svg>;
+    case "archive": return <svg {...common}><rect x="2" y="4" width="20" height="5" rx="1" /><path d="M4 9v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9M10 13h4" /></svg>;
+    case "trash": return <svg {...common}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6" /><path d="M10 11v6M14 11v6" /></svg>;
+    case "pencil": return <svg {...common}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
+    case "sliders": return <svg {...common}><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h13M21 18h-1" /><circle cx="15" cy="6" r="2" /><circle cx="7" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>;
+    default: return null;
+  }
+}
+
+// ── Skeleton loading screen — replaces "Loading your data…" text ────────────────
+function SkeletonScreen() {
+  return (
+    <div style={{ padding:"1rem", maxWidth:1200, margin:"0 auto" }}>
+      <div className="skeleton" style={{ height:64, marginBottom:20 }} />
+      <div style={{ display:"flex", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+        {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height:48, flex:"1 1 120px" }} />)}
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} style={{ border:"1px solid var(--border)", borderRadius:10, padding:"14px 16px", display:"flex", flexDirection:"column", gap:8 }}>
+            <div className="skeleton" style={{ height:14, width:"45%" }} />
+            <div className="skeleton" style={{ height:11, width:"65%" }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PasswordInput({ value, onChange, placeholder, style, required, autoComplete }) {
   const [visible, setVisible] = useState(false);
   return (
@@ -215,6 +255,14 @@ function timeAgo(iso) {
 function fmtDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+// Contact subtitle ("Title @ Company") — skips the company half if the title already names it
+// (e.g. a title typed as "Senior TA Partner @ Walmart"), so it never renders "@ Walmart @ Walmart".
+function contactSubtitle(c) {
+  const title = (c.title||"").trim();
+  const company = (c.company||"").trim();
+  if (title && company && title.toLowerCase().includes(company.toLowerCase())) return title;
+  return [title, company].filter(Boolean).join(" @ ");
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function dateInNDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
@@ -1030,8 +1078,8 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             {/* Quick actions */}
             {!job.archived && (
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={() => { track("draft_opened", { job_status: job.status, source: "panel" }); setShowDraft(true); }} style={{ ...quickBtn, background:"#185FA5", color:"#fff", border:"1px solid #0C447C" }}>✍️ Draft follow-up</button>
-                <button onClick={() => { setTab("activity"); setRemindSignal(s => s + 1); }} style={quickBtn}>🔔 Remind</button>
+                <button onClick={() => { track("draft_opened", { job_status: job.status, source: "panel" }); setShowDraft(true); }} style={{ ...quickBtn, background:"#185FA5", color:"#fff", border:"1px solid #0C447C" }}><Icon name="pencil" size={13} /> Draft follow-up</button>
+                <button onClick={() => { setTab("activity"); setRemindSignal(s => s + 1); }} style={quickBtn}><Icon name="bell" size={13} /> Remind</button>
               </div>
             )}
             {/* Tabs */}
@@ -1191,7 +1239,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                   <div key={c.id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"6px 8px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
                     <div onClick={() => onOpenContact(c)} style={{ cursor:"pointer", flex:1, minWidth:0 }}>
                       <div style={{ fontSize:12, fontWeight:500, color:"var(--text-primary)" }}>{c.name}</div>
-                      {(c.title||c.company) && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{[c.title,c.company].filter(Boolean).join(" @ ")}</div>}
+                      {(c.title||c.company) && <div style={{ fontSize:11, color:"var(--text-muted)" }}>{contactSubtitle(c)}</div>}
                     </div>
                     <button onClick={() => onUnlinkContact(c.id)} title="Unlink" style={{ fontSize:11, padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
                   </div>
@@ -1250,7 +1298,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
               <button onClick={() => setShowOverflow(!showOverflow)} style={{ fontSize:14, padding:"8px 10px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>⋯</button>
               {showOverflow && (
                 <div style={{ position:"absolute", top:50, left:0, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:6, boxShadow:"0 2px 8px rgba(0,0,0,0.12)", zIndex:200, minWidth:150 }}>
-                  <button onClick={() => setShowDeleteConfirm(true)} style={{ display:"block", width:"100%", padding:"10px 14px", fontSize:13, background:"none", color:getStatusCfg("Rejected").text, border:"none", cursor:"pointer", textAlign:"left", fontWeight:500, minHeight:44 }}>Delete</button>
+                  <button onClick={() => setShowDeleteConfirm(true)} style={{ display:"flex", alignItems:"center", gap:6, width:"100%", padding:"10px 14px", fontSize:13, background:"none", color:getStatusCfg("Rejected").text, border:"none", cursor:"pointer", textAlign:"left", fontWeight:500, minHeight:44 }}><Icon name="trash" size={14} /> Delete</button>
                 </div>
               )}
             </div>
@@ -1261,7 +1309,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                   <div style={{ fontSize:13, color:"var(--text-secondary)", lineHeight:1.5 }}>This action cannot be undone.</div>
                   <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                     <button onClick={() => { setShowDeleteConfirm(false); setShowOverflow(false); }} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Cancel</button>
-                    <button onClick={() => { onDelete(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Delete</button>
+                    <button onClick={() => { onDelete(job.id); onClose(); }} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}><Icon name="trash" size={14} /> Delete</button>
                   </div>
                 </div>
               </div>
@@ -1269,7 +1317,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
               {job.archived
                 ? <button onClick={() => { onRestore(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1.5px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>↩ Restore</button>
-                : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>📦 Archive</button>
+                : <button onClick={() => { onArchive(job.id); onClose(); }} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}><Icon name="archive" size={14} /> Archive</button>
               }
               {!job.archived && <button onClick={startEdit} style={{ fontSize:13, padding:"8px 16px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Edit</button>}
             </div>
@@ -1437,12 +1485,15 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
   const [errors, setErrors] = useState(new Set());
   const isMobile = useIsMobile();
   const showInterviewDate = INTERVIEW_STATUSES.includes(form.status);
+  // On mobile, a fresh Add starts paste-first — the manual form collapses until fetch fails,
+  // succeeds (for review), or the user asks for it. Desktop and Edit always show the full form.
+  const [manualOpen, setManualOpen] = useState(!isMobile || isEdit);
 
   function handleSave() {
     const missing = [];
     if (!form.company || !form.company.trim()) missing.push("company");
     if (!form.role || !form.role.trim()) missing.push("role");
-    if (missing.length) { setErrors(new Set(missing)); setTab("details"); return; }
+    if (missing.length) { setErrors(new Set(missing)); setTab("details"); setManualOpen(true); return; }
     setErrors(new Set());
     onSave();
   }
@@ -1464,8 +1515,10 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
         salaryMax: data.salaryMax || f.salaryMax,
       }));
       setFetchState("idle");
+      setManualOpen(true); // let them review/edit what came back
     } catch (e) {
       setFetchState("error");
+      setManualOpen(true); // fall back to manual entry
     }
   }
   return (
@@ -1482,8 +1535,8 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
         {tab === "details" && (
           <div className="mf" style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {!isEdit && (
-              <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"10px 12px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8 }}>
-                <label style={{ fontSize:12, fontWeight:600, color:"var(--text-secondary)" }}>Paste a job posting link</label>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, padding: isMobile&&!manualOpen ? "18px 14px" : "10px 12px", background: isMobile&&!manualOpen ? "#E6F1FB" : "var(--surface-subtle)", border:`1px solid ${isMobile&&!manualOpen?"#B5D4F4":"var(--border)"}`, borderRadius:8 }}>
+                <label style={{ fontSize: isMobile&&!manualOpen ? 13 : 12, fontWeight:600, color: isMobile&&!manualOpen ? "#0C447C" : "var(--text-secondary)" }}>Paste a job posting link</label>
                 <div style={{ display:"flex", gap:6 }}>
                   <input type="url" placeholder="https://..." value={fetchUrl} onChange={e=>setFetchUrl(e.target.value)} style={{ fontSize: isMobile ? 16 : 13, flex:1 }} />
                   <button type="button" onClick={fetchFromLink} disabled={fetchState==="loading"||!fetchUrl.trim()}
@@ -1491,45 +1544,54 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
                     {fetchState==="loading" ? "Fetching…" : "Fetch details"}
                   </button>
                 </div>
-                {fetchState==="error" && <div style={{ fontSize:11, color:"#A32D2D" }}>Couldn't read that page automatically — paste the link below and fill in the details manually.</div>}
+                {fetchState==="error" && <div style={{ fontSize:11, color:"#A32D2D" }}>Couldn't read that page automatically — fill in the details manually below.</div>}
+                {isMobile && !manualOpen && (
+                  <button type="button" onClick={() => setManualOpen(true)} style={{ alignSelf:"flex-start", marginTop:4, fontSize:12, color:"#0C447C", background:"none", border:"none", textDecoration:"underline", cursor:"pointer", padding:0, fontWeight:500 }}>
+                    or enter details manually
+                  </button>
+                )}
               </div>
             )}
-            {[["Company *","company","text","e.g. Acme Corp"],["Role title *","role","text","e.g. Senior Product Manager"],["Job posting URL","link","url","https://..."],["Contact / recruiter","contact","text","Name or email"]].map(([label,key,type,ph]) => (
-              <label key={key} style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{label}
-                <input type={type} placeholder={ph} value={form[key]} className={errors.has(key) ? "err" : undefined}
-                  onChange={e => { const v=e.target.value; setForm(f => ({...f,[key]:v})); if (errors.has(key) && v.trim()) setErrors(p => { const n=new Set(p); n.delete(key); return n; }); }} style={{ fontSize: isMobile ? 16 : 13 }} />
-                {errors.has(key) && <span style={{ fontSize:11, color:"#D4453E", fontWeight:500 }}>This field is required.</span>}
-              </label>
-            ))}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary min<input type="number" placeholder="90000" value={form.salaryMin} onChange={e => setForm(f=>({...f,salaryMin:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary max<input type="number" placeholder="120000" value={form.salaryMax} onChange={e => setForm(f=>({...f,salaryMax:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
-            </div>
-            <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Interest
-              <div style={{ paddingTop:3 }}><InterestStars value={form.interest||0} onChange={n=>setForm(f=>({...f,interest:n}))} size={22} showLabel /></div>
-            </label>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Date applied<input type="date" value={form.dateApplied} onChange={e => setForm(f=>({...f,dateApplied:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
-              <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Status
-                <select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }}>
-                  {Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)}
-                </select>
-              </label>
-            </div>
-            {showInterviewDate && (
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{form.status} date
-                  <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
+            {manualOpen && (
+              <>
+                {[["Company *","company","text","e.g. Acme Corp"],["Role title *","role","text","e.g. Senior Product Manager"],["Job posting URL","link","url","https://..."],["Contact / recruiter","contact","text","Name or email"]].map(([label,key,type,ph]) => (
+                  <label key={key} style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{label}
+                    <input type={type} placeholder={ph} value={form[key]} className={errors.has(key) ? "err" : undefined}
+                      onChange={e => { const v=e.target.value; setForm(f => ({...f,[key]:v})); if (errors.has(key) && v.trim()) setErrors(p => { const n=new Set(p); n.delete(key); return n; }); }} style={{ fontSize: isMobile ? 16 : 13 }} />
+                    {errors.has(key) && <span style={{ fontSize:11, color:"#D4453E", fontWeight:500 }}>This field is required.</span>}
+                  </label>
+                ))}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                  <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary min<input type="number" placeholder="90000" value={form.salaryMin} onChange={e => setForm(f=>({...f,salaryMin:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
+                  <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Salary max<input type="number" placeholder="120000" value={form.salaryMax} onChange={e => setForm(f=>({...f,salaryMax:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
+                </div>
+                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Interest
+                  <div style={{ paddingTop:3 }}><InterestStars value={form.interest||0} onChange={n=>setForm(f=>({...f,interest:n}))} size={22} showLabel /></div>
                 </label>
-                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Time
-                  <input type="time" value={form.interviewTime||""} onChange={e => setForm(f=>({...f,interviewTime:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                  <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Date applied<input type="date" value={form.dateApplied} onChange={e => setForm(f=>({...f,dateApplied:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} /></label>
+                  <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Status
+                    <select value={form.status} onChange={e => setForm(f=>({...f,status:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }}>
+                      {Object.keys(STATUS_CONFIG).map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </label>
+                </div>
+                {showInterviewDate && (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                    <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>{form.status} date
+                      <input type="date" value={form.interviewDate||""} onChange={e => setForm(f=>({...f,interviewDate:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
+                    </label>
+                    <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>Time
+                      <input type="time" value={form.interviewTime||""} onChange={e => setForm(f=>({...f,interviewTime:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
+                    </label>
+                  </div>
+                )}
+                <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>
+                  Custom follow-up date <span style={{ fontWeight:400, color:"var(--text-secondary)" }}>(overrides auto)</span>
+                  <input type="date" value={form.customFollowup} onChange={e => setForm(f=>({...f,customFollowup:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
                 </label>
-              </div>
+              </>
             )}
-            <label style={{ fontSize:13, color:"var(--text-primary)", display:"flex", flexDirection:"column", gap:4 }}>
-              Custom follow-up date <span style={{ fontWeight:400, color:"var(--text-secondary)" }}>(overrides auto)</span>
-              <input type="date" value={form.customFollowup} onChange={e => setForm(f=>({...f,customFollowup:e.target.value}))} style={{ fontSize: isMobile ? 16 : 13 }} />
-            </label>
             <p style={{ fontSize:12, color:"var(--text-muted)", margin:"4px 0 0" }}>Notes can be added from the detail panel after saving.</p>
           </div>
         )}
@@ -1598,7 +1660,7 @@ function InterestStars({ value = 0, onChange, size = 14, filledColor = "#E8A317"
   );
 }
 
-function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, onArchive, tasks }) {
+function ListCard({ job, isFirst, onEdit, onStatusChange, onNotesSave, onAddReminder, onUpdateJob, onDuplicate, onOpenPanel, onArchive, tasks }) {
   const fu = getFollowupStatus(job);
   const stale = isStale(job);
   const reminderCount = (tasks||[]).filter(t => t.jobId===job.id && !t.done).length;
@@ -1628,23 +1690,38 @@ function ListCard({ job, onEdit, onStatusChange, onNotesSave, onAddReminder, onU
     disabled: !isMobile || !onArchive,
   });
 
+  // One-time swipe-affordance nudge on the first card, so the gesture discovers itself.
+  const [hintDx, setHintDx] = useState(0);
+  useEffect(() => {
+    if (!isFirst || !isMobile || !onArchive) return;
+    let seen = false;
+    try { seen = localStorage.getItem("followup_swipe_hint_seen") === "1"; } catch {}
+    if (seen) return;
+    try { localStorage.setItem("followup_swipe_hint_seen", "1"); } catch {}
+    const t1 = setTimeout(() => setHintDx(-26), 500);
+    const t2 = setTimeout(() => setHintDx(18), 950);
+    const t3 = setTimeout(() => setHintDx(0), 1350);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [isFirst, isMobile, onArchive]);
+  const displayDx = dx !== 0 ? dx : hintDx;
+
   const btnStyle = (active) => { const ac = getStatusCfg("Applied"); return { fontSize:11, padding:"2px 8px", background:active?ac.bg:"var(--surface-hover)", color:active?ac.text:"var(--text-muted)", border:`1px solid ${active?ac.border:"var(--border)"}`, borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }; };
 
   return (
     <div style={{ position:"relative", overflow:"hidden" }}>
       {isMobile && onArchive && (
         <div style={{ position:"absolute", inset:0, display:"flex" }}>
-          <div style={{ width: Math.max(dx,0), background:getStatusCfg("Offer").bg, display:"flex", alignItems:"center", paddingLeft:16, overflow:"hidden", transition: dx===0 ? "width 0.15s ease-out" : "none" }}>
+          <div style={{ width: Math.max(displayDx,0), background:getStatusCfg("Offer").bg, display:"flex", alignItems:"center", paddingLeft:16, overflow:"hidden", transition: dx===0 ? "width 0.4s ease-in-out" : "none" }}>
             <span style={{ fontSize:12, fontWeight:700, color:getStatusCfg("Offer").text, whiteSpace:"nowrap" }}>✓ Follow up</span>
           </div>
           <div style={{ flex:1 }} />
-          <div style={{ width: Math.max(-dx,0), background:getStatusCfg("Rejected").bg, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:16, overflow:"hidden", transition: dx===0 ? "width 0.15s ease-out" : "none" }}>
+          <div style={{ width: Math.max(-displayDx,0), background:getStatusCfg("Rejected").bg, display:"flex", alignItems:"center", justifyContent:"flex-end", paddingRight:16, overflow:"hidden", transition: dx===0 ? "width 0.4s ease-in-out" : "none" }}>
             <span style={{ fontSize:12, fontWeight:700, color:getStatusCfg("Rejected").text, whiteSpace:"nowrap" }}>🗑 Archive</span>
           </div>
         </div>
       )}
     <div ref={swipeRef} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ background:fu?.urgent?(isDark()?"#2d1a1a":"#FFF8F8"):"var(--surface)", padding:"12px 16px", position:"relative", transform: isMobile ? `translateX(${dx}px)` : undefined, transition: dx===0 ? "transform 0.15s ease-out" : "none" }}>
+      style={{ background:fu?.urgent?(isDark()?"#2d1a1a":"#FFF8F8"):"var(--surface)", padding:"12px 16px", position:"relative", transform: isMobile ? `translateX(${displayDx}px)` : undefined, transition: dx===0 ? "transform 0.4s ease-in-out" : "none" }}>
       <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
 
         {/* Row 1: Company · Role · edit icon · Status · badges */}
@@ -2424,7 +2501,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:14 }}>
           <WeeklyGoalRing count={followupsSentThisWeek(jobs)} goal={parseInt(weeklyGoal) || 5} />
-          <button onClick={() => setShowAdd(o=>!o)} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add task</button>
+          <button onClick={() => setShowAdd(o=>!o)} style={{ display:"flex", alignItems:"center", gap:5, fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}><Icon name="plus" size={13} /> Add task</button>
         </div>
       </div>
 
@@ -2918,7 +2995,7 @@ function ContactsView({ contacts, jobs, search, onOpenPanel, onAdd }) {
           <div key={c.id} onClick={() => onOpenPanel(c)}
             style={{ background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"12px 14px", cursor:"pointer", display:"flex", flexDirection:"column", gap:6 }}>
             <div style={{ fontSize:14, fontWeight:600, color:"var(--text-primary)" }}>{c.name}</div>
-            {(c.title || c.company) && <div style={{ fontSize:12, color:"var(--text-secondary)" }}>{[c.title, c.company].filter(Boolean).join(" @ ")}</div>}
+            {(c.title || c.company) && <div style={{ fontSize:12, color:"var(--text-secondary)" }}>{contactSubtitle(c)}</div>}
             {c.email && <div style={{ fontSize:11, color:"var(--text-muted)" }}>✉️ {c.email}</div>}
             {c.phone && <div style={{ fontSize:11, color:"var(--text-muted)" }}>📞 {c.phone}</div>}
             {linkedCount > 0 && <div style={{ fontSize:11, color:"var(--accent)", fontWeight:500, marginTop:2 }}>🔗 {linkedCount} job{linkedCount>1?"s":""}</div>}
@@ -2966,7 +3043,7 @@ function ContactPanel({ contact, jobs, onClose, onEdit, onOpenJob, onUnlinkJob }
       <div style={{ padding:"16px 20px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"flex-start", background:"linear-gradient(90deg,#185FA5 0%,#3C3489 100%)" }}>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontSize:15, color:"#fff", fontWeight:700, marginBottom:2 }}>{contact.name}</div>
-          {(contact.title || contact.company) && <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{[contact.title, contact.company].filter(Boolean).join(" @ ")}</div>}
+          {(contact.title || contact.company) && <div style={{ fontSize:13, color:"rgba(255,255,255,0.85)", fontWeight:500 }}>{contactSubtitle(contact)}</div>}
         </div>
         <button onClick={onClose} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", fontSize:16, cursor:"pointer", borderRadius:6, padding:"2px 8px", flexShrink:0 }}>✕</button>
       </div>
@@ -4358,7 +4435,7 @@ export default function App() {
   const counts = Object.fromEntries(Object.keys(STATUS_CONFIG).map(s=>[s,jobs.filter(j=>j.status===s&&!j.archived).length]));
   const todayTasks = tasks.filter(t=>!t.done&&t.dueDate<=todayStr()).length + jobs.filter(j=>!j.archived&&j.interviewDate===todayStr()).length + jobs.filter(j=>{ const fu=getFollowupStatus(j); return fu?.urgent && fu.diff >= -30; }).length;
 
-  if (!authChecked) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading…</div>;
+  if (!authChecked) return <SkeletonScreen />;
   if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   if (!user) return <AuthScreen />;
   if (loadError) return (
@@ -4369,7 +4446,7 @@ export default function App() {
       <button onClick={() => window.location.reload()} style={{ fontSize:13, padding:"9px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Retry</button>
     </div>
   );
-  if (!loaded) return <div style={{ padding:"2rem", color:"var(--text-muted)", fontSize:14 }}>Loading your data…</div>;
+  if (!loaded) return <SkeletonScreen />;
 
   return (
     <div style={{ padding: isMobile ? "1rem 1rem 84px" : "1rem", fontFamily:"system-ui, sans-serif", maxWidth:1200, margin:"0 auto" }}>
@@ -4388,10 +4465,10 @@ export default function App() {
               {saveStatus === "error" && "⚠ Save failed"}
             </span>
           )}
-          <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>
+          {!isMobile && <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>}
           <button onClick={() => setDarkMode(d => !d)} title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            style={{ fontSize:15, lineHeight:1, padding:"4px 8px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>
-            {darkMode ? "☀️" : "🌙"}
+            style={{ display:"flex", alignItems:"center", padding:"5px 8px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>
+            <Icon name={darkMode ? "sun" : "moon"} size={15} />
           </button>
           <button onClick={() => supabase.auth.signOut()} style={{ fontSize:11, padding:"3px 10px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>Sign out</button>
         </div>
@@ -4435,7 +4512,7 @@ export default function App() {
               <div style={{ position:"relative", flexShrink:0 }}>
                 <button onClick={() => setFilterOpen(o=>!o)}
                   style={{ fontSize:13, padding:"6px 10px", border:`1px solid ${activeFilterCount>0?"#185FA5":"var(--input-border)"}`, borderRadius:6, background:activeFilterCount>0?"#E6F1FB":"var(--surface)", color:activeFilterCount>0?"#185FA5":"var(--text-secondary)", cursor:"pointer", display:"flex", alignItems:"center", gap:5, fontWeight:500, whiteSpace:"nowrap" }}>
-                  ⊞ Filters
+                  <Icon name="sliders" size={14} /> Filters
                   {activeFilterCount > 0 && <span style={{ background:"#185FA5", color:"#fff", borderRadius:10, padding:"1px 6px", fontSize:10, fontWeight:700 }}>{activeFilterCount}</span>}
                 </button>
                 {filterOpen && (
@@ -4515,7 +4592,7 @@ export default function App() {
               <div style={{ position:"relative", flexShrink:0 }}>
                 <button onClick={() => setBoardFilterOpen(o=>!o)}
                   style={{ fontSize:13, padding:"6px 10px", border:`1px solid ${boardActiveCount>0?"#185FA5":"var(--input-border)"}`, borderRadius:6, background:boardActiveCount>0?"#E6F1FB":"var(--surface)", color:boardActiveCount>0?"#185FA5":"var(--text-secondary)", cursor:"pointer", display:"flex", alignItems:"center", gap:5, fontWeight:500, whiteSpace:"nowrap" }}>
-                  ⊞ Filters
+                  <Icon name="sliders" size={14} /> Filters
                   {boardActiveCount > 0 && <span style={{ background:"#185FA5", color:"#fff", borderRadius:10, padding:"1px 6px", fontSize:10, fontWeight:700 }}>{boardActiveCount}</span>}
                 </button>
                 {boardFilterOpen && (
@@ -4599,7 +4676,7 @@ export default function App() {
                 </button>
               )}
               {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
-              {!showArchived && !["contacts","profile","documents"].includes(view) && <button onClick={openAdd} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add job</button>}
+              {!showArchived && !["contacts","profile","documents"].includes(view) && <button onClick={openAdd} style={{ display:"flex", alignItems:"center", gap:5, fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}><Icon name="plus" size={13} /> Add job</button>}
               <button onClick={() => setView("profile")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background: view==="profile"?"#185FA5":"var(--surface)", color: view==="profile"?"#fff":"var(--text-secondary)", border:`1.5px solid ${view==="profile"?"#0C447C":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:6 }}>
                 👤 Profile
               </button>
@@ -4672,8 +4749,8 @@ export default function App() {
                     {Object.keys(STATUS_CONFIG).map(s => <option key={s} value={s} style={{ color:"#000" }}>{s}</option>)}
                   </select>
                   {!showArchived && (
-                    <button onClick={bulkArchive} style={{ fontSize:12, padding:"5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
-                      📦 Archive
+                    <button onClick={bulkArchive} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, padding:"5px 13px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.35)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>
+                      <Icon name="archive" size={13} /> Archive
                     </button>
                   )}
                   {showArchived && (
@@ -4701,7 +4778,7 @@ export default function App() {
                       <input type="checkbox" checked={selected.has(job.id)} onChange={() => toggleSelect(job.id)} style={{ cursor:"pointer" }} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <ListCard job={job} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} onArchive={archiveJob} tasks={tasks} />
+                      <ListCard job={job} isFirst={i===0} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} onArchive={archiveJob} tasks={tasks} />
                     </div>
                   </div>
                 ))}
@@ -4898,16 +4975,16 @@ export default function App() {
       {isMobile && (
         <div style={{ position:"fixed", bottom:0, left:0, right:0, height:60, background:"var(--surface)", borderTop:"1px solid var(--border)", display:"flex", alignItems:"stretch", zIndex:400, boxShadow:"0 -2px 12px rgba(0,0,0,0.08)" }}>
           {[
-            { key:"today", icon:"📥", label:"Today", onClick:()=>setView("today"), active: view==="today", badge: todayTasks>0?todayTasks:null },
-            { key:"jobs", icon:"💼", label:"Jobs", onClick:()=>setView("list"), active: ["list","board","offers"].includes(view) },
-            { key:"add", icon:"➕", label:"Add", onClick:openAdd, active:false, isFab:true },
-            { key:"calendar", icon:"📅", label:"Calendar", onClick:()=>setView("calendar"), active: view==="calendar" },
-            { key:"profile", icon:"👤", label:"Profile", onClick:()=>setView("profile"), active: ["profile","contacts","documents"].includes(view) },
+            { key:"today", icon:"inbox", label:"Today", onClick:()=>setView("today"), active: view==="today", badge: todayTasks>0?todayTasks:null },
+            { key:"jobs", icon:"briefcase", label:"Jobs", onClick:()=>setView("list"), active: ["list","board","offers"].includes(view) },
+            { key:"add", icon:"plus", label:"Add", onClick:openAdd, active:false, isFab:true },
+            { key:"calendar", icon:"calendar", label:"Calendar", onClick:()=>setView("calendar"), active: view==="calendar" },
+            { key:"profile", icon:"user", label:"Profile", onClick:()=>setView("profile"), active: ["profile","contacts","documents"].includes(view) },
           ].map(tab => (
             <button key={tab.key} onClick={tab.onClick}
               style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2, border:"none", background:"none", cursor:"pointer", position:"relative", minHeight:44,
                 color: tab.active ? "#185FA5" : "var(--text-secondary)" }}>
-              <span style={{ fontSize: tab.isFab ? 22 : 18, lineHeight:1 }}>{tab.icon}</span>
+              <Icon name={tab.icon} size={tab.isFab ? 22 : 18} />
               <span style={{ fontSize:10, fontWeight: tab.active ? 600 : 500 }}>{tab.label}</span>
               {tab.badge && <span style={{ position:"absolute", top:2, right:"28%", background:"#A32D2D", color:"#fff", borderRadius:"50%", width:15, height:15, fontSize:9, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700 }}>{tab.badge}</span>}
             </button>
