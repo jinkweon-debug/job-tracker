@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import { supabase } from './supabase';
 import { useSwipeGesture } from './useSwipeGesture';
+import { initAnalytics, track, identifyUser, setPersonProps, resetAnalytics } from './analytics';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 640);
@@ -10,6 +11,42 @@ function useIsMobile() {
     return () => window.removeEventListener("resize", fn);
   }, []);
   return mobile;
+}
+
+function PasswordInput({ value, onChange, placeholder, style, required, autoComplete }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ position:"relative" }}>
+      <input
+        type={visible ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required={required}
+        autoComplete={autoComplete}
+        style={{ ...style, paddingRight:38 }}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible(v => !v)}
+        onMouseDown={e => e.preventDefault()}
+        aria-pressed={visible}
+        aria-label={visible ? "Hide password" : "Show password"}
+        style={{ position:"absolute", right:4, top:0, bottom:0, background:"none", border:"none", padding:"0 8px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--text-secondary)" }}>
+        {visible ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+            <line x1="1" y1="1" x2="23" y2="23" />
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        )}
+      </button>
+    </div>
+  );
 }
 
 const STATUS_CONFIG = {
@@ -293,6 +330,7 @@ function FollowupActions({ job, onUpdateJob }) {
 
   function snooze(days) {
     onUpdateJob(job.id, { customFollowup: dateInNDays(days) });
+    track("followup_snoozed", { days });
     setOpen(false);
   }
   function logOutreach() {
@@ -302,10 +340,12 @@ function FollowupActions({ job, onUpdateJob }) {
       customFollowup: dateInNDays(resetDays),
       timeline: [...(job.timeline||[]), { id:crypto.randomUUID(), status:job.status, date:now, notes:"Follow-up sent" }],
     });
+    track("draft_actioned", { action:"mark_contacted_no_draft" });
     setOpen(false);
   }
   function dismiss() {
     onUpdateJob(job.id, { followupDismissed: true });
+    track("followup_dismissed");
     setOpen(false);
   }
 
@@ -336,6 +376,7 @@ function FollowupActions({ job, onUpdateJob }) {
 
 // ── Supabase data helpers ─────────────────────────────────────────────────────
 let _uid = null; // set by App on auth change
+let _addSource = "manual"; // set right before opening the Add-job modal from a non-manual entry point
 
 // Tracks job IDs from the last load/save so saveJobs can detect deletions.
 let _lastJobIds = new Set();
@@ -848,8 +889,9 @@ function PanelReminders({ job, tasks, onAddReminder, onTaskDone, onTaskDelete })
 }
 
 // ── Detail panel ──────────────────────────────────────────────────────────────
-function PanelSection({ label, count, defaultOpen = false, children }) {
+function PanelSection({ label, count, defaultOpen = false, forceOpen, children }) {
   const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
   return (
     <div>
       <button onClick={() => setOpen(o => !o)}
@@ -862,7 +904,7 @@ function PanelSection({ label, count, defaultOpen = false, children }) {
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, documents }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, documents, profileName, onLogOutreach }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [addingContact, setAddingContact] = useState(false);
@@ -870,6 +912,8 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
   const [showOverflow, setShowOverflow] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tab, setTab] = useState("overview"); // overview | activity | notes
+  const [showDraft, setShowDraft] = useState(false);
+  const [remindSignal, setRemindSignal] = useState(0);
   const isMobile = useIsMobile();
 
   function startEdit() {
@@ -933,9 +977,8 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             {/* Quick actions */}
             {!job.archived && (
               <div style={{ display:"flex", gap:8 }}>
-                <button onClick={startEdit} style={quickBtn}>✏️ Edit</button>
-                <button onClick={() => setTab("activity")} style={quickBtn}>🔔 Remind</button>
-                <button onClick={() => setTab("activity")} style={quickBtn}>📧 Email</button>
+                <button onClick={() => { track("draft_opened", { job_status: job.status, source: "panel" }); setShowDraft(true); }} style={{ ...quickBtn, background:"#185FA5", color:"#fff", border:"1px solid #0C447C" }}>✍️ Draft follow-up</button>
+                <button onClick={() => { setTab("activity"); setRemindSignal(s => s + 1); }} style={quickBtn}>🔔 Remind</button>
               </div>
             )}
             {/* Tabs */}
@@ -1127,14 +1170,11 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
             <PanelSection label="📋 Timeline" count={timelineCount || null} defaultOpen={true}>
               <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
             </PanelSection>
-            <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0}>
+            <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0} forceOpen={remindSignal}>
               <PanelReminders job={job} tasks={tasks} onAddReminder={onAddReminder} onTaskDone={onTaskDone} onTaskDelete={onTaskDelete} />
             </PanelSection>
             <PanelSection label="✅ Prep checklist" count={checklistCount > 0 ? `${(job.prepChecklist||[]).filter(i=>i.done).length}/${checklistCount}` : null} defaultOpen={checklistCount > 0}>
               <PrepChecklist job={job} onUpdate={cl => onNotesSave(job.id, null, undefined, cl)} />
-            </PanelSection>
-            <PanelSection label="📧 Email templates" defaultOpen={false}>
-              <EmailTemplates job={job} />
             </PanelSection>
           </>
         ) : (
@@ -1183,6 +1223,10 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
         )}
       </div>
     </div>
+    {showDraft && (
+      <DraftComposer job={job} profileName={profileName} onClose={() => setShowDraft(false)}
+        onMarkContacted={() => { onLogOutreach(job); track("draft_actioned", { action:"mark_contacted" }); setShowDraft(false); }} />
+    )}
     </>
   );
 }
@@ -1247,77 +1291,6 @@ Best,
   },
 ];
 
-function EmailTemplates({ job }) {
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
-  const [copied, setCopied] = useState(null); // "subject" | "body" | "both"
-
-  function copy(text, which) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(which);
-      setTimeout(() => setCopied(null), 2000);
-    });
-  }
-
-  const tpl = EMAIL_TEMPLATES.find(t => t.id === selected);
-
-  return (
-    <div>
-      <button onClick={() => setOpen(o => !o)}
-        style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, fontWeight:500, color:"var(--text-secondary)", background:"none", border:"none", cursor:"pointer", padding:0 }}>
-        <span style={{ fontSize:14 }}>📧</span> Email templates
-        <span style={{ fontSize:10, color:"var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
-      </button>
-
-      {open && (
-        <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:8 }}>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-            {EMAIL_TEMPLATES.map(t => (
-              <button key={t.id} onClick={() => setSelected(selected === t.id ? null : t.id)}
-                style={{ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, whiteSpace:"nowrap",
-                  background: selected === t.id ? getStatusCfg("Applied").bg : "var(--surface-hover)",
-                  color: selected === t.id ? getStatusCfg("Applied").text : "var(--text-secondary)",
-                  border: `1px solid ${selected === t.id ? getStatusCfg("Applied").border : "var(--border)"}` }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {tpl && (
-            <div style={{ background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, overflow:"hidden" }}>
-              <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border-subtle)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <span style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>{tpl.hint}</span>
-              </div>
-              {/* Subject line */}
-              <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border-subtle)" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:3 }}>
-                  <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Subject</span>
-                  <button onClick={() => copy(tpl.subject(job), "subject")}
-                    style={{ fontSize:10, padding:"2px 8px", background: copied==="subject"?getStatusCfg("Offer").bg:"var(--surface-hover)", color: copied==="subject"?getStatusCfg("Offer").text:"var(--text-muted)", border:`1px solid ${copied==="subject"?getStatusCfg("Offer").border:"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
-                    {copied === "subject" ? "✓ Copied" : "Copy"}
-                  </button>
-                </div>
-                <div style={{ fontSize:12, color:"var(--text-primary)" }}>{tpl.subject(job)}</div>
-              </div>
-              {/* Body */}
-              <div style={{ padding:"8px 12px" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                  <span style={{ fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>Body</span>
-                  <button onClick={() => copy(tpl.body(job), "body")}
-                    style={{ fontSize:10, padding:"2px 8px", background: copied==="body"?getStatusCfg("Offer").bg:"var(--surface-hover)", color: copied==="body"?getStatusCfg("Offer").text:"var(--text-muted)", border:`1px solid ${copied==="body"?getStatusCfg("Offer").border:"var(--border)"}`, borderRadius:4, cursor:"pointer" }}>
-                    {copied === "body" ? "✓ Copied" : "Copy"}
-                  </button>
-                </div>
-                <pre style={{ fontSize:11, color:"var(--text-secondary)", lineHeight:1.6, whiteSpace:"pre-wrap", margin:0, fontFamily:"inherit" }}>{tpl.body(job)}</pre>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Draft follow-up composer ───────────────────────────────────────────────────
 function defaultTemplateId(status) {
   if (status === "Phone Screen" || status === "Interview") return "statuscheck";
@@ -1349,6 +1322,7 @@ function DraftComposer({ job, profileName, onClose, onMarkContacted }) {
   }
   function copyAll() {
     navigator.clipboard.writeText(`${subject}\n\n${body}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    track("draft_actioned", { action:"copy" });
   }
   const mailto = `mailto:${/@/.test(job.contact || "") ? job.contact : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
@@ -1393,7 +1367,7 @@ function DraftComposer({ job, profileName, onClose, onMarkContacted }) {
         </div>
         <div style={{ padding:"12px 18px", borderTop:"1px solid var(--border)", display:"flex", gap:8, justifyContent:"flex-end", flexWrap:"wrap" }}>
           <button onClick={copyAll} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500 }}>{copied ? "✓ Copied" : "Copy"}</button>
-          <a href={mailto} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, textDecoration:"none" }}>Open in email ↗</a>
+          <a href={mailto} onClick={() => track("draft_actioned", { action:"mailto" })} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, textDecoration:"none" }}>Open in email ↗</a>
           <button onClick={onMarkContacted} style={{ fontSize:13, padding:"7px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>✓ Mark contacted</button>
         </div>
       </div>
@@ -2270,8 +2244,8 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
     return key(a.diff) - key(b.diff);
   });
 
-  function snooze(job, days) { onUpdateJob(job.id, { customFollowup: dateInNDays(days) }); }
-  function dismissFollowup(job) { onUpdateJob(job.id, { followupDismissed: true }); }
+  function snooze(job, days) { onUpdateJob(job.id, { customFollowup: dateInNDays(days) }); track("followup_snoozed", { days }); }
+  function dismissFollowup(job) { onUpdateJob(job.id, { followupDismissed: true }); track("followup_dismissed"); }
   function logOutreach(job) {
     const now = new Date().toISOString();
     const resetDays = FOLLOWUP_DAYS[job.status] || 7;
@@ -2318,8 +2292,8 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
         </div>
         {type==="followup" && (
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
-            <button onClick={() => setDraftJob(job)} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
-            <button onClick={() => logOutreach(job)} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
+            <button onClick={() => { track("draft_opened", { job_status: job.status, source: "today" }); setDraftJob(job); }} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
+            <button onClick={() => { logOutreach(job); track("draft_actioned", { action:"mark_contacted_no_draft" }); }} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
@@ -2336,12 +2310,13 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
     const linkedJob = jobs.find(j => j.id===task.jobId);
     return (
       <div style={{ display:"flex", gap:10, alignItems:"flex-start", padding:"10px 12px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, marginBottom:6 }}>
-        <input type="checkbox" checked={task.done||false} onChange={() => { const u=tasks.map(t=>t.id===task.id?{...t,done:!t.done}:t); setTasks(u); saveTasks(u); }} style={{ marginTop:2, cursor:"pointer" }} />
+        <input type="checkbox" checked={task.done||false} onChange={() => { const u=tasks.map(t=>t.id===task.id?{...t,done:!t.done}:t); setTasks(u); saveTasks(u); if (!task.done) track("reminder_completed"); }} style={{ marginTop:2, cursor:"pointer" }} />
         <div style={{ flex:1 }}>
           <div style={{ fontSize:13, color:"var(--text-primary)" }}>{task.text}</div>
           {linkedJob && <div style={{ fontSize:11, color:"#185FA5", marginTop:2, cursor:"pointer" }} onClick={() => onOpenPanel(linkedJob)}>→ {linkedJob.company} · {linkedJob.role}</div>}
           {task.dueDate && <div style={{ fontSize:10, color: task.dueDate<today?"#A32D2D":"var(--text-muted)", marginTop:2 }}>{task.dueDate===today?"Due today":`Overdue · ${task.dueDate}`}</div>}
         </div>
+        {linkedJob && <button onClick={() => { track("draft_opened", { job_status: linkedJob.status, source: "reminder" }); setDraftJob(linkedJob); }} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:5, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>}
         <button onClick={() => { const u=tasks.filter(t=>t.id!==task.id); setTasks(u); saveTasks(u); }} style={{ fontSize:10, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
       </div>
     );
@@ -2361,6 +2336,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
     if (!newTask.text) return;
     const t = { id:Date.now(), text:newTask.text, jobId:newTask.jobId||null, dueDate:newTask.dueDate, done:false, createdAt:new Date().toISOString() };
     const u = [...tasks,t]; setTasks(u); saveTasks(u);
+    track("reminder_created", { source: "manual" });
     setNewTask({ text:"", jobId:"", dueDate:todayStr() }); setShowAdd(false);
   }
 
@@ -2453,7 +2429,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           );
         })}
       </Section>
-      {draftJob && <DraftComposer job={draftJob} profileName={profileName} onClose={() => setDraftJob(null)} onMarkContacted={() => { logOutreach(draftJob); setDraftJob(null); }} />}
+      {draftJob && <DraftComposer job={draftJob} profileName={profileName} onClose={() => setDraftJob(null)} onMarkContacted={() => { logOutreach(draftJob); track("draft_actioned", { action:"mark_contacted" }); setDraftJob(null); }} />}
     </div>
   );
 }
@@ -2543,7 +2519,7 @@ function FeedbackForm() {
         }),
       });
       const data = await resp.json();
-      if (data.success) { setState("sent"); setMessage(""); setEmail(""); }
+      if (data.success) { setState("sent"); setMessage(""); setEmail(""); track("feedback_sent"); }
       else setState("error");
     } catch { setState("error"); }
   }
@@ -2594,7 +2570,7 @@ function HelpModal({ onClose }) {
             {item("List", "Every application as a card. Search, filter by status or tag, change status inline, add notes, and run bulk actions.")}
             {item("Pipeline", "A drag-and-drop board grouped by status, plus a conversion funnel and a salary-range chart.")}
             {item("Table", "A sortable spreadsheet view — good for scanning or comparing lots of applications at once.")}
-            {item("Calendar", "Interviews, follow-ups, reminders, and milestones on a month / week / day / agenda calendar — each event color- and icon-coded by type (📨 applied, 🗓️ interview, 🎉 offer, ❌ rejected…).")}
+            {item("Calendar", "Interviews, follow-ups, and reminders on a month / week / day / agenda calendar — each event color- and icon-coded by type. Turn on \"Milestones\" (off by default) in the sidebar to also see every status-change entry from each job's timeline.")}
             {item("Offers", "A focused view of roles at the offer stage so you can compare them side by side.")}
             {item("Contacts", "A lightweight CRM for recruiters and contacts — track who you've reached out to and when.")}
           </HelpSection>
@@ -2606,17 +2582,16 @@ function HelpModal({ onClose }) {
 
           <HelpSection title="Following up">
             <p style={{ marginBottom: 10 }}>Followup reminds you on a set cadence — by default <b>7 days</b> after applying and <b>3 days</b> after a phone screen or interview, with anything quiet for <b>14 days</b> flagged as going cold. Change all three in Settings → Automation. High-interest jobs rise to the top of your follow-ups.</p>
-            {item("✍️ Draft", "On a due follow-up in Today, this drafts the email for you — pick a template, tweak it, then copy it, open it in your mail app, or mark it sent.")}
+            {item("✍️ Draft", "Drafts the email for you — pick a template, tweak it, then copy it, open it in your mail app, or mark it sent. Available on due follow-ups and job-linked reminders in Today, and from \"✍️ Draft follow-up\" in each job's detail panel.")}
             {item("✓ Contacted", "Logs the follow-up to the job's timeline and resets the timer.")}
             {item("Snooze", "Not yet? Push the reminder out +3 days, +7 days, or −30 days.")}
             {item("✕ Stop following up", "Cancel a follow-up entirely so it stops reminding you. Reversible anytime from the job's detail panel.")}
-            <p style={{ marginTop: 8 }}>Email templates are also available inside each job's detail panel.</p>
           </HelpSection>
 
           <HelpSection title="Reminders & interviews">
             {item("Interview dates", "Set a date and time on a job and Followup auto-creates a day-before reminder, plus a button to add it to Google Calendar.")}
-            {item("Manual reminders", "Use 🔔 Remind on a job, the detail panel, or “+ Add task” in Today to set your own reminders.")}
-            {item("Browser reminders", "Turn on desktop notifications from your Profile screen (Backup & data) to get nudged even when the app is closed.")}
+            {item("Manual reminders", "Use 🔔 Remind in a job's detail panel (opens the Reminders section) or “+ Add task” in Today to set your own reminders.")}
+            {item("Browser reminders", "Turn on desktop notifications from your Profile screen (Backup & data) — Followup checks for overdue follow-ups when you open it in that browser and shows a notification. It won't nudge you while the app is closed.")}
           </HelpSection>
 
           <HelpSection title="Organizing & finding jobs">
@@ -2797,9 +2772,9 @@ function ProfileScreen({
 
       <PanelSection label="🔑 Password" defaultOpen={false}>
         <form onSubmit={changePassword} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <input type="password" placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required style={inputStyle} />
-          <input type="password" placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required style={inputStyle} />
-          <input type="password" placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required style={inputStyle} />
+          <PasswordInput placeholder="Current password" value={cur} onChange={e=>setCur(e.target.value)} required autoComplete="current-password" style={inputStyle} />
+          <PasswordInput placeholder="New password" value={pw} onChange={e=>setPw(e.target.value)} required autoComplete="new-password" style={inputStyle} />
+          <PasswordInput placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required autoComplete="new-password" style={inputStyle} />
           {pwError && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{pwError}</div>}
           {pwMsg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{pwMsg}</div>}
           <button type="submit" disabled={pwLoading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:pwLoading?0.7:1, minHeight:44 }}>
@@ -2830,10 +2805,17 @@ function ProfileScreen({
           <button onClick={exportCSV} style={navRow}>Export CSV</button>
           <label style={navRow}>Import CSV<input type="file" accept=".csv" onChange={importCSV} style={{ display:"none" }} /></label>
           <button onClick={enableNotifications} style={navRow}>{typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}</button>
+          <div style={{ fontSize:11, color:"var(--text-muted)", lineHeight:1.6, padding:"0 2px" }}>
+            Shows a browser notification for overdue follow-ups when you open Followup in this browser — not a push notification while it's closed.
+          </div>
         </div>
       </PanelSection>
 
       <button onClick={onShowHelp} style={navRow}><span>❓ Guide &amp; help</span><span style={{ color:"var(--text-muted)" }}>›</span></button>
+
+      <div style={{ textAlign:"center", fontSize:12, color:"var(--text-muted)", marginTop:4 }}>
+        <a href="/privacy.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Terms</a>
+      </div>
     </div>
   );
 }
@@ -3035,7 +3017,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
   const [anchor, setAnchor] = useState(() => { const d = new Date(); d.setHours(0,0,0,0); return d; });
   // Mini-month sidebar has its own browsable month independent of anchor
   const [miniMonth, setMiniMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
-  const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:true });
+  const [show, setShow] = useState({ interview:true, followup:true, task:true, timeline:false });
   const toggleType = (t) => setShow(s => ({ ...s, [t]: !s[t] }));
   const [sidebarOpen, setSidebarOpen] = useState(() => { try { return window.innerWidth >= 640; } catch { return true; } });
 
@@ -3066,8 +3048,8 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
     jobs.filter(j => !j.archived).forEach(j =>
       (j.timeline||[]).forEach(e => {
         if (!e.date) return;
-        const key = e.date.slice(0,10);
-        if (e.status==="Interview" && key===j.interviewDate) return;
+        // Interview/Phone Screen milestones duplicate the real appointment (the "interview" event type) once one is scheduled.
+        if ((e.status==="Interview" || e.status==="Phone Screen") && j.interviewDate) return;
         const isManual = e.type==="manual";
         const label = isManual ? (e.label||"Note") : e.status;
         addEv(e.date, { type:"timeline", label:j.company, sub:label, job:j, milestone: isManual ? "Note" : (e.status || "Note") });
@@ -3211,23 +3193,34 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
           {/* Day-of-week header */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
             {dayShort.map(d => (
-              <div key={d} style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"7px 0", background:"var(--surface-subtle)", borderBottom:"1px solid var(--border)" }}>{d}</div>
+              <div key={d} style={{ minWidth:0, fontSize:11, fontWeight:600, color:"var(--text-muted)", textAlign:"center", padding:"7px 0", background:"var(--surface-subtle)", borderBottom:"1px solid var(--border)" }}>{d}</div>
             ))}
           </div>
           {/* Day cells */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:1 }}>
             {cells.map((day, i) => {
-              if (!day) return <div key={`e${i}`} style={{ background:"var(--surface-subtle)", minHeight:78 }} />;
+              if (!day) return <div key={`e${i}`} style={{ background:"var(--surface-subtle)", minHeight:78, minWidth:0 }} />;
               const dateKey = `${monthPrefix}-${String(day).padStart(2,"0")}`;
               const evs = byDate[dateKey] || [];
               const isToday = dateKey === today_;
               return (
                 <div key={dateKey}
                   onClick={() => { const d=new Date(anchor); d.setFullYear(y,m,day); setAnchor(d); setCalView("day"); }}
-                  style={{ minHeight:78, padding:"5px 6px", background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface)", cursor:"pointer" }}>
+                  style={{ minHeight:78, minWidth:0, overflow:"hidden", padding:"5px 6px", background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface)", cursor:"pointer" }}>
                   <div style={{ fontSize:11, fontWeight:isToday?700:400, color:isToday?"var(--accent)":"var(--text-muted)", marginBottom:3 }}>{day}</div>
-                  {evs.slice(0,MAX).map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
-                  {evs.length > MAX && <div style={{ fontSize:9, color:"var(--text-muted)", paddingLeft:2 }}>+{evs.length-MAX} more</div>}
+                  {isMobile ? (
+                    evs.length > 0 && (
+                      <div style={{ display:"flex", alignItems:"center", gap:2, flexWrap:"wrap" }}>
+                        {evs.slice(0,3).map((ev,ei) => <div key={ei} style={{ width:5, height:5, borderRadius:"50%", flexShrink:0, background:eventStyle(ev).border }} />)}
+                        {evs.length > 3 && <span style={{ fontSize:8, color:"var(--text-muted)", marginLeft:1 }}>+{evs.length-3}</span>}
+                      </div>
+                    )
+                  ) : (
+                    <>
+                      {evs.slice(0,MAX).map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
+                      {evs.length > MAX && <div style={{ fontSize:9, color:"var(--text-muted)", paddingLeft:2 }}>+{evs.length-MAX} more</div>}
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -3252,7 +3245,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             const isToday = dateKey === today_;
             return (
               <div key={dateKey} onClick={() => { setAnchor(day); setCalView("day"); }}
-                style={{ background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface-subtle)", padding:"7px 8px", cursor:"pointer", textAlign:"center", borderBottom:"1px solid var(--border)" }}>
+                style={{ minWidth:0, background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface-subtle)", padding:"7px 8px", cursor:"pointer", textAlign:"center", borderBottom:"1px solid var(--border)" }}>
                 <div style={{ fontSize:10, fontWeight:600, color:isToday?"var(--accent)":"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em" }}>{dayShort[day.getDay()]}</div>
                 <div style={{ fontSize:17, fontWeight:isToday?700:400, color:isToday?"#fff":"var(--text-primary)", background:isToday?"var(--accent)":"transparent", borderRadius:"50%", width:28, height:28, display:"flex", alignItems:"center", justifyContent:"center", margin:"2px auto 0" }}>{day.getDate()}</div>
               </div>
@@ -3266,7 +3259,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             const evs = byDate[dateKey] || [];
             const isToday = dateKey === today_;
             return (
-              <div key={dateKey} style={{ padding:"6px", background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface)", minHeight:120 }}>
+              <div key={dateKey} style={{ padding:"6px", background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface)", minHeight:120, minWidth:0, overflow:"hidden" }}>
                 {evs.length === 0 && <div style={{ fontSize:10, color:"var(--text-muted)", fontStyle:"italic", textAlign:"center", paddingTop:6 }}>—</div>}
                 {evs.map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
               </div>
@@ -3494,8 +3487,8 @@ function ResetPasswordScreen({ onDone }) {
           </div>
         ) : (
           <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <input type="password" placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />
-            <input type="password" placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required style={inputStyle} />
+            <PasswordInput placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="new-password" style={inputStyle} />
+            <PasswordInput placeholder="Confirm new password" value={confirm} onChange={e => setConfirm(e.target.value)} required autoComplete="new-password" style={inputStyle} />
             {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
             <button type="submit" disabled={loading}
               style={{ fontSize:14, padding:"10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:loading?"default":"pointer", fontWeight:600, marginTop:4, opacity:loading?0.7:1 }}>
@@ -3531,9 +3524,9 @@ function AuthScreen() {
     setError(""); setMessage(""); setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        setMessage("Check your email for a confirmation link.");
+        if (!data.session) setMessage("Check your email for a confirmation link.");
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: "https://job-tracker-tau-eight.vercel.app/",
@@ -3565,6 +3558,12 @@ function AuthScreen() {
           </div>
           <div style={{ fontSize:13, color:"var(--text-muted)" }}>{subtitles[mode]}</div>
         </div>
+        {mode === "signin" && (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:"var(--surface-subtle, rgba(24,95,165,0.06))", border:"1px solid var(--blue-light, #B5D4F4)", borderRadius:8, marginBottom:16, fontSize:12, color:"var(--text-secondary)", lineHeight:1.5 }}>
+            <span style={{ fontSize:16, flexShrink:0 }}>✍️</span>
+            <span>The tracker that tells you who to follow up with — and drafts the message for you.</span>
+          </div>
+        )}
         {mode !== "forgot" && (
           <>
             <button type="button" onClick={signInWithGoogle}
@@ -3586,7 +3585,7 @@ function AuthScreen() {
         )}
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
           <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
-          {mode !== "forgot" && <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required style={inputStyle} />}
+          {mode !== "forgot" && <PasswordInput placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete={mode==="signup"?"new-password":"current-password"} style={inputStyle} />}
           {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
           {message && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{message}</div>}
           <button type="submit" disabled={loading}
@@ -3601,6 +3600,9 @@ function AuthScreen() {
           </>}
           {mode === "signup" && <span>Have an account? <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign in</button></span>}
           {mode === "forgot" && <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>← Back to sign in</button>}
+        </div>
+        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:11, color:"var(--text-muted)" }}>
+          <a href="/privacy.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Terms</a>
         </div>
       </div>
     </div>
@@ -3647,7 +3649,11 @@ export default function App() {
   function persistSettings(extra) { saveSettings({ profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays, ...extra }); }
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [panelJob, setPanelJob] = useState(null);
-  const togglePanel = (job) => setPanelJob(p => p?.id === job?.id ? null : job);
+  const togglePanel = (job) => setPanelJob(p => {
+    const next = p?.id === job?.id ? null : job;
+    if (next) track("panel_opened", { job_status: next.status });
+    return next;
+  });
   const [undoStack, setUndoStack] = useState(null);
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
@@ -3656,15 +3662,25 @@ export default function App() {
 
   // ── Auth + data loading ──
   useEffect(() => {
+    initAnalytics();
     supabase.auth.getSession().then(({ data: { session } }) => {
       const u = session?.user ?? null;
       setUser(u); _uid = u?.id ?? null;
+      if (u) identifyUser(u, { method: u.app_metadata?.provider || "email" });
       setAuthChecked(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") { setPasswordRecovery(true); return; }
       const u = session?.user ?? null;
       setUser(u); _uid = u?.id ?? null;
+      if (event === "SIGNED_IN" && u) {
+        const method = u.app_metadata?.provider || "email";
+        const isNew = Date.now() - new Date(u.created_at).getTime() < 15000;
+        identifyUser(u, { method });
+        track(isNew ? "signed_up" : "logged_in", { method });
+      } else if (event === "SIGNED_OUT") {
+        resetAnalytics();
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -3689,6 +3705,24 @@ export default function App() {
     });
   }, [user]);
 
+  useEffect(() => {
+    if (!loaded) return;
+    setPersonProps({ jobs_total: jobs.filter(j => !j.archived).length, platform: isMobile ? "mobile" : "desktop" });
+  }, [loaded, jobs, isMobile]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    track("view_changed", { view });
+    if (view === "today") {
+      const todayStrNow = todayStr();
+      track("today_opened", {
+        followups_due: jobs.filter(j => { const fu = getFollowupStatus(j); return !j.archived && fu?.urgent && fu.diff >= -30; }).length,
+        interviews: jobs.filter(j => !j.archived && j.interviewDate === todayStrNow).length,
+        overdue: tasks.filter(t => !t.done && t.dueDate <= todayStrNow).length,
+      });
+    }
+  }, [view, loaded]);
+
   // Auto-archive terminal (Rejected/Withdrawn) jobs after the configured number of days.
   useEffect(() => {
     if (!loaded) return;
@@ -3711,6 +3745,7 @@ export default function App() {
     const salaryMin = params.get("salMin") || "";
     const salaryMax = params.get("salMax") || "";
     setForm({ ...EMPTY, id: Date.now(), timeline: [], tags: {}, role, company, link, salaryMin, salaryMax, dateApplied: todayStr() });
+    _addSource = "bookmarklet";
     setModal(true);
     window.history.replaceState({}, "", window.location.pathname);
   }, [loaded]);
@@ -3835,6 +3870,10 @@ export default function App() {
     const updated = existing ? jobs.map(j=>j.id===form.id?enriched:j) : [...jobs,enriched];
     setJobs(updated); saveJobs(updated); setModal(false);
     syncContactFromField(enriched);
+    if (!existing) {
+      track("job_added", { source: _addSource, jobs_total: updated.filter(j => !j.archived).length });
+      _addSource = "manual";
+    }
   }
 
   function del(id) {
@@ -3857,8 +3896,11 @@ export default function App() {
     pushUndo(`Status changed: "${job?.company} · ${job?.role}" → ${newStatus}`, jobs);
     const u = applyStatusChange(jobs, id, newStatus, interviewDate, interviewTime);
     setJobs(u); saveJobs(u);
+    track("job_status_changed", { from: job?.status, to: newStatus });
+    if (newStatus === "Offer") track("offer_logged");
     // Auto-create a day-before reminder when an interview date is set
     if (interviewDate && INTERVIEW_STATUSES.includes(newStatus)) {
+      track("interview_scheduled");
       const d = new Date(interviewDate + "T00:00:00");
       d.setDate(d.getDate() - 1);
       const reminderDate = d.toISOString().slice(0, 10);
@@ -3872,6 +3914,18 @@ export default function App() {
     const text = (note||"").trim() || `Follow up with ${job?.company||""}`;
     const t = { id: Date.now(), text, jobId, dueDate: date, done: false, createdAt: new Date().toISOString() };
     const u = [...tasks, t]; setTasks(u); saveTasks(u);
+    track("reminder_created", { source: "job" });
+  }
+
+  function logOutreach(job) {
+    const now = new Date().toISOString();
+    const resetDays = FOLLOWUP_DAYS[job.status] || 7;
+    const u = jobs.map(j => j.id===job.id ? {
+      ...j,
+      customFollowup: dateInNDays(resetDays),
+      timeline: [...(j.timeline||[]), { id:crypto.randomUUID(), status:j.status, date:now, notes:"Follow-up sent" }],
+    } : j);
+    setJobs(u); saveJobs(u);
   }
 
   function onNotesSave(id, notes, timeline, prepChecklist) {
@@ -4277,7 +4331,7 @@ export default function App() {
       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:"0.75rem" }}>
         {/* Row 2 — view controls (search + filters), only where relevant */}
         <div style={{ order:2, display: (view==="list"||view==="board") ? "flex" : "none", gap:8, alignItems:"center", minWidth:0, width:"100%" }}>
-          {(view==="list"||view==="board") && <input placeholder="Search role or company..." value={search} onChange={e=>setSearch(e.target.value)} style={{ flex:"1 1 160px", minWidth:0, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 10px" }} />}
+          {(view==="list"||view==="board") && <input placeholder="Search role or company..." value={search} onChange={e=>{ const v=e.target.value; if (!search && v) track("search_used"); setSearch(v); }} style={{ flex:"1 1 160px", minWidth:0, fontSize:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 10px" }} />}
           {view==="list" && (() => {
             const activeFilterCount = (filter!=="All"?1:0) + (outreachFilter!=="all"?1:0) + (sortBy!=="dateApplied"||sortDir!=="desc"?1:0) + activeTagFilters.length;
             const filterOpen = listFilterOpen; const setFilterOpen = setListFilterOpen;
@@ -4490,7 +4544,7 @@ export default function App() {
         filtered.length===0
           ? <div>
               {!showArchived && jobs.filter(j=>!j.archived).length===0
-                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} />
+                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} />
                 : <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":"No results for this filter."}</div>}
             </div>
           : <div>
@@ -4608,7 +4662,7 @@ export default function App() {
             </div>
           </div>
         )}
-        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
       </>}
 
       {/* Offers view */}
@@ -4654,7 +4708,7 @@ export default function App() {
           onOpenContacts={() => setView("contacts")}
           onOpenDocuments={() => setView("documents")}
           onOpenArchived={() => { setShowArchived(true); setView("list"); }}
-          onShowHelp={() => setShowHelp(true)}
+          onShowHelp={() => { track("help_opened"); setShowHelp(true); }}
           exportJSON={exportJSON} importJSON={importJSON} exportCSV={exportCSV} importCSV={importCSV} enableNotifications={enableNotifications}
         />
       )}
@@ -4677,7 +4731,7 @@ export default function App() {
           syncContactFromField(enriched);
         }}
         onDelete={del} onArchive={archiveJob} onRestore={restoreJob} onNotesSave={onNotesSave} onStatusChange={onStatusChange} tasks={tasks} onAddReminder={addReminder}
-        onTaskDone={id => { const u=tasks.map(t=>t.id===id?{...t,done:true}:t); setTasks(u); saveTasks(u); }}
+        onTaskDone={id => { const u=tasks.map(t=>t.id===id?{...t,done:true}:t); setTasks(u); saveTasks(u); track("reminder_completed"); }}
         onTaskDelete={id => { const u=tasks.filter(t=>t.id!==id); setTasks(u); saveTasks(u); }}
         onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); setPanelJob(u.find(j=>j.id===id)||null); }}
         contacts={contacts}
@@ -4696,7 +4750,7 @@ export default function App() {
           setContacts(u); saveContacts(u);
         }}
         onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }}
-        documents={documents} />}
+        documents={documents} profileName={profileName || user?.user_metadata?.full_name || ""} onLogOutreach={logOutreach} />}
       {contactModal && (
         <ContactModal
           contact={contactModal === "new" ? null : contactModal}
