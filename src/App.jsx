@@ -218,6 +218,11 @@ function fmtDate(iso) {
 }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function dateInNDays(n) { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); }
+function startOfWeekDate() { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - d.getDay()); return d; }
+function followupsSentThisWeek(jobsList) {
+  const weekStart = startOfWeekDate();
+  return jobsList.reduce((sum, j) => sum + (j.timeline||[]).filter(e => e.notes==="Follow-up sent" && new Date(e.date) >= weekStart).length, 0);
+}
 function daysAgoStr(dateStr) {
   if (!dateStr) return "";
   const d = Math.floor((new Date() - new Date(dateStr + "T00:00:00")) / 86400000);
@@ -491,6 +496,54 @@ function UndoToast({ message, onUndo, onDismiss }) {
       <span>{message}</span>
       <button onClick={onUndo} style={{ fontSize:12, padding:"4px 12px", background:"#fff", color:"#222", border:"none", borderRadius:6, cursor:"pointer", fontWeight:600 }}>Undo</button>
       <button onClick={onDismiss} style={{ fontSize:12, color:"var(--text-muted)", background:"none", border:"none", cursor:"pointer", padding:0 }}>✕</button>
+    </div>
+  );
+}
+
+// ── Weekly goal ring ──────────────────────────────────────────────────────────
+function WeeklyGoalRing({ count, goal }) {
+  const pct = goal > 0 ? Math.min(1, count / goal) : 0;
+  const r = 16, circumference = 2 * Math.PI * r;
+  const dash = circumference * pct;
+  const hit = count >= goal && goal > 0;
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+      <svg width="40" height="40" viewBox="0 0 40 40" style={{ flexShrink:0 }} aria-hidden="true">
+        <circle cx="20" cy="20" r={r} fill="none" stroke="var(--border)" strokeWidth="4" />
+        <circle cx="20" cy="20" r={r} fill="none" stroke={hit?getStatusCfg("Offer").text:"#185FA5"} strokeWidth="4"
+          strokeDasharray={`${dash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 20 20)" />
+      </svg>
+      <div style={{ fontSize:11, color:"var(--text-secondary)", lineHeight:1.4 }}>
+        <div style={{ fontWeight:600, color:"var(--text-primary)", fontSize:12 }}>{count} of {goal}</div>
+        <div>follow-ups this week</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Wins toast — momentum copy, not gamification ────────────────────────────────
+function WinsToast({ message, onDismiss }) {
+  useEffect(() => { const t = setTimeout(onDismiss, 4500); return () => clearTimeout(t); }, [message]);
+  return (
+    <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", maxWidth:360, width:"calc(100% - 32px)", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:10, padding:"11px 16px", boxShadow:"0 4px 20px rgba(0,0,0,0.15)", zIndex:300, fontSize:13, fontWeight:500, textAlign:"center" }}>
+      {message}
+    </div>
+  );
+}
+
+// ── The 60-second aha: draft demo after job #1 ─────────────────────────────────
+function AhaDemoBanner({ job, onSeeDraft, onDismiss }) {
+  const fuDate = getFollowupDate(job);
+  const fuLabel = fuDate ? new Date(fuDate + "T00:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric" }) : "the right day";
+  return (
+    <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", width:"calc(100% - 32px)", maxWidth:420, background:"#0B1F38", color:"#fff", borderRadius:12, padding:"14px 16px", boxShadow:"0 4px 24px rgba(0,0,0,0.25)", zIndex:300, display:"flex", flexDirection:"column", gap:10 }}>
+      <div style={{ fontSize:13, lineHeight:1.5 }}>
+        <b>{job.company}</b> is tracked ✓ — Followup will nudge you on <b>{fuLabel}</b> and draft the email.
+      </div>
+      <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+        <button onClick={onDismiss} style={{ fontSize:12, padding:"6px 12px", background:"rgba(255,255,255,0.12)", color:"#fff", border:"none", borderRadius:6, cursor:"pointer" }}>Not now</button>
+        <button onClick={onSeeDraft} style={{ fontSize:12, padding:"6px 14px", background:"#fff", color:"#0B1F38", border:"none", borderRadius:6, cursor:"pointer", fontWeight:600 }}>See the draft now →</button>
+      </div>
     </div>
   );
 }
@@ -904,7 +957,7 @@ function PanelSection({ label, count, defaultOpen = false, forceOpen, children }
   );
 }
 
-function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, documents, profileName, onLogOutreach }) {
+function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onNotesSave, onStatusChange, onUpdateJob, tasks, onAddReminder, onTaskDone, onTaskDelete, contacts, onLinkContact, onUnlinkContact, onCreateContact, onOpenContact, documents, profileName, onLogOutreach, onLogReply }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({});
   const [addingContact, setAddingContact] = useState(false);
@@ -1168,6 +1221,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
           /* ── Activity tab ── */
           <>
             <PanelSection label="📋 Timeline" count={timelineCount || null} defaultOpen={true}>
+              <button onClick={() => onLogReply(job)} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, padding:"5px 10px", marginBottom:8, background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500 }}>📨 Got a reply</button>
               <Timeline compact timeline={job.timeline} onUpdate={tl => onNotesSave(job.id, null, tl)} />
             </PanelSection>
             <PanelSection label="🔔 Reminders" count={linkedTasks || null} defaultOpen={linkedTasks > 0} forceOpen={remindSignal}>
@@ -1862,6 +1916,7 @@ function PipelineFunnel({ jobs }) {
   // Recalculate response/offer rates using ever-reached
   const correctedResponseRate = total > 0 ? Math.round((everReached["Phone Screen"] || 0) / total * 100) : 0;
   const correctedOfferRate    = total > 0 ? Math.round((everReached["Offer"] || 0) / total * 100) : 0;
+  const repliesCount = jobs.reduce((sum, j) => sum + (j.timeline||[]).filter(e => e.kind==="reply").length, 0);
 
   // Avg days per stage (uses timeline)
   const avgDays = active.reduce((acc, status) => {
@@ -1890,6 +1945,7 @@ function PipelineFunnel({ jobs }) {
           { label:"Response rate",      val:`${correctedResponseRate}%` },
           { label:"Offer rate",         val:`${correctedOfferRate}%`, accent:correctedOfferRate > 0 },
           { label:"Rejected / Withdrawn", val:`${(counts["Rejected"]||0)} / ${(counts["Withdrawn"]||0)}` },
+          ...(repliesCount > 0 ? [{ label:"📨 Replies to follow-ups", val:repliesCount, accent:true }] : []),
         ].map(c => (
           <div key={c.label} style={{ background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:"8px 14px", minWidth:110 }}>
             <div style={{ fontSize:10, color:"var(--text-muted)", marginBottom:3 }}>{c.label}</div>
@@ -2220,11 +2276,12 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onLogReply, weeklyGoal, onWin }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const [draftJob, setDraftJob] = useState(null);
   const today = todayStr();
+  const repliesCount = jobs.reduce((sum, j) => sum + (j.timeline||[]).filter(e => e.kind==="reply").length, 0);
 
   // Auto-generated urgent items
   const rawAuto = [];
@@ -2253,6 +2310,8 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       customFollowup: dateInNDays(resetDays),
       timeline: [...(job.timeline||[]), { id:crypto.randomUUID(), status:job.status, date:now, notes:"Follow-up sent" }],
     });
+    const n = followupsSentThisWeek(jobs) + 1;
+    onWin(`Sent 📤 — that's ${n} this week. Most people never send one.`);
   }
 
   function tierStyle(diff, type) {
@@ -2294,6 +2353,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
             <button onClick={() => { track("draft_opened", { job_status: job.status, source: "today" }); setDraftJob(job); }} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
             <button onClick={() => { logOutreach(job); track("draft_actioned", { action:"mark_contacted_no_draft" }); }} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
+            <button onClick={() => onLogReply(job)} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }}>📨 Got a reply</button>
             <div style={{ display:"flex", gap:3 }}>
               <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
               <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
@@ -2360,8 +2420,12 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           <div style={{ fontSize:12, color: totalPending>0?getStatusCfg("Rejected").text:getStatusCfg("Offer").text, marginTop:3, fontWeight:500 }}>
             {totalPending===0 ? "✓ All clear" : `${totalPending} item${totalPending!==1?"s":""} need attention`}
           </div>
+          {repliesCount > 0 && <div style={{ fontSize:11, color:getStatusCfg("Offer").text, marginTop:3, fontWeight:500 }}>📨 {repliesCount} repl{repliesCount!==1?"ies":"y"} to your follow-ups</div>}
         </div>
-        <button onClick={() => setShowAdd(o=>!o)} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add task</button>
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          <WeeklyGoalRing count={followupsSentThisWeek(jobs)} goal={parseInt(weeklyGoal) || 5} />
+          <button onClick={() => setShowAdd(o=>!o)} style={{ fontSize:13, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add task</button>
+        </div>
       </div>
 
       {/* Add task form */}
@@ -2683,6 +2747,7 @@ function ProfileScreen({
   followupAppliedDays, onFollowupAppliedChange,
   followupWarmDays, onFollowupWarmChange,
   staleDays, onStaleDaysChange,
+  weeklyGoal, onWeeklyGoalChange,
   contactsCount, documentsCount, archivedCount,
   onOpenContacts, onOpenDocuments, onOpenArchived, onShowHelp,
   exportJSON, importJSON, exportCSV, importCSV, enableNotifications,
@@ -2749,6 +2814,7 @@ function ProfileScreen({
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after applying</label>
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after a phone screen or interview</label>
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={staleDays} onChange={e=>onStaleDaysChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days with no activity → flag as going cold</label>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={weeklyGoal} onChange={e=>onWeeklyGoalChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> follow-ups per week — your Today goal ring</label>
             </div>
           </div>
           <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
@@ -3643,10 +3709,11 @@ export default function App() {
   const [followupAppliedDays, setFollowupAppliedDays] = useState(() => { try { return localStorage.getItem("followup_applied_days") ?? "7"; } catch { return "7"; } });
   const [followupWarmDays, setFollowupWarmDays] = useState(() => { try { return localStorage.getItem("followup_warm_days") ?? "3"; } catch { return "3"; } });
   const [staleDays, setStaleDays] = useState(() => { try { return localStorage.getItem("followup_stale_days") ?? "14"; } catch { return "14"; } });
+  const [weeklyGoal, setWeeklyGoal] = useState(() => { try { return localStorage.getItem("followup_weekly_goal") ?? "5"; } catch { return "5"; } });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("dark_mode") === "true");
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   applyFollowupSettings(parseInt(followupAppliedDays), parseInt(followupWarmDays), parseInt(staleDays));
-  function persistSettings(extra) { saveSettings({ profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays, ...extra }); }
+  function persistSettings(extra) { saveSettings({ profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays, weeklyGoal, ...extra }); }
   const [saveStatus, setSaveStatus] = useState("idle"); // "idle" | "saving" | "saved" | "error"
   const [panelJob, setPanelJob] = useState(null);
   const togglePanel = (job) => setPanelJob(p => {
@@ -3655,6 +3722,10 @@ export default function App() {
     return next;
   });
   const [undoStack, setUndoStack] = useState(null);
+  const [ahaJob, setAhaJob] = useState(null);
+  const [ahaDraftJob, setAhaDraftJob] = useState(null);
+  const [winsToast, setWinsToast] = useState(null);
+  function showWinsToast(message) { setWinsToast(message); }
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
@@ -3697,6 +3768,7 @@ export default function App() {
         if (s.followupAppliedDays != null) setFollowupAppliedDays(String(s.followupAppliedDays));
         if (s.followupWarmDays != null) setFollowupWarmDays(String(s.followupWarmDays));
         if (s.staleDays != null) setStaleDays(String(s.staleDays));
+        if (s.weeklyGoal != null) setWeeklyGoal(String(s.weeklyGoal));
       }
       setLoaded(true);
     }).catch(() => {
@@ -3873,6 +3945,15 @@ export default function App() {
     if (!existing) {
       track("job_added", { source: _addSource, jobs_total: updated.filter(j => !j.archived).length });
       _addSource = "manual";
+      if (jobs.filter(j => !j.archived).length === 0) {
+        let ahaShown = false;
+        try { ahaShown = localStorage.getItem("followup_aha_shown") === "1"; } catch {}
+        if (!ahaShown) {
+          try { localStorage.setItem("followup_aha_shown", "1"); } catch {}
+          track("aha_draft_demo", { action: "shown" });
+          setAhaJob(enriched);
+        }
+      }
     }
   }
 
@@ -3893,11 +3974,13 @@ export default function App() {
 
   function onStatusChange(id, newStatus, interviewDate, interviewTime) {
     const job = jobs.find(j => j.id===id);
+    const isFirstInterviewEver = newStatus==="Interview" && !jobs.some(j => j.status==="Interview" || (j.timeline||[]).some(e=>e.status==="Interview"));
     pushUndo(`Status changed: "${job?.company} · ${job?.role}" → ${newStatus}`, jobs);
     const u = applyStatusChange(jobs, id, newStatus, interviewDate, interviewTime);
     setJobs(u); saveJobs(u);
     track("job_status_changed", { from: job?.status, to: newStatus });
     if (newStatus === "Offer") track("offer_logged");
+    if (isFirstInterviewEver) showWinsToast("🎉 First interview scheduled — you're doing great.");
     // Auto-create a day-before reminder when an interview date is set
     if (interviewDate && INTERVIEW_STATUSES.includes(newStatus)) {
       track("interview_scheduled");
@@ -3926,6 +4009,19 @@ export default function App() {
       timeline: [...(j.timeline||[]), { id:crypto.randomUUID(), status:j.status, date:now, notes:"Follow-up sent" }],
     } : j);
     setJobs(u); saveJobs(u);
+    showWinsToast(`Sent 📤 — that's ${followupsSentThisWeek(u)} this week. Most people never send one.`);
+  }
+
+  function logReply(job) {
+    const now = new Date().toISOString();
+    const isFirstReplyEver = !jobs.some(j => (j.timeline||[]).some(e => e.kind==="reply"));
+    const u = jobs.map(j => j.id===job.id ? {
+      ...j,
+      timeline: [...(j.timeline||[]), { id:crypto.randomUUID(), type:"manual", kind:"reply", label:"📨 Reply received", date:now, notes:"" }],
+    } : j);
+    setJobs(u); saveJobs(u);
+    track("reply_logged", { job_status: job.status });
+    if (isFirstReplyEver) showWinsToast("🎉 Your first reply! Followups are working.");
   }
 
   function onNotesSave(id, notes, timeline, prepChecklist) {
@@ -4662,7 +4758,7 @@ export default function App() {
             </div>
           </div>
         )}
-        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} />
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} />
       </>}
 
       {/* Offers view */}
@@ -4702,6 +4798,8 @@ export default function App() {
           onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }}
           staleDays={staleDays}
           onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }}
+          weeklyGoal={weeklyGoal}
+          onWeeklyGoalChange={v => { setWeeklyGoal(v); try { localStorage.setItem("followup_weekly_goal", v); } catch {} persistSettings({ weeklyGoal: v }); }}
           contactsCount={contacts.length}
           documentsCount={documents.length}
           archivedCount={archivedCount}
@@ -4750,7 +4848,7 @@ export default function App() {
           setContacts(u); saveContacts(u);
         }}
         onOpenContact={contact => { setPanelJob(null); setPanelContact(contact); }}
-        documents={documents} profileName={profileName || user?.user_metadata?.full_name || ""} onLogOutreach={logOutreach} />}
+        documents={documents} profileName={profileName || user?.user_metadata?.full_name || ""} onLogOutreach={logOutreach} onLogReply={logReply} />}
       {contactModal && (
         <ContactModal
           contact={contactModal === "new" ? null : contactModal}
@@ -4785,6 +4883,16 @@ export default function App() {
       )}
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {undoStack && <UndoToast message={undoStack.message} onUndo={undo} onDismiss={() => setUndoStack(null)} />}
+      {winsToast && <WinsToast message={winsToast} onDismiss={() => setWinsToast(null)} />}
+      {ahaJob && (
+        <AhaDemoBanner job={ahaJob}
+          onSeeDraft={() => { track("aha_draft_demo", { action:"accepted" }); track("draft_opened", { job_status: ahaJob.status, source:"aha_demo" }); setAhaDraftJob(ahaJob); setAhaJob(null); }}
+          onDismiss={() => { track("aha_draft_demo", { action:"dismissed" }); setAhaJob(null); }} />
+      )}
+      {ahaDraftJob && (
+        <DraftComposer job={ahaDraftJob} profileName={profileName || user?.user_metadata?.full_name || ""} onClose={() => setAhaDraftJob(null)}
+          onMarkContacted={() => { logOutreach(ahaDraftJob); track("draft_actioned", { action:"mark_contacted" }); setAhaDraftJob(null); }} />
+      )}
 
       {/* Mobile bottom tab bar */}
       {isMobile && (
