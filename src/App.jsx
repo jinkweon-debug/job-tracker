@@ -2833,7 +2833,25 @@ function ProfileScreen({
   const [nameMsg, setNameMsg] = useState("");
   const [cur, setCur] = useState(""); const [pw, setPw] = useState(""); const [conf, setConf] = useState("");
   const [pwError, setPwError] = useState(""); const [pwMsg, setPwMsg] = useState(""); const [pwLoading, setPwLoading] = useState(false);
+  const [delOpen, setDelOpen] = useState(false); const [delConfirm, setDelConfirm] = useState(""); const [delError, setDelError] = useState(""); const [delLoading, setDelLoading] = useState(false);
   const bookmarkletRef = useRef(null);
+
+  async function deleteAccount() {
+    setDelError(""); setDelLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { setDelError("Your session expired — please sign in again."); setDelLoading(false); return; }
+      const resp = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) { setDelError(data.error || "Couldn't delete your account. Please try again."); setDelLoading(false); return; }
+      track("account_deleted");
+      // Account is gone; sign out to clear the dead session and return to the auth screen.
+      await supabase.auth.signOut();
+    } catch {
+      setDelError("Couldn't reach the server. Please try again."); setDelLoading(false);
+    }
+  }
 
   async function changePassword(e) {
     e.preventDefault(); setPwError(""); setPwMsg("");
@@ -2955,6 +2973,31 @@ function ProfileScreen({
       </PanelSection>
 
       <button onClick={onShowHelp} style={navRow}><span>❓ Guide &amp; help</span><span style={{ color:"var(--text-muted)" }}>›</span></button>
+
+      {/* Danger zone */}
+      <div style={{ marginTop:8, padding:"14px 16px", background:"var(--surface)", border:"1px solid #F0B4B0", borderRadius:10 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:getStatusCfg("Rejected").text, marginBottom:6 }}>Danger zone</div>
+        {!delOpen ? (
+          <>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>
+              Permanently delete your account and all your data — jobs, contacts, documents, reminders, and settings. This can't be undone. Want a copy first? Export a backup from <b>Backup &amp; data</b> above.
+            </div>
+            <button onClick={() => { setDelOpen(true); setDelConfirm(""); setDelError(""); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Delete account</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize:12, color:"var(--text-secondary)", lineHeight:1.6, marginBottom:10 }}>
+              This will <b>permanently delete everything</b> for <b>{user.email}</b>. Type <b>DELETE</b> below to confirm.
+            </div>
+            <input value={delConfirm} onChange={e => { setDelConfirm(e.target.value); setDelError(""); }} placeholder="Type DELETE" autoComplete="off" style={{ ...inputStyle, marginBottom:10 }} />
+            {delError && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px", marginBottom:10 }}>{delError}</div>}
+            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+              <button onClick={() => { setDelOpen(false); setDelConfirm(""); setDelError(""); }} disabled={delLoading} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, minHeight:44 }}>Cancel</button>
+              <button onClick={deleteAccount} disabled={delConfirm.trim() !== "DELETE" || delLoading} style={{ fontSize:13, padding:"8px 14px", background: delConfirm.trim()==="DELETE" && !delLoading ? "#A32D2D" : "var(--surface-hover)", color: delConfirm.trim()==="DELETE" && !delLoading ? "#fff" : "var(--text-muted)", border:"1.5px solid " + (delConfirm.trim()==="DELETE" && !delLoading ? "#791F1F" : "var(--border)"), borderRadius:7, cursor: delConfirm.trim()==="DELETE" && !delLoading ? "pointer" : "not-allowed", fontWeight:600, minHeight:44 }}>{delLoading ? "Deleting…" : "Permanently delete"}</button>
+            </div>
+          </>
+        )}
+      </div>
 
       <div style={{ textAlign:"center", fontSize:12, color:"var(--text-muted)", marginTop:4 }}>
         <a href="/privacy.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Terms</a>
