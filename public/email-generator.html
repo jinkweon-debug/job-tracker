@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="theme-color" content="#185FA5" />
+  <title>Free Follow-Up Email Generator (No Sign-Up) — Followup</title>
+  <meta name="description" content="Generate a follow-up email for your job search in seconds — fill in a few details, get a ready-to-send draft. No sign-up, no AI, just fill-in-the-blank templates." />
+  <link rel="stylesheet" href="/assets/templates.css" />
+  <style>
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
+    .field input, .field select, .field textarea {
+      width: 100%; font-size: 14px; font-family: inherit; padding: 9px 11px;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink);
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 560px) { .field-row { grid-template-columns: 1fr; } }
+    .generate-btn { font-size: 14.5px; font-weight: 700; padding: 11px 22px; border-radius: 9px; background: var(--blue); color: #fff; border: none; cursor: pointer; }
+    .generate-btn:hover { background: var(--blue-dark); }
+    #result { display: none; }
+    .hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a href="/landing.html" class="brand">Followup</a>
+      <a href="/" class="back">Open the app →</a>
+    </div>
+  </nav>
+  <main>
+    <div class="wrap">
+      <div class="eyebrow">Free tool · no sign-up</div>
+      <h1>Follow-up email generator</h1>
+      <p class="sub">Fill in a few details and get a ready-to-send follow-up email. This runs entirely in your browser — nothing you type here is sent anywhere, and no AI is involved, just fill-in-the-blank templates. Want a version for a different stage? See the <a href="/templates/index.html">full template library</a>.</p>
+
+      <div class="template-card">
+        <div class="field">
+          <label for="scenario">What's the situation?</label>
+          <select id="scenario">
+            <option value="after_applying">Applied, haven't heard back</option>
+            <option value="after_phone_screen">Just had a phone screen</option>
+            <option value="thank_you">Just had an interview (thank-you note)</option>
+            <option value="after_interview">Interviewed, it's gone quiet</option>
+            <option value="second_follow_up">Already followed up once, still nothing</option>
+            <option value="networking">Had a networking chat / informational interview</option>
+          </select>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="yourName">Your name</label>
+            <input id="yourName" type="text" placeholder="e.g. Jamie Lee" />
+          </div>
+          <div class="field">
+            <label for="company">Company</label>
+            <input id="company" type="text" placeholder="e.g. Acme Corp" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="role">Role</label>
+            <input id="role" type="text" placeholder="e.g. Product Manager" />
+          </div>
+          <div class="field">
+            <label for="contactName">Their name (optional)</label>
+            <input id="contactName" type="text" placeholder="e.g. Sarah" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="detail">One specific detail to mention (optional, but makes it sound real)</label>
+          <textarea id="detail" rows="2" placeholder="e.g. your work on the new mobile app / our conversation about the team's roadmap"></textarea>
+          <div class="hint">Leave blank and we'll use a generic placeholder you can edit.</div>
+        </div>
+
+        <button class="generate-btn" onclick="generateEmail()">Generate email</button>
+      </div>
+
+      <div class="template-card" id="result">
+        <div class="label">Your draft</div>
+        <div class="subject" id="resultSubject"></div>
+        <pre id="resultBody"></pre>
+        <button class="copy-btn" onclick="copyTemplate(this,'resultBody')">Copy email</button>
+      </div>
+
+      <div class="cta-box">
+        <h2 style="margin-top:0">Want Followup to draft these automatically?</h2>
+        <p>Sign up free and Followup tracks every application, tells you exactly when to follow up, and drafts the email for you — no copy-pasting placeholders.</p>
+        <a href="/" class="btn-primary">Save this to my tracker — sign up free</a>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">Followup · <a href="/templates/index.html">Templates</a> · <a href="/help.html">Help</a> · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></div>
+  </footer>
+  <script src="/assets/copy.js"></script>
+  <script>
+    var TEMPLATES = {
+      after_applying: {
+        subject: function (r) { return "Following up on my " + r.role + " application"; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "I applied for the " + r.role + " position at " + r.company + " and wanted to follow up to confirm my application was received. I remain very interested in the role" + (r.detail ? " and " + r.company + "'s work on " + r.detail : "") + ".\n\n" +
+            "Happy to share any additional information that would help. Thanks for your time.\n\nBest,\n" + r.yourName;
+        }
+      },
+      after_phone_screen: {
+        subject: function (r) { return "Great speaking with you — " + r.role + " at " + r.company; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "Thank you for taking the time to speak with me today about the " + r.role + " position. I enjoyed learning more about " + (r.detail || "the role and team") + ", and it's reinforced how excited I am about the opportunity.\n\n" +
+            "Please let me know if there's anything else you need from me as you move forward. Looking forward to next steps.\n\nBest,\n" + r.yourName;
+        }
+      },
+      thank_you: {
+        subject: function (r) { return "Thank you — " + r.role + " interview"; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "Thank you for taking the time to speak with me today about the " + r.role + " position. I really enjoyed our conversation about " + (r.detail || "the role and the team's work") + ", and it confirmed how well this role fits what I'm looking for.\n\n" +
+            "Thanks again — I'm looking forward to hearing about next steps.\n\nBest,\n" + r.yourName;
+        }
+      },
+      after_interview: {
+        subject: function (r) { return "Checking in — " + r.role + " interview"; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "I hope you're doing well. I wanted to check in on the status of the " + r.role + " position at " + r.company + " — I interviewed recently and remain very interested in the opportunity" + (r.detail ? ", especially " + r.detail : "") + ".\n\n" +
+            "Please let me know if there's any additional information I can provide, or if there's an updated timeline for a decision.\n\nThank you again for your time and consideration.\n\nBest,\n" + r.yourName;
+        }
+      },
+      second_follow_up: {
+        subject: function (r) { return "Re: Following up on my " + r.role + " application"; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "Just wanted to bump this to the top of your inbox in case it got buried. I'm still very interested in the " + r.role + " position at " + r.company + " and happy to answer any questions.\n\n" +
+            "If the role has moved forward with other candidates, no worries at all — I'd appreciate a quick note either way so I can plan accordingly.\n\nThanks,\n" + r.yourName;
+        }
+      },
+      networking: {
+        subject: function () { return "Thank you for your time"; },
+        body: function (r) {
+          return "Hi " + r.contactName + ",\n\n" +
+            "Thank you again for taking the time to speak with me about " + (r.detail || "your role and the team") + ". I found your perspective really helpful, and it's given me a clearer picture of what to focus on.\n\n" +
+            "I'll keep you posted on how my search progresses, and please don't hesitate to reach out if there's ever anything I can help with on my end.\n\nThanks again,\n" + r.yourName;
+        }
+      }
+    };
+
+    function generateEmail() {
+      var scenario = document.getElementById("scenario").value;
+      var r = {
+        yourName: document.getElementById("yourName").value.trim() || "[Your name]",
+        company: document.getElementById("company").value.trim() || "[Company]",
+        role: document.getElementById("role").value.trim() || "[Role]",
+        contactName: document.getElementById("contactName").value.trim() || "[Name]",
+        detail: document.getElementById("detail").value.trim(),
+      };
+      var tpl = TEMPLATES[scenario];
+      document.getElementById("resultSubject").innerHTML = "Subject: <b>" + tpl.subject(r) + "</b>";
+      document.getElementById("resultBody").textContent = tpl.body(r);
+      document.getElementById("result").style.display = "block";
+      document.getElementById("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  </script>
+</body>
+</html>
