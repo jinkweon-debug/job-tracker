@@ -3823,31 +3823,28 @@ function AuthScreen() {
     }
   }
 
-  const inputStyle = { fontSize:14, padding:"9px 12px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
-  const subtitles = { signin:"Sign in to your account", signup:"Create a new account", forgot:"Reset your password" };
+  const inputStyle = { fontSize:14.5, padding:"12px 14px", border:"1px solid var(--input-border)", borderRadius:11, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const labelStyle = { display:"block", fontSize:12.5, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 };
+  const headings = { signin:"Welcome back", signup:"Create your account", forgot:"Reset your password" };
+  const subtitles = { signin:"Sign in to keep your job search moving.", signup:"Free to use — track applications and get reminded to follow up.", forgot:"We'll email you a link to get back in." };
   const btnLabels = { signin:"Sign in", signup:"Create account", forgot:"Send reset email" };
 
   return (
-    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1rem" }}>
-      <div style={{ width:"100%", maxWidth:380, background:"var(--surface)", borderRadius:14, border:"1px solid var(--border)", padding:"2rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
-        <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:6 }}>
+    <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--page-bg)", padding:"1.5rem" }}>
+      <div style={{ width:"100%", maxWidth:400, background:"var(--surface)", borderRadius:18, border:"1px solid var(--border)", padding:"2.75rem 2.5rem", boxShadow:"0 4px 24px rgba(0,0,0,0.08)" }}>
+        <div style={{ textAlign:"center", marginBottom:"2.5rem" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:16 }}>
             <FollowupMark size={30} />
-            <span style={{ fontSize:24, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Followup</span>
+            <span style={{ fontSize:22, fontWeight:700, background:"linear-gradient(90deg,#185FA5,#3C3489)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Followup</span>
           </div>
-          <div style={{ fontSize:13, color:"var(--text-muted)" }}>{subtitles[mode]}</div>
+          <div style={{ fontSize:21, fontWeight:700, color:"var(--text-primary)", marginBottom:8, letterSpacing:"-0.01em" }}>{headings[mode]}</div>
+          <div style={{ fontSize:13.5, color:"var(--text-muted)", lineHeight:1.5 }}>{subtitles[mode]}</div>
         </div>
-        {mode === "signin" && (
-          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:"var(--surface-subtle, rgba(24,95,165,0.06))", border:"1px solid var(--blue-light, #B5D4F4)", borderRadius:8, marginBottom:16, fontSize:12, color:"var(--text-secondary)", lineHeight:1.5 }}>
-            <span style={{ fontSize:16, flexShrink:0 }}>✍️</span>
-            <span>The tracker that tells you who to follow up with — and drafts the message for you.</span>
-          </div>
-        )}
         {mode !== "forgot" && (
           <>
             <button type="button" onClick={signInWithGoogle}
-              style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, width:"100%", fontSize:14, padding:"9px", background:"var(--surface)", color:"var(--text-primary)", border:"1px solid var(--input-border)", borderRadius:8, cursor:"pointer", fontWeight:500, marginBottom:14 }}>
-              <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+              style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, width:"100%", fontSize:14.5, padding:"12px", background:"var(--surface)", color:"var(--text-primary)", border:"1px solid var(--input-border)", borderRadius:11, cursor:"pointer", fontWeight:500, marginBottom:22, boxSizing:"border-box" }}>
+              <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#FFC107" d="M43.6 20.5h-1.9V20.4H24v7.2h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.1-5.1C33.4 6.1 28.9 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-4z"/>
                 <path fill="#FF3D00" d="M6.3 14.7l5.9 4.3C13.7 15.5 18.5 12.4 24 12.4c3.1 0 5.8 1.1 7.9 3l5.1-5.1C33.4 6.1 28.9 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
                 <path fill="#4CAF50" d="M24 44c4.8 0 9.2-1.8 12.5-4.8l-5.8-4.9C28.8 35.7 26.5 36.4 24 36.4c-5.2 0-9.6-3.5-11.2-8.2l-6 4.6C9.5 39.6 16.2 44 24 44z"/>
@@ -3855,32 +3852,46 @@ function AuthScreen() {
               </svg>
               Continue with Google
             </button>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:22 }}>
               <div style={{ flex:1, height:1, background:"var(--border)" }} />
               <span style={{ fontSize:11, color:"var(--text-muted)" }}>or</span>
               <div style={{ flex:1, height:1, background:"var(--border)" }} />
             </div>
           </>
         )}
-        <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
-          {mode !== "forgot" && <PasswordInput placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete={mode==="signup"?"new-password":"current-password"} style={inputStyle} />}
-          {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{error}</div>}
-          {message && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{message}</div>}
+        <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div>
+            <label style={labelStyle} htmlFor="auth-email">Email</label>
+            <input id="auth-email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required style={inputStyle} />
+          </div>
+          {mode !== "forgot" && (
+            <div>
+              <label style={labelStyle} htmlFor="auth-password">Password</label>
+              <PasswordInput placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required autoComplete={mode==="signup"?"new-password":"current-password"} style={inputStyle} />
+            </div>
+          )}
+          {error && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:8, padding:"9px 12px" }}>{error}</div>}
+          {message && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:8, padding:"9px 12px" }}>{message}</div>}
           <button type="submit" disabled={loading}
-            style={{ fontSize:14, padding:"10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:loading?"default":"pointer", fontWeight:600, marginTop:4, opacity:loading?0.7:1 }}>
+            style={{ width:"100%", boxSizing:"border-box", fontSize:15, padding:"13px", background:"#185FA5", color:"#fff", border:"none", borderRadius:11, cursor:loading?"default":"pointer", fontWeight:600, marginTop:6, opacity:loading?0.7:1 }}>
             {loading ? "Please wait…" : btnLabels[mode]}
           </button>
         </form>
-        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:13, color:"var(--text-muted)", display:"flex", flexDirection:"column", gap:6 }}>
+        {mode === "signin" && (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 14px", background:"var(--surface-subtle, rgba(24,95,165,0.06))", border:"1px solid var(--blue-light, #B5D4F4)", borderRadius:10, marginTop:20, fontSize:12, color:"var(--text-secondary)", lineHeight:1.5 }}>
+            <span style={{ fontSize:16, flexShrink:0 }}>✍️</span>
+            <span>The tracker that tells you who to follow up with — and drafts the message for you.</span>
+          </div>
+        )}
+        <div style={{ textAlign:"center", marginTop:"1.75rem", fontSize:13.5, color:"var(--text-muted)", display:"flex", flexDirection:"column", gap:10 }}>
           {mode === "signin" && <>
-            <span>No account? <button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign up</button></span>
-            <button onClick={() => { setMode("forgot"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:0, fontSize:12 }}>Forgot password?</button>
+            <span>No account? <button onClick={() => { setMode("signup"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:600, padding:0, fontSize:13.5 }}>Sign up</button></span>
+            <button onClick={() => { setMode("forgot"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", padding:0, fontSize:12.5 }}>Forgot password?</button>
           </>}
-          {mode === "signup" && <span>Have an account? <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>Sign in</button></span>}
-          {mode === "forgot" && <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:500, padding:0, fontSize:13 }}>← Back to sign in</button>}
+          {mode === "signup" && <span>Have an account? <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:600, padding:0, fontSize:13.5 }}>Sign in</button></span>}
+          {mode === "forgot" && <button onClick={() => { setMode("signin"); setError(""); setMessage(""); }} style={{ background:"none", border:"none", color:"#185FA5", cursor:"pointer", fontWeight:600, padding:0, fontSize:13.5 }}>← Back to sign in</button>}
         </div>
-        <div style={{ textAlign:"center", marginTop:"1.25rem", fontSize:11, color:"var(--text-muted)" }}>
+        <div style={{ textAlign:"center", marginTop:"1.75rem", fontSize:11, color:"var(--text-muted)" }}>
           <a href="/privacy.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Privacy</a> · <a href="/terms.html" target="_blank" rel="noopener" style={{ color:"var(--text-muted)" }}>Terms</a>
         </div>
       </div>
