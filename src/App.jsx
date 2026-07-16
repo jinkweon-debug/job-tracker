@@ -2356,7 +2356,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders, demoMode }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const [draftJob, setDraftJob] = useState(null);
@@ -2508,16 +2508,18 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
         </div>
       </div>
 
-      <GettingStartedChecklist
-        jobsCount={jobs.filter(j=>!j.archived).length}
-        profileName={profileName}
-        isMobile={isMobile}
-        progress={checklistProgress || {}}
-        onMarkDone={onChecklistDone}
-        onNavigate={onNavigate}
-        onEnableReminders={onEnableReminders}
-        onTryDraft={() => { const job = jobs.find(j=>!j.archived); if (job) { track("draft_opened", { job_status: job.status, source: "checklist" }); setDraftJob(job); } }}
-      />
+      {!demoMode && (
+        <GettingStartedChecklist
+          jobsCount={jobs.filter(j=>!j.archived).length}
+          profileName={profileName}
+          isMobile={isMobile}
+          progress={checklistProgress || {}}
+          onMarkDone={onChecklistDone}
+          onNavigate={onNavigate}
+          onEnableReminders={onEnableReminders}
+          onTryDraft={() => { const job = jobs.find(j=>!j.archived); if (job) { track("draft_opened", { job_status: job.status, source: "checklist" }); setDraftJob(job); } }}
+        />
+      )}
 
       {/* Add task form */}
       {showAdd && (
@@ -3956,6 +3958,7 @@ export default function App() {
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   const dragId = useRef(null);
 
   // ── Auth + data loading ──
@@ -4005,10 +4008,21 @@ export default function App() {
     });
   }, [user]);
 
+  // ── Demo mode ("Try it first — no account", from the landing page) ──
   useEffect(() => {
-    if (!loaded) return;
+    if (!authChecked || user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") !== "1") return;
+    setDemoMode(true);
+    setJobs(makeSampleJobs()); setTasks([]); setContacts([]); setDocuments([]); setLoaded(true);
+    track("demo_started");
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [authChecked, user]);
+
+  useEffect(() => {
+    if (!loaded || demoMode) return;
     setPersonProps({ jobs_total: jobs.filter(j => !j.archived).length, platform: isMobile ? "mobile" : "desktop" });
-  }, [loaded, jobs, isMobile]);
+  }, [loaded, jobs, isMobile, demoMode]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -4588,7 +4602,7 @@ export default function App() {
 
   if (!authChecked) return <SkeletonScreen />;
   if (passwordRecovery) return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
-  if (!user) return <AuthScreen />;
+  if (!user && !demoMode) return <AuthScreen />;
   if (loadError) return (
     <div style={{ padding:"3rem 1.5rem", maxWidth:420, margin:"3rem auto", textAlign:"center", color:"var(--text-primary)" }}>
       <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
@@ -4616,14 +4630,23 @@ export default function App() {
               {saveStatus === "error" && "⚠ Save failed"}
             </span>
           )}
-          {!isMobile && <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>}
+          {!isMobile && user && <span style={{ fontSize:11, color:"rgba(255,255,255,0.6)" }}>{user.email}</span>}
           <button onClick={() => setDarkMode(d => !d)} title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
             style={{ display:"flex", alignItems:"center", padding:"5px 8px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>
             <Icon name={darkMode ? "sun" : "moon"} size={15} />
           </button>
-          <button onClick={() => supabase.auth.signOut()} style={{ fontSize:11, padding:"3px 10px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>Sign out</button>
+          {demoMode
+            ? <button onClick={() => { track("demo_signup_clicked", { source:"header" }); setDemoMode(false); }} style={{ fontSize:11, padding:"3px 10px", background:"#fff", color:"#185FA5", border:"1px solid #fff", borderRadius:6, cursor:"pointer", fontWeight:600 }}>Sign up free</button>
+            : <button onClick={() => supabase.auth.signOut()} style={{ fontSize:11, padding:"3px 10px", background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.3)", borderRadius:6, cursor:"pointer" }}>Sign out</button>}
         </div>
       </div>
+
+      {demoMode && (
+        <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", justifyContent:"space-between", background:"#FFF8F0", border:"1px solid #F0D9B5", borderRadius:10, padding:"10px 16px", marginBottom:"0.75rem" }}>
+          <span style={{ fontSize:12.5, color:"#7A4500" }}>👋 You're viewing sample data — nothing you do here is saved. Sign up free to start tracking your own applications.</span>
+          <button onClick={() => { track("demo_signup_clicked", { source:"banner" }); setDemoMode(false); }} style={{ fontSize:12, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, flexShrink:0 }}>Sign up free</button>
+        </div>
+      )}
 
       {/* Slim summary strip */}
       <div style={{ marginBottom:"0.75rem", background:"var(--surface)", border:"1px solid var(--border-subtle)", borderRadius:10, padding:"9px 16px", display:"flex", gap:20, flexWrap:"wrap" }}>
@@ -4997,7 +5020,7 @@ export default function App() {
             </div>
           </div>
         )}
-        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} />
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} demoMode={demoMode} />
       </>}
 
       {/* Offers view */}
@@ -5024,7 +5047,15 @@ export default function App() {
       )}
 
       {/* Profile screen — merges old Settings modal + ☰ hamburger menu; tab on mobile, route on desktop */}
-      {view==="profile" && (
+      {view==="profile" && demoMode && (
+        <div style={{ textAlign:"center", padding:"3rem 1rem" }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>👤</div>
+          <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", marginBottom:8 }}>Your profile lives in your account</div>
+          <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, maxWidth:340, margin:"0 auto" }}>Sign up free to set your name, tune follow-up timing, and save the applications you're tracking here.</div>
+          <button onClick={() => { track("demo_signup_clicked", { source:"profile" }); setDemoMode(false); }} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:500 }}>Sign up free</button>
+        </div>
+      )}
+      {view==="profile" && !demoMode && (
         <ProfileScreen
           user={user} isMobile={isMobile}
           profileName={profileName || user?.user_metadata?.full_name || ""}
