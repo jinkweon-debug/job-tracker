@@ -7,10 +7,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#185FA5" />
-  <title>Followup — the job tracker that makes you follow up</title>
-  <meta name="description" content="Followup turns your job search into a daily action list — tracks every application, flags the ones going cold, drafts your follow-ups, and keeps interviews, contacts, and salaries in one place. Free." />
-  <meta property="og:title" content="Followup — the job tracker that makes you follow up" />
-  <meta property="og:description" content="A job tracker that doesn't just store applications — it tells you who to follow up with, when, and drafts the message for you." />
+  <title>Followup: the job tracker that makes you follow up</title>
+  <meta name="description" content="Followup turns your job search into a daily action list. It tracks every application, flags the ones going cold, drafts your follow-ups, and keeps interviews, contacts, and salaries in one place. Free." />
+  <meta property="og:title" content="Followup: the job tracker that makes you follow up" />
+  <meta property="og:description" content="A job tracker that doesn't just store applications. It tells you who to follow up with, when, and drafts the message for you." />
   <meta property="og:type" content="website" />
   <script defer src="/_vercel/insights/script.js"></script>
   <style>
@@ -62,7 +62,6 @@
     .hero .sub { font-size: clamp(16px, 2.6vw, 20px); color: var(--body); max-width: 44ch; margin: 0 auto 30px; }
     .hero .sub b { color: var(--ink); font-weight: 600; }
     .hero-cta { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
-    .hero-cta .note { font-size: 13px; color: var(--muted); width: 100%; margin-top: 6px; }
 
     /* SECTION SHELLS */
     section { padding: 56px 0; }
@@ -75,7 +74,7 @@
 
     /* FEATURE GRID */
     .features { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 36px; }
     .card { background: var(--page-bg); border: 1px solid var(--border); border-radius: 14px; padding: 24px 22px; }
     .card .ico { font-size: 26px; margin-bottom: 14px; display: block; }
     .card h3 { font-size: 17px; color: var(--ink); font-weight: 700; margin-bottom: 8px; }
@@ -88,9 +87,16 @@
     .row .visual { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; }
     .row h3 { font-size: 21px; color: var(--ink); font-weight: 700; margin-bottom: 10px; }
     .row p { font-size: 15px; color: var(--body); }
-    .row ul { list-style: none; margin-top: 12px; }
-    .row li { font-size: 14px; padding: 5px 0 5px 24px; position: relative; color: var(--body); }
-    .row li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+    .row ul, .stacked-text ul { list-style: none; margin-top: 12px; }
+    .row li, .stacked-text li { font-size: 14px; padding: 5px 0 5px 24px; position: relative; color: var(--body); }
+    .row li::before, .stacked-text li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 700; }
+
+    /* STACKED (breaks the zig-zag rhythm on the third feature block) */
+    .stacked { margin-top: 40px; text-align: center; }
+    .stacked-text { max-width: 58ch; margin: 0 auto 28px; text-align: left; }
+    .stacked-text h3 { font-size: 21px; color: var(--ink); font-weight: 700; margin-bottom: 10px; }
+    .stacked-text p { font-size: 15px; color: var(--body); }
+    .stacked .visual { max-width: 640px; margin: 0 auto; text-align: left; }
 
     /* mini mockups inside visuals */
     .mini { font-size: 12px; }
@@ -148,13 +154,12 @@
 
   <header class="hero">
     <div class="wrap">
-      <span class="pill">Free · your whole job search in one place</span>
+      <span class="pill">Free, no credit card. Sign up with email or Google.</span>
       <h1>The job tracker that makes you follow up.</h1>
-      <p class="sub">Most trackers are where applications go to quietly die. Followup turns your search into a <b>daily action list</b> — it tells you who to follow up with, flags the ones going cold, and drafts the message for you.</p>
+      <p class="sub">It tells you who to follow up with, flags the ones going cold, and <b>drafts the message for you</b>.</p>
       <div class="hero-cta">
-        <a href="/" class="btn-primary">Get started — it's free</a>
-        <a href="/?demo=1" style="font-size:15px;font-weight:600;color:var(--blue);text-decoration:none;padding:13px 10px">Try it first — no account →</a>
-        <div class="note">No credit card. Sign up with email or Google.</div>
+        <a href="/" class="btn-primary">Get started, it's free</a>
+        <a href="/?demo=1" style="font-size:15px;font-weight:600;color:var(--blue);text-decoration:none;padding:13px 10px">Try it first, no account →</a>
       </div>
     </div>
   </header>
@@ -163,7 +168,7 @@
     <div class="wrap center">
       <div class="eyebrow">Everything in one place</div>
       <h2>Built to keep your search moving.</h2>
-      <p class="lead">Tracking is table stakes. Followup is the part that actually lands offers — the follow-ups, the people, and the next thing to do today.</p>
+      <p class="lead">Tracking is table stakes. Followup is the part that actually lands offers: the follow-ups, the people, and the next thing to do today.</p>
       <div class="grid">
         <div class="card">
           <span class="ico">📥</span>
@@ -173,23 +178,23 @@
         <div class="card">
           <span class="ico">✍️</span>
           <h3>Drafts your follow-ups</h3>
-          <p>One tap drafts a follow-up email from the role, the contact, and your history — copy it, open it in your mail app, and log it as sent.</p>
+          <p>One tap drafts a follow-up email from the role, the contact, and your history. Copy it, open it in your mail app, and log it as sent.</p>
           <span class="tag">AI drafts coming soon</span>
         </div>
         <div class="card">
           <span class="ico">🔔</span>
           <h3>Never misses a beat</h3>
-          <p>Auto-reminders when it's time to follow up, when an application goes cold, and the day before every interview — synced to your calendar.</p>
+          <p>Auto-reminders when it's time to follow up, when an application goes cold, and the day before every interview, synced to your calendar.</p>
         </div>
         <div class="card">
           <span class="ico">⚡</span>
           <h3>Capture jobs in one click</h3>
-          <p>Save a posting from LinkedIn, Indeed, or anywhere with the bookmarklet — or just paste the link on mobile and it fills in the details.</p>
+          <p>Save a posting from LinkedIn, Indeed, or anywhere with the bookmarklet, or just paste the link on mobile and it fills in the details.</p>
         </div>
         <div class="card">
           <span class="ico">📊</span>
           <h3>See your whole pipeline</h3>
-          <p>A drag-and-drop board, a sortable table, a calendar, and a conversion funnel — view your search however makes sense to you.</p>
+          <p>A drag-and-drop board, a sortable table, a calendar, and a conversion funnel. View your search however makes sense to you.</p>
         </div>
         <div class="card">
           <span class="ico">🤝</span>
@@ -204,8 +209,7 @@
     <div class="wrap">
       <div class="row">
         <div>
-          <div class="eyebrow">Your day, not a database</div>
-          <h3>Open to what needs you — today.</h3>
+          <h3>Open to what needs you, today.</h3>
           <p>Followup leads with a Today view: an inbox of follow-ups that are due, interviews coming up, and applications that have gone quiet. It's the difference between a tool you have to remember to check and one that tells you what to do.</p>
           <ul>
             <li>Follow-ups surface automatically on the right cadence</li>
@@ -240,13 +244,12 @@
               <span>Status check</span>
               <span>Recruiter</span>
             </div>
-            <div style="font-size:12px;background:var(--page-bg);border:1px solid var(--border);border-radius:8px;padding:10px;line-height:1.6;color:var(--body)">Hi Sarah,<br><br>Following up on my application for the Product Manager role at Acme Corp — I remain very interested and would love to hear about next steps.<br><br>Thanks,<br>Jin</div>
+            <div style="font-size:12px;background:var(--page-bg);border:1px solid var(--border);border-radius:8px;padding:10px;line-height:1.6;color:var(--body)">Hi Sarah,<br><br>Following up on my application for the Product Manager role at Acme Corp. I remain very interested and would love to hear about next steps.<br><br>Thanks,<br>Jin</div>
           </div>
         </div>
         <div>
-          <div class="eyebrow">The follow-up, written for you</div>
           <h3>Stop staring at a blank email.</h3>
-          <p>When a follow-up comes due, Followup drafts it — pulling in the role, the company, and the contact so it's ready to send. Pick a template, tweak it, copy it or open it in your mail app, and mark it sent. Smart AI-personalized drafts are coming next.</p>
+          <p>When a follow-up comes due, Followup drafts it, pulling in the role, the company, and the contact so it's ready to send. Pick a template, tweak it, copy it or open it in your mail app, and mark it sent. Smart AI-personalized drafts are coming next.</p>
           <ul>
             <li>Templates for follow-ups, thank-yous, status checks &amp; outreach</li>
             <li>Auto-fills your name and the recipient</li>
@@ -255,9 +258,8 @@
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <div class="eyebrow">However you think about your search</div>
+      <div class="stacked">
+        <div class="stacked-text">
           <h3>List, board, table, or calendar.</h3>
           <p>Drag applications through stages on a Kanban board, scan everything in a sortable table, or see interviews and follow-ups on a calendar. A built-in funnel shows how you're converting from applied to offer.</p>
           <ul>
@@ -285,7 +287,7 @@
         <div class="step">
           <div class="n">1</div>
           <h3>Add your jobs</h3>
-          <p>Paste a posting link and it fills in the role, company, and salary — or click to capture from any job site.</p>
+          <p>Paste a posting link and it fills in the role, company, and salary, or click to capture from any job site.</p>
         </div>
         <div class="step">
           <div class="n">2</div>
@@ -303,10 +305,9 @@
 
   <section class="final">
     <div class="wrap">
-      <div class="eyebrow center">Free to use</div>
       <h2>Run your job search like it matters.</h2>
       <p>Add your applications, and never let a good lead go cold again.</p>
-      <a href="/" class="btn-primary">Get started — it's free</a>
+      <a href="/" class="btn-primary">Get started, it's free</a>
     </div>
   </section>
 

@@ -136,7 +136,7 @@ const getTagColors = (cat) => {
 function TagBadge({ category, value }) {
   const c = getTagColors(category);
   return (
-    <span style={{ display:"inline-flex", alignItems:"center", gap:3, background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:5, padding:"2px 6px", fontSize:11, fontWeight:500, whiteSpace:"nowrap" }}>
+    <span style={{ display:"inline-flex", alignItems:"center", gap:3, background:c.bg, color:c.text, border:`1px solid ${c.border}`, borderRadius:6, padding:"2px 6px", fontSize:11, fontWeight:500, whiteSpace:"nowrap" }}>
       {value}
     </span>
   );
@@ -418,9 +418,9 @@ function FollowupActions({ job, onUpdateJob, onWin }) {
               ✓ Contacted
             </button>
             <div style={{ display:"flex", gap:4 }}>
-              <button onClick={() => snooze(3)} title="Remind me in 3 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>+3d</button>
-              <button onClick={() => snooze(7)} title="Remind me in 7 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>+7d</button>
-              <button onClick={dismiss} title="Stop reminding me" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>✕</button>
+              <button onClick={() => snooze(3)} title="Remind me in 3 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44 }}>+3d</button>
+              <button onClick={() => snooze(7)} title="Remind me in 7 days" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44 }}>+7d</button>
+              <button onClick={dismiss} title="Stop reminding me" style={{ flex:1, fontSize:11, padding:"8px 4px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44 }}>✕</button>
             </div>
           </div>
         </>
@@ -588,7 +588,7 @@ function AhaDemoBanner({ job, onSeeDraft, onDismiss }) {
   return (
     <div style={{ position:"fixed", bottom:24, left:"50%", transform:"translateX(-50%)", width:"calc(100% - 32px)", maxWidth:420, background:"#0B1F38", color:"#fff", borderRadius:12, padding:"14px 16px", boxShadow:"0 4px 24px rgba(0,0,0,0.25)", zIndex:300, display:"flex", flexDirection:"column", gap:10 }}>
       <div style={{ fontSize:13, lineHeight:1.5 }}>
-        <b>{job.company}</b> is tracked ✓ — Followup will nudge you on <b>{fuLabel}</b> and draft the email.
+        <b>{job.company}</b> is tracked ✓. Followup will nudge you on <b>{fuLabel}</b> and draft the email.
       </div>
       <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
         <button onClick={onDismiss} style={{ fontSize:12, padding:"6px 12px", background:"rgba(255,255,255,0.12)", color:"#fff", border:"none", borderRadius:6, cursor:"pointer" }}>Not now</button>
@@ -632,11 +632,11 @@ function InterviewDatePrompt({ status, job, anchorRef, onConfirm, onSkip }) {
         <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ flex:2, fontSize: window.innerWidth<640?16:13, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", boxSizing:"border-box" }} />
       </div>
       <div style={{ display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap" }}>
-        <button onClick={onSkip} style={{ fontSize:12, padding:"8px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44 }}>Skip</button>
-        <button onClick={() => onConfirm(date, time)} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44 }}>Save</button>
+        <button onClick={onSkip} style={{ fontSize:12, padding:"8px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44 }}>Skip</button>
+        <button onClick={() => onConfirm(date, time)} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>Save</button>
         <a href={buildCalUrl()} target="_blank" rel="noreferrer"
           onClick={() => onConfirm(date, time)}
-          style={{ fontSize:12, padding:"8px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:5, cursor:"pointer", fontWeight:500, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4, minHeight:44 }}>
+          style={{ fontSize:12, padding:"8px 10px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:500, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:4, minHeight:44 }}>
           📅 + Calendar
         </a>
       </div>
@@ -728,7 +728,7 @@ function NotesPopover({ job, onSave, onClose }) {
   }, [onClose]);
   return (
     <div ref={ref} style={{ position:"absolute", zIndex:50, top:"100%", left:0, marginTop:4, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", padding:"12px", width:280 }}>
-      <div style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)", marginBottom:6 }}>Notes — {job.company} · {job.role}</div>
+      <div style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)", marginBottom:6 }}>Notes: {job.company} · {job.role}</div>
       <textarea autoFocus value={text} onChange={e => setText(e.target.value)} rows={5} style={{ width:"100%", fontSize:12, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box" }} />
       <div style={{ display:"flex", gap:6, marginTop:8, justifyContent:"flex-end" }}>
         <button onClick={onClose} style={{ fontSize:12, padding:"4px 10px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>Cancel</button>
@@ -742,7 +742,7 @@ function NotesButton({ job, onSave }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ position:"relative", display:"inline-block" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ fontSize:11, padding:"2px 8px", borderRadius:5, cursor:"pointer", fontWeight:400, background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)" }}>{job.notes ? "Notes ✎" : "Add note"}</button>
+      <button onClick={() => setOpen(o => !o)} style={{ fontSize:11, padding:"2px 8px", borderRadius:6, cursor:"pointer", fontWeight:400, background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)" }}>{job.notes ? "Notes ✎" : "Add note"}</button>
       {open && <NotesPopover job={job} onSave={onSave} onClose={() => setOpen(false)} />}
     </div>
   );
@@ -823,9 +823,9 @@ function Timeline({ timeline, onUpdate, compact = false }) {
                   </div>
                 ) : (
                   <div style={{ marginLeft:"auto", display:"flex", gap:6 }}>
-                    {isEditing && <button onClick={() => saveNotes(key)} style={{ fontSize:11, padding:"2px 8px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:5, cursor:"pointer" }}>Save</button>}
-                    {isEditing && <button onClick={() => setEditing(null)} style={{ fontSize:11, padding:"2px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>Cancel</button>}
-                    {!isEditing && <button onClick={() => deleteEntry(key)} style={{ fontSize:11, padding:"2px 8px", background:"var(--surface-hover)", color:"#A32D2D", border:"1px solid #F09595", borderRadius:5, cursor:"pointer" }}>Delete</button>}
+                    {isEditing && <button onClick={() => saveNotes(key)} style={{ fontSize:11, padding:"2px 8px", background:"#185FA5", color:"#fff", border:"1px solid #0C447C", borderRadius:6, cursor:"pointer" }}>Save</button>}
+                    {isEditing && <button onClick={() => setEditing(null)} style={{ fontSize:11, padding:"2px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>Cancel</button>}
+                    {!isEditing && <button onClick={() => deleteEntry(key)} style={{ fontSize:11, padding:"2px 8px", background:"var(--surface-hover)", color:"#A32D2D", border:"1px solid #F09595", borderRadius:6, cursor:"pointer" }}>Delete</button>}
                   </div>
                 )}
               </div>
@@ -861,14 +861,14 @@ function Timeline({ timeline, onUpdate, compact = false }) {
             style={{ width:"100%", fontSize:12, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", resize:"vertical", fontFamily:"inherit", boxSizing:"border-box", background:"var(--input-bg)", color:"var(--text-primary)" }} />
           <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
             <button onClick={() => { setAddOpen(false); setNewEntry({ label:"", date:todayStr(), notes:"" }); }}
-              style={{ fontSize:12, padding:"3px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>Cancel</button>
+              style={{ fontSize:12, padding:"3px 10px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>Cancel</button>
             <button onClick={addEntry} disabled={!newEntry.label.trim()}
-              style={{ fontSize:12, padding:"3px 10px", background:newEntry.label.trim()?"#185FA5":"#ccc", color:"#fff", border:"none", borderRadius:5, cursor:newEntry.label.trim()?"pointer":"default", fontWeight:500 }}>Add</button>
+              style={{ fontSize:12, padding:"3px 10px", background:newEntry.label.trim()?"#185FA5":"#ccc", color:"#fff", border:"none", borderRadius:6, cursor:newEntry.label.trim()?"pointer":"default", fontWeight:500 }}>Add</button>
           </div>
         </div>
       ) : (
         <button onClick={() => setAddOpen(true)}
-          style={{ alignSelf:"flex-start", fontSize:11, padding:"3px 10px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:5, cursor:"pointer", marginTop: sorted.length?8:0 }}>
+          style={{ alignSelf:"flex-start", fontSize:11, padding:"3px 10px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", marginTop: sorted.length?8:0 }}>
           + Add entry
         </button>
       )}
@@ -964,7 +964,7 @@ function PanelReminders({ job, tasks, onAddReminder, onTaskDone, onTaskDelete })
     <div>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: (linked.length||open) ? 8 : 0 }}>
         <span style={{ fontSize:12, fontWeight:500, color:"var(--text-secondary)" }}>Reminders{upcoming.length>0?` (${upcoming.length})`:""}</span>
-        <button onClick={() => setOpen(o=>!o)} style={{ fontSize:11, padding:"2px 9px", background:open?getStatusCfg("Applied").bg:"var(--surface-hover)", color:open?getStatusCfg("Applied").text:"var(--text-secondary)", border:`1px solid ${open?getStatusCfg("Applied").border:"var(--border)"}`, borderRadius:5, cursor:"pointer", fontWeight:500 }}>
+        <button onClick={() => setOpen(o=>!o)} style={{ fontSize:11, padding:"2px 9px", background:open?getStatusCfg("Applied").bg:"var(--surface-hover)", color:open?getStatusCfg("Applied").text:"var(--text-secondary)", border:`1px solid ${open?getStatusCfg("Applied").border:"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
           {open ? "✕ Cancel" : "+ Add"}
         </button>
       </div>
@@ -1048,7 +1048,7 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
     ? { position:"fixed", left:0, right:0, bottom:0, top:"8vh", background:"var(--surface)", borderTop:"1px solid var(--border)", borderRadius:"16px 16px 0 0", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"0 -4px 24px rgba(0,0,0,0.2)" }
     : { position:"fixed", top:0, right:0, bottom:0, width:420, background:"var(--surface)", borderLeft:"1px solid var(--border)", zIndex:150, display:"flex", flexDirection:"column", boxShadow:"-4px 0 20px rgba(0,0,0,0.12)" };
 
-  const quickBtn = { display:"flex", alignItems:"center", justifyContent:"center", gap:5, flex:1, fontSize:12, padding:"9px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, minHeight:44 };
+  const quickBtn = { display:"flex", alignItems:"center", justifyContent:"center", gap:5, flex:1, fontSize:12, padding:"9px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer", fontWeight:500, minHeight:44 };
 
   return (
     <>
@@ -1259,8 +1259,8 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                     <input autoFocus type="text" placeholder="Contact name" value={newContactName} onChange={e=>setNewContactName(e.target.value)}
                       onKeyDown={e => { if (e.key==="Enter" && newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } if (e.key==="Escape") { setAddingContact(false); setNewContactName(""); } }}
                       style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", background:"var(--input-bg)", color:"var(--text-primary)", flex:1 }} />
-                    <button onClick={() => { if (newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } }} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44 }}>Add</button>
-                    <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"8px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
+                    <button onClick={() => { if (newContactName.trim()) { onCreateContact(newContactName.trim()); setNewContactName(""); setAddingContact(false); } }} style={{ fontSize:12, padding:"8px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44 }}>Add</button>
+                    <button onClick={() => { setAddingContact(false); setNewContactName(""); }} style={{ fontSize:12, padding:"8px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44, minWidth:44 }}>✕</button>
                   </div>
                 ) : (
                   <button onClick={() => { setNewContactName(job.contact || ""); setAddingContact(true); }} style={{ fontSize:12, padding:"8px 8px", background:"none", color:"var(--accent)", border:"1px dashed var(--border)", borderRadius:6, cursor:"pointer", fontWeight:500, textAlign:"left", minHeight:44 }}>+ New contact</button>
@@ -1342,7 +1342,7 @@ const EMAIL_TEMPLATES = [
     id: "followup",
     label: "Application follow-up",
     hint: "1–2 weeks after applying with no response",
-    subject: (j) => `Following up — ${j.role} application`,
+    subject: (j) => `Following up on my ${j.role} application`,
     body: (j) => `Hi [Hiring Manager's name],
 
 I wanted to follow up on my application for the ${j.role} position at ${j.company}. I remain very interested in this opportunity and would love to learn more about the next steps in your process.
@@ -1356,7 +1356,7 @@ Thank you for your time,
     id: "thankyou",
     label: "Post-interview thank you",
     hint: "Same day or next morning after any interview",
-    subject: (j) => `Thank you — ${j.role} interview`,
+    subject: (j) => `Thank you for the ${j.role} interview`,
     body: (j) => `Hi [Interviewer's name],
 
 Thank you for taking the time to speak with me about the ${j.role} role at ${j.company}. I really enjoyed our conversation and learning more about the team and what you're building.
@@ -1370,7 +1370,7 @@ Best regards,
     id: "statuscheck",
     label: "Status update request",
     hint: "After interview with no update in 1+ weeks",
-    subject: (j) => `Checking in — ${j.role} at ${j.company}`,
+    subject: (j) => `Checking in on the ${j.role} role at ${j.company}`,
     body: (j) => `Hi [Name],
 
 I hope you're doing well. I wanted to check in regarding the ${j.role} position at ${j.company} that I interviewed for. I remain very enthusiastic about the opportunity and would appreciate any update on your timeline.
@@ -1434,7 +1434,7 @@ function DraftComposer({ job, profileName, onClose, onMarkContacted }) {
   const chip = (active) => ({ fontSize:11, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontWeight:500, whiteSpace:"nowrap",
     background: active ? getStatusCfg("Applied").bg : "var(--surface-hover)", color: active ? getStatusCfg("Applied").text : "var(--text-secondary)",
     border: `1px solid ${active ? getStatusCfg("Applied").border : "var(--border)"}` });
-  const fieldStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box", fontFamily:"inherit" };
+  const fieldStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box", fontFamily:"inherit" };
   const labelStyle = { fontSize:10, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.04em", marginBottom:6 };
 
   return (
@@ -1465,15 +1465,15 @@ function DraftComposer({ job, profileName, onClose, onMarkContacted }) {
             <div style={labelStyle}>Body</div>
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={11} style={{ ...fieldStyle, resize:"vertical", lineHeight:1.6 }} />
           </div>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"8px 11px", border:"1px dashed var(--border)", borderRadius:7 }}>
-            <span style={{ fontSize:12, color:"var(--text-muted)" }}>✨ Improve with AI — personalizes from your history</span>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8, padding:"8px 11px", border:"1px dashed var(--border)", borderRadius:8 }}>
+            <span style={{ fontSize:12, color:"var(--text-muted)" }}>✨ Improve with AI: personalizes from your history</span>
             <span style={{ fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:10, background:"var(--surface-hover)", color:"var(--text-muted)", flexShrink:0 }}>Soon</span>
           </div>
         </div>
         <div style={{ padding:"12px 18px", borderTop:"1px solid var(--border)", display:"flex", gap:8, justifyContent:"flex-end", flexWrap:"wrap" }}>
-          <button onClick={copyAll} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500 }}>{copied ? "✓ Copied" : "Copy"}</button>
-          <a href={mailto} onClick={() => track("draft_actioned", { action:"mailto" })} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, textDecoration:"none" }}>Open in email ↗</a>
-          <button onClick={onMarkContacted} style={{ fontSize:13, padding:"7px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>✓ Mark contacted</button>
+          <button onClick={copyAll} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer", fontWeight:500 }}>{copied ? "✓ Copied" : "Copy"}</button>
+          <a href={mailto} onClick={() => track("draft_actioned", { action:"mailto" })} style={{ fontSize:13, padding:"7px 12px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer", fontWeight:500, textDecoration:"none" }}>Open in email ↗</a>
+          <button onClick={onMarkContacted} style={{ fontSize:13, padding:"7px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>✓ Mark contacted</button>
         </div>
       </div>
     </div>
@@ -1547,7 +1547,7 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
                     {fetchState==="loading" ? "Fetching…" : "Fetch details"}
                   </button>
                 </div>
-                {fetchState==="error" && <div style={{ fontSize:11, color:"#A32D2D" }}>Couldn't read that page automatically — fill in the details manually below.</div>}
+                {fetchState==="error" && <div style={{ fontSize:11, color:"#A32D2D" }}>Couldn't read that page automatically. Fill in the details manually below.</div>}
                 {isMobile && !manualOpen && (
                   <button type="button" onClick={() => setManualOpen(true)} style={{ alignSelf:"flex-start", marginTop:4, fontSize:12, color:"#0C447C", background:"none", border:"none", textDecoration:"underline", cursor:"pointer", padding:0, fontWeight:500 }}>
                     or enter details manually
@@ -1631,12 +1631,12 @@ function ReminderMini({ job, onSave, onClose }) {
     <div style={{ display:"flex", flexWrap:"wrap", gap:6, alignItems:"center", padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, marginTop:6 }}>
       <span style={{ fontSize:11, color:"var(--text-secondary)", fontWeight:500, whiteSpace:"nowrap" }}>🔔 Remind me on</span>
       <input type="date" value={date} min={todayStr()} onChange={e => setDate(e.target.value)}
-        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:5, padding:"6px", background:"var(--input-bg)", color:"var(--text-primary)" }} />
+        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px", background:"var(--input-bg)", color:"var(--text-primary)" }} />
       <input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="Note (optional)"
-        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:5, padding:"6px 8px", flex:1, minWidth:120, background:"var(--input-bg)", color:"var(--text-primary)" }}
+        style={{ fontSize: isMobile ? 16 : 12, border:"1px solid var(--input-border)", borderRadius:6, padding:"6px 8px", flex:1, minWidth:120, background:"var(--input-bg)", color:"var(--text-primary)" }}
         onKeyDown={e => { if (e.key==="Enter") save(); if (e.key==="Escape") onClose(); }} />
-      <button onClick={save} style={{ fontSize:12, padding:"6px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:5, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Set</button>
-      <button onClick={onClose} style={{ padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", minHeight:44, minWidth:44, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="x" size={14} /></button>
+      <button onClick={save} style={{ fontSize:12, padding:"6px 10px", background:"#185FA5", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontWeight:500, minHeight:44, minWidth:44 }}>Set</button>
+      <button onClick={onClose} style={{ padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", minHeight:44, minWidth:44, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="x" size={14} /></button>
     </div>
   );
 }
@@ -1708,7 +1708,7 @@ function ListCard({ job, isFirst, onEdit, onStatusChange, onNotesSave, onAddRemi
   }, [isFirst, isMobile, onArchive]);
   const displayDx = dx !== 0 ? dx : hintDx;
 
-  const btnStyle = (active) => { const ac = getStatusCfg("Applied"); return { fontSize:11, padding:"2px 8px", background:active?ac.bg:"var(--surface-hover)", color:active?ac.text:"var(--text-muted)", border:`1px solid ${active?ac.border:"var(--border)"}`, borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }; };
+  const btnStyle = (active) => { const ac = getStatusCfg("Applied"); return { fontSize:11, padding:"2px 8px", background:active?ac.bg:"var(--surface-hover)", color:active?ac.text:"var(--text-muted)", border:`1px solid ${active?ac.border:"var(--border)"}`, borderRadius:6, cursor:"pointer", whiteSpace:"nowrap" }; };
 
   return (
     <div style={{ position:"relative", overflow:"hidden" }}>
@@ -1764,7 +1764,7 @@ function ListCard({ job, isFirst, onEdit, onStatusChange, onNotesSave, onAddRemi
           <textarea autoFocus defaultValue={job.notes||""}
             onBlur={e => { onNotesSave(job.id, e.target.value, null); setNotesEditing(false); }}
             onKeyDown={e => { if (e.key==="Escape") setNotesEditing(false); }}
-            style={{ fontSize:11, border:"1px solid var(--input-border)", borderRadius:5, padding:"5px 8px", resize:"vertical", minHeight:50, background:"var(--input-bg)", color:"var(--text-primary)", fontFamily:"inherit", width:"100%", boxSizing:"border-box" }} />
+            style={{ fontSize:11, border:"1px solid var(--input-border)", borderRadius:6, padding:"5px 8px", resize:"vertical", minHeight:50, background:"var(--input-bg)", color:"var(--text-primary)", fontFamily:"inherit", width:"100%", boxSizing:"border-box" }} />
         ) : (
           <div onClick={() => setNotesEditing(true)}
             style={{ fontSize:11, fontStyle:"italic", cursor:"text", color: job.notes ? "var(--text-muted)" : "transparent", minHeight:14 }}>
@@ -1811,25 +1811,25 @@ function Cell({ value, type = "text", options, onChange, align = "left", style =
   function handleKey(e) { if (e.key === "Enter") { e.preventDefault(); commit(); } if (e.key === "Escape") { setDraft(value); setEditing(false); } }
   const cellStyle = { padding:"0 8px", height:34, display:"flex", alignItems:"center", borderRight:"1px solid var(--border)", cursor:"text", fontSize:13, justifyContent:align==="right"?"flex-end":"flex-start", background:editing?"var(--surface-subtle)":"transparent", outline:editing?"2px solid #185FA5":"none", outlineOffset:-2, minWidth:0, overflow:"hidden", ...style };
   if (editing) {
-    if (type === "select") return <div style={cellStyle}><select ref={ref} value={draft} onChange={e => { onChange(e.target.value); setEditing(false); }} onBlur={commit} style={{ width:"100%", border:"none", background:"transparent", fontSize:13, outline:"none", cursor:"pointer" }}>{options.map(o => <option key={o} value={o}>{o||"—"}</option>)}</select></div>;
+    if (type === "select") return <div style={cellStyle}><select ref={ref} value={draft} onChange={e => { onChange(e.target.value); setEditing(false); }} onBlur={commit} style={{ width:"100%", border:"none", background:"transparent", fontSize:13, outline:"none", cursor:"pointer" }}>{options.map(o => <option key={o} value={o}>{o||"-"}</option>)}</select></div>;
     return <div style={cellStyle}><input ref={ref} type={type==="link"?"url":type} value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={handleKey} placeholder={type==="link"?"https://...":undefined} style={{ width:"100%", border:"none", background:"transparent", fontSize:13, outline:"none" }} /></div>;
   }
   if (type === "select" && options === Object.keys(STATUS_CONFIG)) {
     const cfg = getStatusCfg(value || "Applied");
-    return <div style={{ ...cellStyle, cursor:"pointer" }} onClick={() => setEditing(true)}><span style={{ background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:5, padding:"2px 8px", fontSize:12, fontWeight:500, whiteSpace:"nowrap" }}>{value || "Applied"}</span></div>;
+    return <div style={{ ...cellStyle, cursor:"pointer" }} onClick={() => setEditing(true)}><span style={{ background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:6, padding:"2px 8px", fontSize:12, fontWeight:500, whiteSpace:"nowrap" }}>{value || "Applied"}</span></div>;
   }
   if (type === "select" && value) {
     const tagCfg = Object.values(TAG_CONFIG).find(c => c.values.includes(value));
-    if (tagCfg) return <div style={{ ...cellStyle, cursor:"pointer" }} onClick={() => setEditing(true)}><span style={{ background:tagCfg.bg, color:tagCfg.text, border:`1px solid ${tagCfg.border}`, borderRadius:5, padding:"2px 8px", fontSize:11, fontWeight:500, whiteSpace:"nowrap" }}>{value}</span></div>;
+    if (tagCfg) return <div style={{ ...cellStyle, cursor:"pointer" }} onClick={() => setEditing(true)}><span style={{ background:tagCfg.bg, color:tagCfg.text, border:`1px solid ${tagCfg.border}`, borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:500, whiteSpace:"nowrap" }}>{value}</span></div>;
   }
   if (type === "link") {
     return <div style={{ ...cellStyle, gap:6 }} onClick={() => setEditing(true)}>
       {value
         ? <><a href={value} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#185FA5", fontSize:12, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>View ↗</a><span style={{ fontSize:10, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:3 }}>{value}</span></>
-        : <span style={{ color:"var(--text-placeholder)", fontSize:13 }}>—</span>}
+        : <span style={{ color:"var(--text-placeholder)", fontSize:13 }}>-</span>}
     </div>;
   }
-  return <div style={{ ...cellStyle, color:value?"var(--text-primary)":"var(--text-placeholder)" }} onClick={() => setEditing(true)}><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", width:"100%" }}>{value || "—"}</span></div>;
+  return <div style={{ ...cellStyle, color:value?"var(--text-primary)":"var(--text-placeholder)" }} onClick={() => setEditing(true)}><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", width:"100%" }}>{value || "-"}</span></div>;
 }
 
 // ── Spreadsheet view ──────────────────────────────────────────────────────────
@@ -1950,7 +1950,7 @@ function SpreadsheetView({ jobs, setJobs, onStatusChange, onNotesSave }) {
             );
           })}
         </div>
-        {sorted.length===0 && <div style={{ padding:"2rem", textAlign:"center", color:"var(--text-muted)", fontSize:13 }}>No jobs yet — click "+ Add row" below.</div>}
+        {sorted.length===0 && <div style={{ padding:"2rem", textAlign:"center", color:"var(--text-muted)", fontSize:13 }}>No jobs yet. Click "+ Add row" below.</div>}
         {sorted.map((job,idx) => (
           <div key={job.id} style={{ display:"flex", borderBottom:"1px solid var(--border)", background:idx%2===0?"var(--surface)":"var(--surface-subtle)" }} onMouseEnter={e=>e.currentTarget.style.background="#F0F6FF"} onMouseLeave={e=>e.currentTarget.style.background=idx%2===0?"var(--surface)":"var(--surface-subtle)"}>
             <div style={{ width:50, flexShrink:0, borderRight:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:11, color:"var(--text-muted)" }}>{idx+1}</span></div>
@@ -2080,7 +2080,7 @@ function JobCardBody({ job, onPanelOpen, onUpdateJob, onWin }) {
         const act = lastActivity(job);
         if (!act) return job.dateApplied ? <div style={{ fontSize:11, color:"var(--text-muted)" }}>Applied {daysAgoStr(job.dateApplied)}</div> : null;
         if (act.isInitialApply) return (
-          <div style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>Applied {daysAgoStr(job.dateApplied)} — no further activity</div>
+          <div style={{ fontSize:11, color:"var(--text-muted)", fontStyle:"italic" }}>Applied {daysAgoStr(job.dateApplied)}, no further activity</div>
         );
         return (
           <div style={{ fontSize:11, display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
@@ -2320,14 +2320,14 @@ function SalaryChart({ jobs, onOpenPanel }) {
                 {/* Label */}
                 <div onClick={() => onOpenPanel && onOpenPanel(job)}
                   style={{ width:220, flexShrink:0, fontSize:12, color:isHovered?"var(--accent)":"var(--text-secondary)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer", fontWeight:isHovered?500:400, textDecoration:isHovered?"underline":"none" }}
-                  title={`${job.company} · ${job.role} — click to open`}>
+                  title={`${job.company} · ${job.role}, click to open`}>
                   <span style={{ fontWeight:700 }}>{job.company}</span> <span style={{ color:isHovered?"var(--accent)":"var(--text-muted)", fontWeight:400 }}>· {job.role}</span>
                 </div>
                 {/* Bar track */}
-                <div style={{ flex:1, position:"relative", height:10, background:"var(--surface-hover)", borderRadius:5 }}>
+                <div style={{ flex:1, position:"relative", height:10, background:"var(--surface-hover)", borderRadius:6 }}>
                   {/* Range bar */}
                   {job.min && job.max && (
-                    <div style={{ position:"absolute", top:0, bottom:0, left:`${barLeft}%`, right:`${barRight}%`, background:isHovered?cfg.border:cfg.bg, border:`1.5px solid ${cfg.border}`, borderRadius:5, transition:"background 0.1s" }} />
+                    <div style={{ position:"absolute", top:0, bottom:0, left:`${barLeft}%`, right:`${barRight}%`, background:isHovered?cfg.border:cfg.bg, border:`1.5px solid ${cfg.border}`, borderRadius:6, transition:"background 0.1s" }} />
                   )}
                   {/* Midpoint dot */}
                   <div style={{ position:"absolute", top:"50%", left:`${midLeft}%`, transform:"translate(-50%,-50%)", width:isHovered?12:8, height:isHovered?12:8, background:cfg.text, borderRadius:"50%", border:"2px solid #fff", boxShadow:"0 1px 3px rgba(0,0,0,0.2)", transition:"all 0.1s", zIndex:2 }} />
@@ -2391,7 +2391,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       timeline: [...(job.timeline||[]), { id:crypto.randomUUID(), status:job.status, date:now, notes:"Follow-up sent" }],
     });
     const n = followupsSentThisWeek(jobs) + 1;
-    onWin(`Sent 📤 — that's ${n} this week. Most people never send one.`);
+    onWin(`Sent 📤. That's ${n} this week. Most people never send one.`);
   }
 
   function tierStyle(diff, type) {
@@ -2433,13 +2433,13 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
             <button onClick={() => { track("draft_opened", { job_status: job.status, source: "today" }); setDraftJob(job); }} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
             <button onClick={() => { logOutreach(job); track("draft_actioned", { action:"mark_contacted_no_draft" }); }} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
-            <button onClick={() => onLogReply(job)} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer", whiteSpace:"nowrap" }}>📨 Got a reply</button>
+            <button onClick={() => onLogReply(job)} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", whiteSpace:"nowrap" }}>📨 Got a reply</button>
             <div style={{ display:"flex", gap:3 }}>
-              <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+3d</button>
-              <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>+7d</button>
-              <button onClick={() => snooze(job, 30)} title="Snooze 30 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:5, cursor:"pointer" }}>−30d</button>
+              <button onClick={() => snooze(job,3)} title="Remind me in 3 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>+3d</button>
+              <button onClick={() => snooze(job,7)} title="Remind me in 7 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>+7d</button>
+              <button onClick={() => snooze(job, 30)} title="Snooze 30 days" style={{ fontSize:10, padding:"3px 7px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer" }}>−30d</button>
             </div>
-            <button onClick={() => dismissFollowup(job)} title="Cancel this follow-up entirely — stop reminding me" style={{ fontSize:10, padding:"2px 6px", background:"none", color:"var(--text-muted)", border:"none", cursor:"pointer", textDecoration:"underline", whiteSpace:"nowrap" }}>✕ Stop following up</button>
+            <button onClick={() => dismissFollowup(job)} title="Cancel this follow-up entirely, stop reminding me" style={{ fontSize:10, padding:"2px 6px", background:"none", color:"var(--text-muted)", border:"none", cursor:"pointer", textDecoration:"underline", whiteSpace:"nowrap" }}>✕ Stop following up</button>
           </div>
         )}
       </div>
@@ -2456,7 +2456,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
           {linkedJob && <div style={{ fontSize:11, color:"#185FA5", marginTop:2, cursor:"pointer" }} onClick={() => onOpenPanel(linkedJob)}>→ {linkedJob.company} · {linkedJob.role}</div>}
           {task.dueDate && <div style={{ fontSize:10, color: task.dueDate<today?"#A32D2D":"var(--text-muted)", marginTop:2 }}>{task.dueDate===today?"Due today":`Overdue · ${task.dueDate}`}</div>}
         </div>
-        {linkedJob && <button onClick={() => { track("draft_opened", { job_status: linkedJob.status, source: "reminder" }); setDraftJob(linkedJob); }} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:5, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>}
+        {linkedJob && <button onClick={() => { track("draft_opened", { job_status: linkedJob.status, source: "reminder" }); setDraftJob(linkedJob); }} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>}
         <button onClick={() => { const u=tasks.filter(t=>t.id!==task.id); setTasks(u); saveTasks(u); }} style={{ fontSize:10, padding:"2px 6px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer" }}>✕</button>
       </div>
     );
@@ -2549,7 +2549,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
       {totalPending===0 && autoTasks.length===0 && (
         <div style={{ textAlign:"center", padding:"4rem 1rem", color:"var(--text-muted)", fontSize:14 }}>
           <div style={{ fontSize:32, marginBottom:12 }}>✓</div>
-          You're all caught up — no follow-ups or tasks need your attention today.
+          You're all caught up. No follow-ups or tasks need your attention today.
         </div>
       )}
 
@@ -2606,16 +2606,16 @@ function makeSampleJobs() {
 // ── Onboarding card (shown when user has no jobs) ─────────────────────────────
 function OnboardingCard({ onAdd, onLoadSample }) {
   const steps = [
-    { icon:"📝", title:"Add a job", desc:"Paste any role you've applied to — or use the paste-a-link box and it fills in the details for you." },
+    { icon:"📝", title:"Add a job", desc:"Paste any role you've applied to, or use the paste-a-link box and it fills in the details for you." },
     { icon:"🔔", title:"Get told when to follow up", desc:"Your Today list flags applications going cold so you never let one die." },
-    { icon:"✍️", title:"Send it in one tap", desc:"It drafts the follow-up email for you — just review and send." },
+    { icon:"✍️", title:"Send it in one tap", desc:"It drafts the follow-up email for you. Just review and send." },
   ];
   return (
     <div style={{ maxWidth:580, margin:"2rem auto", padding:"2rem", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
       <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
         <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><FollowupMark size={44} /></div>
         <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Followup</div>
-        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up — so applications don't go cold and warm intros don't slip.</div>
+        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up, so applications don't go cold and warm intros don't slip.</div>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:"1.75rem" }}>
         {steps.map((s, i) => (
@@ -2713,7 +2713,7 @@ function FeedbackForm() {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           access_key: WEB3FORMS_ACCESS_KEY,
-          subject: "Followup — new feedback",
+          subject: "Followup: new feedback",
           from_name: "Followup app",
           email: email.trim() || undefined,
           message: message.trim(),
@@ -2726,7 +2726,7 @@ function FeedbackForm() {
   }
 
   if (state === "sent") {
-    return <div style={{ fontSize: 13, color: "#27500A", background: "#EAF3DE", border: "1px solid #C0DD97", borderRadius: 8, padding: "10px 12px" }}>Thanks — your feedback was sent. 🙏</div>;
+    return <div style={{ fontSize: 13, color: "#27500A", background: "#EAF3DE", border: "1px solid #C0DD97", borderRadius: 8, padding: "10px 12px" }}>Thanks. Your feedback was sent. 🙏</div>;
   }
   const field = { fontSize: 13, padding: "9px 11px", border: "1px solid var(--input-border)", borderRadius: 8, background: "var(--input-bg)", color: "var(--text-primary)", width: "100%", boxSizing: "border-box", fontFamily: "inherit" };
   return (
@@ -2735,13 +2735,13 @@ function FeedbackForm() {
         placeholder="What's working, what's broken, what you'd love to see…"
         style={{ ...field, resize: "vertical", lineHeight: 1.5 }} />
       <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-        placeholder="Your email (optional — so we can reply)" style={field} />
+        placeholder="Your email (optional, so we can reply)" style={field} />
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <button type="submit" disabled={state === "sending" || !message.trim()}
           style={{ fontSize: 13, padding: "8px 16px", background: "#185FA5", color: "#fff", border: "none", borderRadius: 8, cursor: message.trim() ? "pointer" : "not-allowed", fontWeight: 600, opacity: state === "sending" ? 0.7 : 1 }}>
           {state === "sending" ? "Sending…" : "Send feedback"}
         </button>
-        {state === "error" && <span style={{ fontSize: 12, color: "#A32D2D" }}>Couldn't send — please try again.</span>}
+        {state === "error" && <span style={{ fontSize: 12, color: "#A32D2D" }}>Couldn't send. Please try again.</span>}
       </div>
     </form>
   );
@@ -2750,7 +2750,7 @@ function FeedbackForm() {
 function HelpModal({ onClose }) {
   const item = (name, desc) => (
     <div style={{ marginBottom: 8 }}>
-      <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{name}</span> — {desc}
+      <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>{name}</span>: {desc}
     </div>
   );
   return (
@@ -2762,36 +2762,36 @@ function HelpModal({ onClose }) {
         </div>
         <div style={{ padding: "4px 20px 16px", overflowY: "auto" }}>
           <HelpSection title="Start here" defaultOpen>
-            <p style={{ marginBottom: 10 }}>Followup is a job tracker that does more than store applications — it tells you what to do each day and helps you follow up.</p>
-            <p>The simplest routine: <b>add the jobs you apply to</b>, then <b>open the Today tab each morning</b> and clear what it surfaces — follow-ups that are due, interviews, and reminders.</p>
+            <p style={{ marginBottom: 10 }}>Followup is a job tracker that does more than store applications. It tells you what to do each day and helps you follow up.</p>
+            <p>The simplest routine: <b>add the jobs you apply to</b>, then <b>open the Today tab each morning</b> and clear what it surfaces: follow-ups that are due, interviews, and reminders.</p>
           </HelpSection>
 
           <HelpSection title="Getting started in 2 minutes">
-            <p style={{ marginBottom: 10 }}>1. <b>Add a job</b> — paste a posting link (fills in details) or enter one manually.</p>
-            <p style={{ marginBottom: 10 }}>2. <b>Set your name</b> in Profile — it signs off your follow-up drafts automatically.</p>
-            <p style={{ marginBottom: 10 }}>3. <b>Open Today</b> once a job goes quiet and hit <b>✍️ Draft</b> — review the email, then copy it or mark it sent.</p>
+            <p style={{ marginBottom: 10 }}>1. <b>Add a job</b>: paste a posting link (fills in details) or enter one manually.</p>
+            <p style={{ marginBottom: 10 }}>2. <b>Set your name</b> in Profile. It signs off your follow-up drafts automatically.</p>
+            <p style={{ marginBottom: 10 }}>3. <b>Open Today</b> once a job goes quiet and hit <b>✍️ Draft</b>: review the email, then copy it or mark it sent.</p>
             <p style={{ marginBottom: 10 }}>4. <b>Enable browser reminders</b> in Profile → Backup &amp; data so overdue follow-ups surface when you open the app.</p>
             <p>5. On desktop, drag the <b>capture bookmarklet</b> (Profile → Capture jobs from any site) to your bookmarks bar to save postings in one click. The Today tab's getting-started checklist walks through all of this too.</p>
           </HelpSection>
 
           <HelpSection title="The views">
-            {item("Today", "Your daily action inbox — follow-ups due (highest-interest first), interviews today, overdue reminders, plus a recent-activity feed of your latest moves. Start here.")}
+            {item("Today", "Your daily action inbox: follow-ups due (highest-interest first), interviews today, overdue reminders, plus a recent-activity feed of your latest moves. Start here.")}
             {item("List", "Every application as a card. Search, filter by status or tag, change status inline, add notes, and run bulk actions.")}
             {item("Pipeline", "A drag-and-drop board grouped by status, plus a conversion funnel and a salary-range chart.")}
-            {item("Table", "A sortable spreadsheet view — good for scanning or comparing lots of applications at once.")}
-            {item("Calendar", "Interviews, follow-ups, and reminders on a month / week / day / agenda calendar — each event color- and icon-coded by type. Turn on \"Milestones\" (off by default) in the sidebar to also see every status-change entry from each job's timeline.")}
+            {item("Table", "A sortable spreadsheet view, good for scanning or comparing lots of applications at once.")}
+            {item("Calendar", "Interviews, follow-ups, and reminders on a month / week / day / agenda calendar. Each event color- and icon-coded by type. Turn on \"Milestones\" (off by default) in the sidebar to also see every status-change entry from each job's timeline.")}
             {item("Offers", "A focused view of roles at the offer stage so you can compare them side by side.")}
-            {item("Contacts", "A lightweight CRM for recruiters and contacts — track who you've reached out to and when.")}
+            {item("Contacts", "A lightweight CRM for recruiters and contacts. Track who you've reached out to and when.")}
           </HelpSection>
 
           <HelpSection title="Adding jobs">
-            {item("+ Add job", "Add a role manually — or paste a job posting link and Followup fills in the title, company, and salary for you.")}
+            {item("+ Add job", "Add a role manually, or paste a job posting link and Followup fills in the title, company, and salary for you.")}
             {item("Capture button", "On desktop, drag the capture bookmarklet (Settings → Job capture) to your bookmarks bar. On any job posting, one click saves it with the details pre-filled.")}
           </HelpSection>
 
           <HelpSection title="Following up">
-            <p style={{ marginBottom: 10 }}>Followup reminds you on a set cadence — by default <b>7 days</b> after applying and <b>3 days</b> after a phone screen or interview, with anything quiet for <b>14 days</b> flagged as going cold. Change all three in Settings → Automation. High-interest jobs rise to the top of your follow-ups.</p>
-            {item("✍️ Draft", "Drafts the email for you — pick a template, tweak it, then copy it, open it in your mail app, or mark it sent. Available on due follow-ups and job-linked reminders in Today, and from \"✍️ Draft follow-up\" in each job's detail panel.")}
+            <p style={{ marginBottom: 10 }}>Followup reminds you on a set cadence. By default <b>7 days</b> after applying and <b>3 days</b> after a phone screen or interview, with anything quiet for <b>14 days</b> flagged as going cold. Change all three in Settings → Automation. High-interest jobs rise to the top of your follow-ups.</p>
+            {item("✍️ Draft", "Drafts the email for you: pick a template, tweak it, then copy it, open it in your mail app, or mark it sent. Available on due follow-ups and job-linked reminders in Today, and from \"✍️ Draft follow-up\" in each job's detail panel.")}
             {item("✓ Contacted", "Logs the follow-up to the job's timeline and resets the timer.")}
             {item("Snooze", "Not yet? Push the reminder out +3 days, +7 days, or −30 days.")}
             {item("✕ Stop following up", "Cancel a follow-up entirely so it stops reminding you. Reversible anytime from the job's detail panel.")}
@@ -2800,11 +2800,11 @@ function HelpModal({ onClose }) {
           <HelpSection title="Reminders & interviews">
             {item("Interview dates", "Set a date and time on a job and Followup auto-creates a day-before reminder, plus a button to add it to Google Calendar.")}
             {item("Manual reminders", "Use 🔔 Remind in a job's detail panel (opens the Reminders section) or “+ Add task” in Today to set your own reminders.")}
-            {item("Browser reminders", "Turn on desktop notifications from your Profile screen (Backup & data) — Followup checks for overdue follow-ups when you open it in that browser and shows a notification. It won't nudge you while the app is closed.")}
+            {item("Browser reminders", "Turn on desktop notifications from your Profile screen (Backup & data). Followup checks for overdue follow-ups when you open it in that browser and shows a notification. It won't nudge you while the app is closed.")}
           </HelpSection>
 
           <HelpSection title="Organizing & finding jobs">
-            {item("Interest ⭐", "Rate how much you want each job — tap the stars (Low / Medium / High) on any card or in the detail panel. High-interest jobs sort up and get prioritized in Today. Sort by interest from the Filters menu.")}
+            {item("Interest ⭐", "Rate how much you want each job. Tap the stars (Low / Medium / High) on any card or in the detail panel. High-interest jobs sort up and get prioritized in Today. Sort by interest from the Filters menu.")}
             {item("Statuses & tags", "Move jobs through stages, and tag them by work type, industry, and source.")}
             {item("Salary & notes", "Record a salary range, free-form notes, and a timeline of every step on each job.")}
             {item("Filters & search", "Filter by status (the bubbles), or by tag, outreach, and sort order (the Filters menu). Press / to jump to search.")}
@@ -2812,7 +2812,7 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="Settings, data & shortcuts">
-            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage your documents (resumes, cover letters, portfolios), and get the capture bookmarklet — all in your Profile screen (👤 Profile tab on mobile, Profile button on desktop).")}
+            {item("Profile", "Set your name (used to sign off follow-up drafts), change your password, manage your documents (resumes, cover letters, portfolios), and get the capture bookmarklet, all in your Profile screen (👤 Profile tab on mobile, Profile button on desktop).")}
             {item("Automation", "In Profile → Follow-up automation, tune your follow-up timing, auto-archiving of rejected/withdrawn jobs, and the quiet-job review prompt. These preferences sync across all your devices.")}
             {item("Backup & export", "In Profile → Backup & data, export a JSON backup (or restore one), and export your jobs to CSV.")}
             {item("Dark mode", "Toggle the 🌙 / ☀️ switch in the header.")}
@@ -2820,18 +2820,18 @@ function HelpModal({ onClose }) {
           </HelpSection>
 
           <HelpSection title="FAQ">
-            {item("Is it free?", "Yes — everything in Followup is free to use right now, no account limits or paywalls.")}
-            {item("Is my data private?", "Your job data is yours — stored securely with Supabase and never sold or used for ads. We use PostHog analytics to see which features get used, not the content of your entries. Full details in our Privacy Policy.")}
+            {item("Is it free?", "Yes. Everything in Followup is free to use right now, no account limits or paywalls.")}
+            {item("Is my data private?", "Your job data is yours, stored securely with Supabase and never sold or used for ads. We use PostHog analytics to see which features get used, not the content of your entries. Full details in our Privacy Policy.")}
             {item("How does the follow-up timer work?", "By default Followup flags a job 7 days after applying, 3 days after a phone screen or interview, and marks anything quiet for 14+ days as going cold. All three (plus your weekly goal) are adjustable in Profile → Follow-up automation.")}
-            {item("Will it notify me if I close the app?", "Not yet, honestly — browser reminders only fire when you open Followup in that browser; there's no push notification while it's closed. That's on the roadmap.")}
-            {item("Can I get my data out, or delete my account?", "Yes to both, any time, no email needed — export a full JSON backup or CSV from Profile → Backup & data, and permanently delete your account and all its data from Profile → Danger zone.")}
-            {item("Is there a phone app?", "Not a native app yet — Followup is a responsive web app, and on mobile you can \"Add to Home Screen\" for an app-like icon and full-screen view. A real App Store app is on the roadmap.")}
-            {item("What's coming next?", "AI-drafted follow-up emails and AI resume tailoring are both in development. Nothing's paywalled today — if that changes, we'll say so clearly before it does.")}
+            {item("Will it notify me if I close the app?", "Not yet, honestly. Browser reminders only fire when you open Followup in that browser; there's no push notification while it's closed. That's on the roadmap.")}
+            {item("Can I get my data out, or delete my account?", "Yes to both, any time, no email needed. Export a full JSON backup or CSV from Profile → Backup & data, and permanently delete your account and all its data from Profile → Danger zone.")}
+            {item("Is there a phone app?", "Not a native app yet. Followup is a responsive web app, and on mobile you can \"Add to Home Screen\" for an app-like icon and full-screen view. A real App Store app is on the roadmap.")}
+            {item("What's coming next?", "AI-drafted follow-up emails and AI resume tailoring are both in development. Nothing's paywalled today. If that changes, we'll say so clearly before it does.")}
           </HelpSection>
 
           <HelpSection title="Need help?">
             <p style={{ marginBottom: 10 }}>Your data is saved to your account automatically. If something looks off, refreshing the page or signing out and back in fixes most issues.</p>
-            <p style={{ marginBottom: 12 }}>Have feedback or found a bug? Send it straight to us — Followup is in active development and more is on the way.</p>
+            <p style={{ marginBottom: 12 }}>Have feedback or found a bug? Send it straight to us. Followup is in active development and more is on the way.</p>
             <FeedbackForm />
             <p style={{ marginTop: 12, fontSize: 12, color: "var(--text-muted)" }}>Prefer email? Reach us directly at <a href="mailto:jinkweon@gmail.com" style={{ color: "var(--accent)" }}>jinkweon@gmail.com</a>.</p>
           </HelpSection>
@@ -2844,7 +2844,7 @@ function HelpModal({ onClose }) {
 // ── Documents (part of Profile → Your stuff) ──────────────────────────────────
 function DocumentsView({ documents, onDocumentsChange }) {
   const [newDoc, setNewDoc] = useState({ type:"Resume", name:"", link:"", notes:"" });
-  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
 
   function addDocument() {
     if (!newDoc.name.trim()) return;
@@ -2883,10 +2883,10 @@ function DocumentsView({ documents, onDocumentsChange }) {
         <select value={newDoc.type} onChange={e=>setNewDoc(f=>({...f,type:e.target.value}))} style={inputStyle}>
           {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
-        <input type="text" placeholder="Name (e.g. Resume — PM roles)" value={newDoc.name} onChange={e=>setNewDoc(f=>({...f,name:e.target.value}))} style={inputStyle} />
+        <input type="text" placeholder="Name (e.g. Resume: PM roles)" value={newDoc.name} onChange={e=>setNewDoc(f=>({...f,name:e.target.value}))} style={inputStyle} />
         <input type="url" placeholder="Link to file (Google Drive, Dropbox, etc.)" value={newDoc.link} onChange={e=>setNewDoc(f=>({...f,link:e.target.value}))} style={inputStyle} />
         <input type="text" placeholder="Notes (optional)" value={newDoc.notes} onChange={e=>setNewDoc(f=>({...f,notes:e.target.value}))} style={inputStyle} />
-        <button onClick={addDocument} disabled={!newDoc.name.trim()} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>+ Add document</button>
+        <button onClick={addDocument} disabled={!newDoc.name.trim()} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600, minHeight:44 }}>+ Add document</button>
       </div>
     </div>
   );
@@ -2921,7 +2921,7 @@ function ProfileScreen({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      if (!token) { setDelError("Your session expired — please sign in again."); setDelLoading(false); return; }
+      if (!token) { setDelError("Your session expired. Please sign in again."); setDelLoading(false); return; }
       const resp = await fetch("/api/delete-account", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) { setDelError(data.error || "Couldn't delete your account. Please try again."); setDelLoading(false); return; }
@@ -2945,7 +2945,7 @@ function ProfileScreen({
     setPwLoading(false);
   }
 
-  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:7, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
+  const inputStyle = { fontSize:13, padding:"8px 10px", border:"1px solid var(--input-border)", borderRadius:8, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
   const navRow = { display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"12px 14px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer", fontSize:14, color:"var(--text-primary)", fontWeight:500, minHeight:44, textAlign:"left" };
 
   const bookmarkletCode = `javascript:(function(){function m(n){var e=document.querySelector('meta[property="'+n+'"]')||document.querySelector('meta[name="'+n+'"]');return e?e.content:'';}function t(sels){for(var i=0;i<sels.length;i++){var e=document.querySelector(sels[i]);if(e&&e.textContent.trim())return e.textContent.trim();}return '';}function p(s){s=String(s).trim();if(/k$/i.test(s))return Math.round(parseFloat(s)*1000);return Math.round(parseFloat(s.replace(/,/g,'')));}var role='',company='',salMin='',salMax='';try{var ld=document.querySelectorAll('script[type="application/ld+json"]');for(var i=0;i<ld.length;i++){var data=JSON.parse(ld[i].textContent);var arr=Array.isArray(data)?data:[data];for(var j=0;j<arr.length;j++){var d=arr[j];if(d['@type']==='JobPosting'){role=d.title||role;company=(d.hiringOrganization&&d.hiringOrganization.name)||company;if(d.baseSalary){var bs=d.baseSalary.value||d.baseSalary;if(bs){if(bs.minValue!=null)salMin=bs.minValue;if(bs.maxValue!=null)salMax=bs.maxValue;if(bs.value!=null&&!salMin&&!salMax)salMin=salMax=bs.value;}}}}}}catch(e){}if(!role)role=t(['h1.job-details-jobs-unified-top-card__job-title','.t-24.job-details-jobs-unified-top-card__job-title','h1.top-card-layout__title','[data-testid="jobsearch-JobInfoHeader-title"]','.jobsearch-JobInfoHeader-title']);if(!company)company=t(['.job-details-jobs-unified-top-card__company-name','.topcard__org-name-link','[data-testid="inlineHeader-companyName"]','.jobsearch-CompanyInfoContainer a']);if(!role){role=m('og:title')||document.title;role=role.replace(/\\s*[|\\-–]\\s*(LinkedIn|Indeed.*|Glassdoor.*)$/i,'').trim();}if(!company)company=m('og:site_name');if(!salMin&&!salMax){try{var bodyTxt=document.body.innerText||'';var rx=/\\$\\s?(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s?[kK])\\s*(?:-|–|to)\\s*\\$?\\s?(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?\\s?[kK])/;var mm=bodyTxt.match(rx);if(mm){salMin=p(mm[1]);salMax=p(mm[2]);}}catch(e){}}var link=location.href;var jk=new URLSearchParams(location.search).get('vjk')||new URLSearchParams(location.search).get('jk');if(jk&&location.hostname.indexOf('indeed.')>-1)link='https://'+location.hostname+'/viewjob?jk='+jk;var url='https://job-tracker-tau-eight.vercel.app/?capture=1&role='+encodeURIComponent(role)+'&company='+encodeURIComponent(company)+'&link='+encodeURIComponent(link)+'&salMin='+encodeURIComponent(salMin)+'&salMax='+encodeURIComponent(salMax);window.open(url,'_blank');})();`;
@@ -2964,10 +2964,10 @@ function ProfileScreen({
 
       <div style={{ padding:"14px 16px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10 }}>
         <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Your name</div>
-        <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Used to sign off your follow-up email drafts — it replaces "[Your name]" automatically.</div>
+        <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>Used to sign off your follow-up email drafts. It replaces "[Your name]" automatically.</div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
           <input type="text" placeholder="e.g. Jin Kweon" value={nameField} onChange={e=>setNameField(e.target.value)} style={{ ...inputStyle, flex:1, minWidth:160 }} />
-          <button onClick={() => { onProfileNameChange(nameField.trim()); setNameMsg("Saved."); setTimeout(()=>setNameMsg(""),2000); }} style={{ fontSize:13, padding:"8px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Save</button>
+          <button onClick={() => { onProfileNameChange(nameField.trim()); setNameMsg("Saved."); setTimeout(()=>setNameMsg(""),2000); }} style={{ fontSize:13, padding:"8px 16px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600, minHeight:44 }}>Save</button>
         </div>
         {nameMsg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px", marginTop:10 }}>{nameMsg}</div>}
       </div>
@@ -2989,7 +2989,7 @@ function ProfileScreen({
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after applying</label>
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days after a phone screen or interview</label>
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={staleDays} onChange={e=>onStaleDaysChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> days with no activity → flag as going cold</label>
-              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={weeklyGoal} onChange={e=>onWeeklyGoalChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> follow-ups per week — your Today goal ring</label>
+              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:"var(--text-secondary)" }}><input type="number" min="1" value={weeklyGoal} onChange={e=>onWeeklyGoalChange(e.target.value)} style={{ ...inputStyle, width:70 }} /> follow-ups per week, your Today goal ring</label>
             </div>
           </div>
           <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
@@ -3002,7 +3002,7 @@ function ProfileScreen({
           </div>
           <div style={{ borderTop:"1px solid var(--border)", paddingTop:16 }}>
             <div style={{ fontSize:13, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 }}>Prompt to review quiet applications</div>
-            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>When an active job you haven't rated Medium or High has had no activity for this many days, the Today page offers to archive it — nothing happens until you choose. Set to 0 to turn this off.</div>
+            <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>When an active job you haven't rated Medium or High has had no activity for this many days, the Today page offers to archive it. Nothing happens until you choose. Set to 0 to turn this off.</div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <input type="number" min="0" value={quietPromptDays} onChange={e=>onQuietPromptDaysChange(e.target.value)} style={{ ...inputStyle, width:90 }} />
               <span style={{ fontSize:13, color:"var(--text-secondary)" }}>days</span>
@@ -3018,7 +3018,7 @@ function ProfileScreen({
           <PasswordInput placeholder="Confirm new password" value={conf} onChange={e=>setConf(e.target.value)} required autoComplete="new-password" style={inputStyle} />
           {pwError && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px" }}>{pwError}</div>}
           {pwMsg && <div style={{ fontSize:12, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:6, padding:"8px 10px" }}>{pwMsg}</div>}
-          <button type="submit" disabled={pwLoading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, opacity:pwLoading?0.7:1, minHeight:44 }}>
+          <button type="submit" disabled={pwLoading} style={{ fontSize:13, padding:"9px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600, opacity:pwLoading?0.7:1, minHeight:44 }}>
             {pwLoading ? "Saving…" : "Update password"}
           </button>
         </form>
@@ -3030,11 +3030,11 @@ function ProfileScreen({
             Drag the button below to your browser's bookmarks bar. While viewing a job posting (LinkedIn, Indeed, Greenhouse, etc.), click it to open Followup with the role, company, and link pre-filled.
           </div>
           <a ref={bookmarkletRef} onClick={e => e.preventDefault()} draggable
-            style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:7, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
+            style={{ display:"inline-block", fontSize:13, padding:"9px 18px", background:"#185FA5", color:"#fff", borderRadius:8, fontWeight:600, textDecoration:"none", cursor:"grab", userSelect:"none" }}>
             📋 Capture job
           </a>
           <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:14, lineHeight:1.6 }}>
-            Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically — you can edit the prefilled details before saving.
+            Tip: if your bookmarks bar is hidden, enable it first (Ctrl/Cmd+Shift+B), then drag the button onto it. Some sites may not expose a title/company automatically. You can edit the prefilled details before saving.
           </div>
         </PanelSection>
       )}
@@ -3047,7 +3047,7 @@ function ProfileScreen({
           <label style={navRow}>Import CSV<input type="file" accept=".csv" onChange={importCSV} style={{ display:"none" }} /></label>
           <button onClick={enableNotifications} style={navRow}>{typeof Notification !== "undefined" && Notification.permission==="granted" ? "🔔 Reminders on" : "🔔 Enable reminders"}</button>
           <div style={{ fontSize:11, color:"var(--text-muted)", lineHeight:1.6, padding:"0 2px" }}>
-            Shows a browser notification for overdue follow-ups when you open Followup in this browser — not a push notification while it's closed.
+            Shows a browser notification for overdue follow-ups when you open Followup in this browser, not a push notification while it's closed.
           </div>
         </div>
       </PanelSection>
@@ -3060,9 +3060,9 @@ function ProfileScreen({
         {!delOpen ? (
           <>
             <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.6, marginBottom:10 }}>
-              Permanently delete your account and all your data — jobs, contacts, documents, reminders, and settings. This can't be undone. Want a copy first? Export a backup from <b>Backup &amp; data</b> above.
+              Permanently delete your account and all your data: jobs, contacts, documents, reminders, and settings. This can't be undone. Want a copy first? Export a backup from <b>Backup &amp; data</b> above.
             </div>
-            <button onClick={() => { setDelOpen(true); setDelConfirm(""); setDelError(""); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:7, cursor:"pointer", fontWeight:600, minHeight:44 }}>Delete account</button>
+            <button onClick={() => { setDelOpen(true); setDelConfirm(""); setDelError(""); }} style={{ fontSize:13, padding:"8px 14px", background:getStatusCfg("Rejected").bg, color:getStatusCfg("Rejected").text, border:`1.5px solid ${getStatusCfg("Rejected").border}`, borderRadius:8, cursor:"pointer", fontWeight:600, minHeight:44 }}>Delete account</button>
           </>
         ) : (
           <>
@@ -3072,8 +3072,8 @@ function ProfileScreen({
             <input value={delConfirm} onChange={e => { setDelConfirm(e.target.value); setDelError(""); }} placeholder="Type DELETE" autoComplete="off" style={{ ...inputStyle, marginBottom:10 }} />
             {delError && <div style={{ fontSize:12, color:"#A32D2D", background:"#FFF0F0", border:"1px solid #F7C1C1", borderRadius:6, padding:"8px 10px", marginBottom:10 }}>{delError}</div>}
             <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-              <button onClick={() => { setDelOpen(false); setDelConfirm(""); setDelError(""); }} disabled={delLoading} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:7, cursor:"pointer", fontWeight:500, minHeight:44 }}>Cancel</button>
-              <button onClick={deleteAccount} disabled={delConfirm.trim() !== "DELETE" || delLoading} style={{ fontSize:13, padding:"8px 14px", background: delConfirm.trim()==="DELETE" && !delLoading ? "#A32D2D" : "var(--surface-hover)", color: delConfirm.trim()==="DELETE" && !delLoading ? "#fff" : "var(--text-muted)", border:"1.5px solid " + (delConfirm.trim()==="DELETE" && !delLoading ? "#791F1F" : "var(--border)"), borderRadius:7, cursor: delConfirm.trim()==="DELETE" && !delLoading ? "pointer" : "not-allowed", fontWeight:600, minHeight:44 }}>{delLoading ? "Deleting…" : "Permanently delete"}</button>
+              <button onClick={() => { setDelOpen(false); setDelConfirm(""); setDelError(""); }} disabled={delLoading} style={{ fontSize:13, padding:"8px 14px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:8, cursor:"pointer", fontWeight:500, minHeight:44 }}>Cancel</button>
+              <button onClick={deleteAccount} disabled={delConfirm.trim() !== "DELETE" || delLoading} style={{ fontSize:13, padding:"8px 14px", background: delConfirm.trim()==="DELETE" && !delLoading ? "#A32D2D" : "var(--surface-hover)", color: delConfirm.trim()==="DELETE" && !delLoading ? "#fff" : "var(--text-muted)", border:"1.5px solid " + (delConfirm.trim()==="DELETE" && !delLoading ? "#791F1F" : "var(--border)"), borderRadius:8, cursor: delConfirm.trim()==="DELETE" && !delLoading ? "pointer" : "not-allowed", fontWeight:600, minHeight:44 }}>{delLoading ? "Deleting…" : "Permanently delete"}</button>
             </div>
           </>
         )}
@@ -3106,7 +3106,7 @@ function EmptyState({ icon, title, desc, action, onAction }) {
       <div style={{ fontSize:36, marginBottom:12 }}>{icon}</div>
       <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", marginBottom:8 }}>{title}</div>
       <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, maxWidth:340, margin:"0 auto" }}>{desc}</div>
-      {action && <button onClick={onAction} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:500 }}>{action}</button>}
+      {action && <button onClick={onAction} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:500 }}>{action}</button>}
     </div>
   );
 }
@@ -3216,18 +3216,18 @@ function OffersView({ jobs, onOpenPanel }) {
   const offers = jobs.filter(j => !j.archived && (j.offerBase || j.offerBonus || j.offerEquity || j.offerStartDate || j.offerDeadline));
 
   if (offers.length === 0) {
-    return <EmptyState icon="🎉" title="No offers yet" desc="Once a job reaches the Offer stage, fill in salary, bonus, equity, and deadline details from its detail panel — they'll show up here for side-by-side comparison." />;
+    return <EmptyState icon="🎉" title="No offers yet" desc="Once a job reaches the Offer stage, fill in salary, bonus, equity, and deadline details from its detail panel. They'll show up here for side-by-side comparison." />;
   }
 
   const today = todayStr();
   const cols = [
     ["Role", j => <><div style={{ fontWeight:600, color:"var(--text-primary)" }}>{j.company}</div><div style={{ fontSize:11, color:"var(--text-muted)" }}>{j.role}</div></>],
-    ["Base salary", j => j.offerBase ? `$${parseInt(j.offerBase).toLocaleString()}` : "—"],
-    ["Signing bonus", j => j.offerBonus ? `$${parseInt(j.offerBonus).toLocaleString()}` : "—"],
-    ["Total (base+bonus)", j => (j.offerBase||j.offerBonus) ? `$${(parseInt(j.offerBase||0)+parseInt(j.offerBonus||0)).toLocaleString()}` : "—"],
-    ["Equity", j => j.offerEquity || "—"],
-    ["Start date", j => j.offerStartDate ? fmtDate(j.offerStartDate+"T00:00:00") : "—"],
-    ["Deadline", j => j.offerDeadline ? fmtDate(j.offerDeadline+"T00:00:00") : "—"],
+    ["Base salary", j => j.offerBase ? `$${parseInt(j.offerBase).toLocaleString()}` : "-"],
+    ["Signing bonus", j => j.offerBonus ? `$${parseInt(j.offerBonus).toLocaleString()}` : "-"],
+    ["Total (base+bonus)", j => (j.offerBase||j.offerBonus) ? `$${(parseInt(j.offerBase||0)+parseInt(j.offerBonus||0)).toLocaleString()}` : "-"],
+    ["Equity", j => j.offerEquity || "-"],
+    ["Start date", j => j.offerStartDate ? fmtDate(j.offerStartDate+"T00:00:00") : "-"],
+    ["Deadline", j => j.offerDeadline ? fmtDate(j.offerDeadline+"T00:00:00") : "-"],
   ];
 
   return (
@@ -3379,7 +3379,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
     const cfg = eventStyle(ev);
     return (
       <div
-        title={`${cfg.name}: ${ev.label}${ev.sub && ev.sub !== cfg.name ? ` — ${ev.sub}` : ""}`}
+        title={`${cfg.name}: ${ev.label}${ev.sub && ev.sub !== cfg.name ? `, ${ev.sub}` : ""}`}
         style={{ fontSize: compact?9:11, padding: compact?"2px 4px":"4px 8px", background:cfg.bg, color:cfg.text, border:`1px solid ${cfg.border}`, borderRadius:4, marginBottom:2, cursor:ev.job?"pointer":"default", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", lineHeight:1.5 }}
         onClick={e => { e.stopPropagation(); ev.job && onOpenPanel(ev.job); }}>
         {cfg.icon} {ev.label}{!compact && ev.sub ? <span style={{ opacity:0.75 }}> · {ev.sub}</span> : ""}
@@ -3400,10 +3400,10 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         {/* Mini month nav */}
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6 }}>
           <button onClick={() => setMiniMonth(({y,m}) => m===0?{y:y-1,m:11}:{y,m:m-1})}
-            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:5, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>‹</button>
+            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>‹</button>
           <span style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[m].slice(0,3)} {y}</span>
           <button onClick={() => setMiniMonth(({y,m}) => m===11?{y:y+1,m:0}:{y,m:m+1})}
-            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:5, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>›</button>
+            style={{ fontSize:12, padding:"2px 7px", border:"1px solid var(--border)", borderRadius:6, background:"var(--surface)", color:"var(--text-secondary)", cursor:"pointer", lineHeight:1.4 }}>›</button>
         </div>
         {/* Day headers */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", marginBottom:2 }}>
@@ -3505,7 +3505,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             })}
           </div>
         </div>
-        {!hasEvents && <EmptyState icon="📅" title="Nothing this month" desc="No events found — try toggling event types above or navigate to another month." />}
+        {!hasEvents && <EmptyState icon="📅" title="Nothing this month" desc="No events found. Try toggling event types above or navigate to another month." />}
       </>
     );
   }
@@ -3539,7 +3539,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
             const isToday = dateKey === today_;
             return (
               <div key={dateKey} style={{ padding:"6px", background:isToday?(isDark()?"#1a3550":"#EFF5FB"):"var(--surface)", minHeight:120, minWidth:0, overflow:"hidden" }}>
-                {evs.length === 0 && <div style={{ fontSize:10, color:"var(--text-muted)", fontStyle:"italic", textAlign:"center", paddingTop:6 }}>—</div>}
+                {evs.length === 0 && <div style={{ fontSize:10, color:"var(--text-muted)", fontStyle:"italic", textAlign:"center", paddingTop:6 }}>-</div>}
                 {evs.map((ev,ei) => <EventPill key={ei} ev={ev} compact />)}
               </div>
             );
@@ -3564,7 +3564,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
         </div>
         <div style={{ padding:"14px", background:"var(--surface)" }}>
         {evs.length === 0
-          ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day — try toggling event types or pick another day." />
+          ? <EmptyState icon="📅" title="Nothing scheduled" desc="No events on this day. Try toggling event types or pick another day." />
           : <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
               {evs.map((ev, i) => {
                 const cfg = eventStyle(ev);
@@ -3597,7 +3597,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
       .filter(d => d >= today_)
       .sort();
     if (eventDates.length === 0)
-      return <EmptyState icon="📅" title="No upcoming events" desc="Nothing scheduled ahead — try toggling event types above." />;
+      return <EmptyState icon="📅" title="No upcoming events" desc="Nothing scheduled ahead. Try toggling event types above." />;
 
     // Group by month for section headers
     let lastMonth = null;
@@ -3639,7 +3639,7 @@ function CalendarView({ jobs, tasks, onOpenPanel }) {
                     const scfg = ev.job ? getStatusCfg(ev.job.status) : null;
                     return (
                       <div key={ei} onClick={() => ev.job && onOpenPanel(ev.job)}
-                        style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`3px solid ${cfg.border}`, borderRadius:7, cursor:ev.job?"pointer":"default" }}
+                        style={{ display:"flex", gap:10, alignItems:"center", padding:"9px 12px", background:cfg.bg, border:`1px solid ${cfg.border}`, borderLeft:`3px solid ${cfg.border}`, borderRadius:8, cursor:ev.job?"pointer":"default" }}
                         onMouseEnter={e => { if(ev.job) e.currentTarget.style.filter="brightness(0.96)"; }}
                         onMouseLeave={e => { e.currentTarget.style.filter="none"; }}>
                         <span style={{ fontSize:15, flexShrink:0 }}>{cfg.icon}</span>
@@ -3762,7 +3762,7 @@ function ResetPasswordScreen({ onDone }) {
         </div>
         {done ? (
           <div style={{ fontSize:13, color:"#27500A", background:"#EAF3DE", border:"1px solid #C0DD97", borderRadius:8, padding:"12px 14px", textAlign:"center" }}>
-            ✓ Password updated — signing you in…
+            ✓ Password updated, signing you in…
           </div>
         ) : (
           <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -3826,7 +3826,7 @@ function AuthScreen() {
   const inputStyle = { fontSize:14.5, padding:"12px 14px", border:"1px solid var(--input-border)", borderRadius:11, background:"var(--input-bg)", color:"var(--text-primary)", width:"100%", boxSizing:"border-box" };
   const labelStyle = { display:"block", fontSize:12.5, fontWeight:600, color:"var(--text-secondary)", marginBottom:6 };
   const headings = { signin:"Welcome back", signup:"Create your account", forgot:"Reset your password" };
-  const subtitles = { signin:"Sign in to keep your job search moving.", signup:"Free to use — track applications and get reminded to follow up.", forgot:"We'll email you a link to get back in." };
+  const subtitles = { signin:"Sign in to keep your job search moving.", signup:"Free to use. Track applications and get reminded to follow up.", forgot:"We'll email you a link to get back in." };
   const btnLabels = { signin:"Sign in", signup:"Create account", forgot:"Send reset email" };
 
   return (
@@ -3880,7 +3880,7 @@ function AuthScreen() {
         {mode === "signin" && (
           <div style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 14px", background:"var(--surface-subtle, rgba(24,95,165,0.06))", border:"1px solid var(--blue-light, #B5D4F4)", borderRadius:10, marginTop:20, fontSize:12, color:"var(--text-secondary)", lineHeight:1.5 }}>
             <span style={{ fontSize:16, flexShrink:0 }}>✍️</span>
-            <span>The tracker that tells you who to follow up with — and drafts the message for you.</span>
+            <span>The tracker that tells you who to follow up with, and drafts the message for you.</span>
           </div>
         )}
         <div style={{ textAlign:"center", marginTop:"1.75rem", fontSize:13.5, color:"var(--text-muted)", display:"flex", flexDirection:"column", gap:10 }}>
@@ -4125,11 +4125,11 @@ export default function App() {
     // Single batched notification instead of one per job
     if (overdue.length === 1) {
       const j = overdue[0];
-      fireNotification("Followup — follow-up needed", `${j.company} · ${j.role}`);
+      fireNotification("Followup: follow-up needed", `${j.company} · ${j.role}`);
     } else {
       const preview = overdue.slice(0, 2).map(j => j.company).join(", ");
       const more = overdue.length > 2 ? ` + ${overdue.length - 2} more` : "";
-      fireNotification(`Followup — ${overdue.length} follow-ups needed`, `${preview}${more}`);
+      fireNotification(`Followup: ${overdue.length} follow-ups needed`, `${preview}${more}`);
     }
   }, [loaded]);
 
@@ -4233,7 +4233,7 @@ export default function App() {
     setJobs(u); saveJobs(u);
     track("job_status_changed", { from: job?.status, to: newStatus });
     if (newStatus === "Offer") track("offer_logged");
-    if (isFirstInterviewEver) showWinsToast("🎉 First interview scheduled — you're doing great.");
+    if (isFirstInterviewEver) showWinsToast("🎉 First interview scheduled. You're doing great.");
     // Auto-create a day-before reminder when an interview date is set
     if (interviewDate && INTERVIEW_STATUSES.includes(newStatus)) {
       track("interview_scheduled");
@@ -4241,7 +4241,7 @@ export default function App() {
       d.setDate(d.getDate() - 1);
       const reminderDate = d.toISOString().slice(0, 10);
       const timeStr = interviewTime ? ` at ${formatTime12(interviewTime)}` : "";
-      addReminder(id, reminderDate, `${newStatus} tomorrow${timeStr} — ${job?.company}`);
+      addReminder(id, reminderDate, `${newStatus} tomorrow${timeStr}: ${job?.company}`);
     }
   }
 
@@ -4262,7 +4262,7 @@ export default function App() {
       timeline: [...(j.timeline||[]), { id:crypto.randomUUID(), status:j.status, date:now, notes:"Follow-up sent" }],
     } : j);
     setJobs(u); saveJobs(u);
-    showWinsToast(`Sent 📤 — that's ${followupsSentThisWeek(u)} this week. Most people never send one.`);
+    showWinsToast(`Sent 📤. That's ${followupsSentThisWeek(u)} this week. Most people never send one.`);
   }
 
   function logReply(job) {
@@ -4387,7 +4387,7 @@ export default function App() {
           });
         }
         e.target.value = "";
-      } catch { alert("Could not read backup file — make sure it's a valid JSON backup from this app."); }
+      } catch { alert("Could not read backup file. Make sure it's a valid JSON backup from this app."); }
     };
     reader.readAsText(file);
   }
@@ -4618,8 +4618,8 @@ export default function App() {
     <div style={{ padding:"3rem 1.5rem", maxWidth:420, margin:"3rem auto", textAlign:"center", color:"var(--text-primary)" }}>
       <div style={{ fontSize:28, marginBottom:10 }}>⚠️</div>
       <div style={{ fontSize:15, fontWeight:600, marginBottom:8 }}>Couldn't load your data</div>
-      <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, marginBottom:18 }}>We hit a problem reaching the server, so we've paused to keep your data safe — nothing has been changed. Please try again.</div>
-      <button onClick={() => window.location.reload()} style={{ fontSize:13, padding:"9px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600 }}>Retry</button>
+      <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, marginBottom:18 }}>We hit a problem reaching the server, so we've paused to keep your data safe. Nothing has been changed. Please try again.</div>
+      <button onClick={() => window.location.reload()} style={{ fontSize:13, padding:"9px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>Retry</button>
     </div>
   );
   if (!loaded) return <SkeletonScreen />;
@@ -4654,8 +4654,8 @@ export default function App() {
 
       {demoMode && (
         <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap", justifyContent:"space-between", background:"#FFF8F0", border:"1px solid #F0D9B5", borderRadius:10, padding:"10px 16px", marginBottom:"0.75rem" }}>
-          <span style={{ fontSize:12.5, color:"#7A4500" }}>👋 You're viewing sample data — nothing you do here is saved. Sign up free to start tracking your own applications.</span>
-          <button onClick={() => { track("demo_signup_clicked", { source:"banner" }); setDemoMode(false); }} style={{ fontSize:12, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:600, flexShrink:0 }}>Sign up free</button>
+          <span style={{ fontSize:12.5, color:"#7A4500" }}>👋 You're viewing sample data. Nothing you do here is saved. Sign up free to start tracking your own applications.</span>
+          <button onClick={() => { track("demo_signup_clicked", { source:"banner" }); setDemoMode(false); }} style={{ fontSize:12, padding:"6px 14px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600, flexShrink:0 }}>Sign up free</button>
         </div>
       )}
 
@@ -4754,7 +4754,7 @@ export default function App() {
                         <div style={{ borderTop:"1px solid var(--border-subtle)", paddingTop:10 }}>
                           <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); setFilterOpen(false); }}
                             style={{ fontSize:12, padding:"6px 10px", width:"100%", textAlign:"left", background:showArchived?"#FBEFD9":"var(--surface-hover)", color:showArchived?"#633806":"var(--text-secondary)", border:`1px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
-                            📦 {showArchived ? "Showing archived — back to active" : `Show archived jobs (${archivedCount})`}
+                            📦 {showArchived ? "Showing archived, back to active" : `Show archived jobs (${archivedCount})`}
                           </button>
                         </div>
                       )}
@@ -4819,7 +4819,7 @@ export default function App() {
                         <div style={{ borderTop:"1px solid var(--border-subtle)", paddingTop:10 }}>
                           <button onClick={() => { setShowArchived(a => !a); setSelected(new Set()); setBoardFilterOpen(false); }}
                             style={{ fontSize:12, padding:"6px 10px", width:"100%", textAlign:"left", background:showArchived?"#FBEFD9":"var(--surface-hover)", color:showArchived?"#633806":"var(--text-secondary)", border:`1px solid ${showArchived?"#FAC775":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500 }}>
-                            📦 {showArchived ? "Showing archived — back to active" : `Show archived jobs (${archivedCount})`}
+                            📦 {showArchived ? "Showing archived, back to active" : `Show archived jobs (${archivedCount})`}
                           </button>
                         </div>
                       )}
@@ -4910,7 +4910,7 @@ export default function App() {
           : <div>
               {showArchived && (
                 <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 14px", background:"var(--surface-subtle)", border:"1px solid var(--border)", borderRadius:8, marginBottom:10 }}>
-                  <span style={{ fontSize:13, color:"var(--text-secondary)" }}>📦 Showing {filtered.length} archived job{filtered.length!==1?"s":""} — these are hidden from active views.</span>
+                  <span style={{ fontSize:13, color:"var(--text-secondary)" }}>📦 Showing {filtered.length} archived job{filtered.length!==1?"s":""}, hidden from active views.</span>
                 </div>
               )}
               {/* Floating bulk-action bar — fixed to bottom of viewport */}
@@ -4967,7 +4967,7 @@ export default function App() {
                       <input type="checkbox" checked={selected.has(job.id)} onChange={() => toggleSelect(job.id)} style={{ cursor:"pointer" }} />
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <ListCard job={job} isFirst={i===0} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} onArchive={archiveJob} tasks={tasks} onWin={() => showWinsToast(`Sent 📤 — that's ${followupsSentThisWeek(jobs) + 1} this week. Most people never send one.`)} />
+                      <ListCard job={job} isFirst={i===0} onEdit={openEdit} onStatusChange={onStatusChange} onNotesSave={onNotesSave} onAddReminder={addReminder} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onDuplicate={duplicateJob} onOpenPanel={togglePanel} onArchive={archiveJob} tasks={tasks} onWin={() => showWinsToast(`Sent 📤. That's ${followupsSentThisWeek(jobs) + 1} this week. Most people never send one.`)} />
                     </div>
                   </div>
                 ))}
@@ -4979,7 +4979,7 @@ export default function App() {
       {view==="board" && (jobs.filter(j=>!j.archived).length===0
         ? <EmptyState icon="📋" title="No applications yet" desc="Add jobs from the List view and they'll appear here as cards you can drag through your pipeline." action="Go to List view" onAction={() => setView("list")} />
         : <div>
-          <ViewHint viewKey="board" text="💡 Tip: drag cards between columns to update status — the funnel above tracks your conversion rate." />
+          <ViewHint viewKey="board" text="💡 Tip: drag cards between columns to update status. The funnel above tracks your conversion rate." />
           <PipelineFunnel jobs={jobs.filter(j => !j.archived)} />
           {jobs.filter(j => !j.archived && (j.salaryMin || j.salaryMax)).length > 0 && (
             <div style={{ marginBottom:16, border:"1px solid var(--border)", borderRadius:10, overflow:"hidden" }}>
@@ -5003,14 +5003,14 @@ export default function App() {
               </button>
             ); })}
           </div>
-          <BoardTable jobs={(activeTagFilters.length>0 ? jobs.filter(j=>activeTagFilters.every(([cat,val])=>(j.tags||{})[cat]===val)) : jobs).filter(j=>!j.archived)} visibleStatuses={Object.keys(STATUS_CONFIG).filter(s=>!hiddenCols[s])} search={search} onDrop={onDrop} onPanelOpen={togglePanel} dragId={dragId} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onWin={() => showWinsToast(`Sent 📤 — that's ${followupsSentThisWeek(jobs) + 1} this week. Most people never send one.`)} />
+          <BoardTable jobs={(activeTagFilters.length>0 ? jobs.filter(j=>activeTagFilters.every(([cat,val])=>(j.tags||{})[cat]===val)) : jobs).filter(j=>!j.archived)} visibleStatuses={Object.keys(STATUS_CONFIG).filter(s=>!hiddenCols[s])} search={search} onDrop={onDrop} onPanelOpen={togglePanel} dragId={dragId} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onWin={() => showWinsToast(`Sent 📤. That's ${followupsSentThisWeek(jobs) + 1} this week. Most people never send one.`)} />
         </div>)}
 
       {/* Sheet view */}
       {view==="sheet" && (jobs.filter(j=>!j.archived).length===0
         ? <EmptyState icon="📊" title="No jobs to display" desc="Add your first job from the List view and it will appear here in the spreadsheet." />
         : <>
-            <ViewHint viewKey="sheet" text="💡 Tip: click any cell to edit it inline — good for scanning or comparing lots of applications at once." />
+            <ViewHint viewKey="sheet" text="💡 Tip: click any cell to edit it inline, good for scanning or comparing lots of applications at once." />
             <SpreadsheetView jobs={jobs} setJobs={setJobs} onStatusChange={onStatusChange} onNotesSave={onNotesSave} />
           </>)}
 
@@ -5063,7 +5063,7 @@ export default function App() {
           <div style={{ fontSize:36, marginBottom:12 }}>👤</div>
           <div style={{ fontSize:16, fontWeight:600, color:"var(--text-primary)", marginBottom:8 }}>Your profile lives in your account</div>
           <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.6, maxWidth:340, margin:"0 auto" }}>Sign up free to set your name, tune follow-up timing, and save the applications you're tracking here.</div>
-          <button onClick={() => { track("demo_signup_clicked", { source:"profile" }); setDemoMode(false); }} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:7, cursor:"pointer", fontWeight:500 }}>Sign up free</button>
+          <button onClick={() => { track("demo_signup_clicked", { source:"profile" }); setDemoMode(false); }} style={{ marginTop:16, fontSize:13, padding:"8px 20px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:500 }}>Sign up free</button>
         </div>
       )}
       {view==="profile" && !demoMode && (
