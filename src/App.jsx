@@ -238,6 +238,15 @@ const PREP_DEFAULTS = {
   ],
 };
 
+// Only render user-supplied links (job postings, documents, spreadsheet cells)
+// as real <a href> when the scheme is http(s) — blocks javascript:/data: URIs
+// smuggled in via a malicious JSON backup or CSV import from turning into
+// stored XSS when someone clicks "View job" / "View file".
+function isSafeUrl(url) {
+  if (!url) return false;
+  try { return /^https?:$/i.test(new URL(url, window.location.href).protocol); } catch { return false; }
+}
+
 function formatTime12(time24) {
   if (!time24) return "";
   const [h, m] = time24.split(":").map(Number);
@@ -1210,10 +1219,10 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
                   </span>
                 </div>
               ))}
-              {job.link && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
+              {job.link && isSafeUrl(job.link) && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Posting</span><a href={job.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>View job ↗</a></div>}
               {jobDocIds(job).map(id => (documents||[]).find(d=>d.id===id)).filter(Boolean).map(d => (
                 <div key={d.id} style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>{docType(d)}</span>
-                  {d.link ? <a href={d.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>{d.name} ↗</a> : <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{d.name}</span>}
+                  {d.link && isSafeUrl(d.link) ? <a href={d.link} target="_blank" rel="noreferrer" style={{ color:"#185FA5", textDecoration:"none", fontWeight:500 }}>{d.name} ↗</a> : <span style={{ color:"var(--text-primary)", fontWeight:500 }}>{d.name}</span>}
                 </div>
               ))}
               {job.createdAt && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:100 }}>Added</span><span style={{ color:"var(--text-muted)" }}>{timeAgo(job.createdAt)}</span></div>}
@@ -1756,7 +1765,7 @@ function ListCard({ job, isFirst, onEdit, onStatusChange, onNotesSave, onAddRemi
           {job.interviewDate && <span style={{ color:getStatusCfg("Interview").text, fontWeight:500 }}>📅 {INTERVIEW_STATUSES.includes(job.status)?job.status:"Interview"}: {fmtDate(job.interviewDate+"T00:00:00")}{job.interviewTime ? ` · ${formatTime12(job.interviewTime)}` : ""}</span>}
           {(job.salaryMin||job.salaryMax) && <span>{job.salaryMin?`$${parseInt(job.salaryMin).toLocaleString()}`:"?"} – {job.salaryMax?`$${parseInt(job.salaryMax).toLocaleString()}`:"?"}</span>}
           {job.contact && <span>📇 {job.contact}</span>}
-          {job.link && <a href={job.link} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none" }}>View posting ↗</a>}
+          {job.link && isSafeUrl(job.link) && <a href={job.link} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none" }}>View posting ↗</a>}
         </div>
 
         {/* Row 4: Notes — inline, click to edit */}
@@ -1825,7 +1834,9 @@ function Cell({ value, type = "text", options, onChange, align = "left", style =
   if (type === "link") {
     return <div style={{ ...cellStyle, gap:6 }} onClick={() => setEditing(true)}>
       {value
-        ? <><a href={value} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#185FA5", fontSize:12, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>View ↗</a><span style={{ fontSize:10, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:3 }}>{value}</span></>
+        ? (isSafeUrl(value)
+          ? <><a href={value} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ color:"#185FA5", fontSize:12, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>View ↗</a><span style={{ fontSize:10, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:3 }}>{value}</span></>
+          : <span style={{ fontSize:10, color:"var(--text-muted)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{value}</span>)
         : <span style={{ color:"var(--text-placeholder)", fontSize:13 }}>-</span>}
     </div>;
   }
@@ -2870,7 +2881,7 @@ function DocumentsView({ documents, onDocumentsChange }) {
               <div key={d.id} style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8, padding:"8px 10px", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:6 }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:500, color:"var(--text-primary)" }}>{d.name}</div>
-                  {d.link && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
+                  {d.link && isSafeUrl(d.link) && <a href={d.link} target="_blank" rel="noreferrer" style={{ fontSize:11, color:"var(--accent)", textDecoration:"none" }}>View file ↗</a>}
                   {d.notes && <div style={{ fontSize:11, color:"var(--text-muted)", marginTop:2 }}>{d.notes}</div>}
                 </div>
                 <button onClick={() => deleteDocument(d.id)} title="Delete" style={{ fontSize:11, padding:"6px 8px", background:"var(--surface-hover)", color:"var(--text-muted)", border:"1px solid var(--border-subtle)", borderRadius:4, cursor:"pointer", flexShrink:0, minHeight:44, minWidth:44 }}>✕</button>
@@ -3187,7 +3198,7 @@ function ContactPanel({ contact, jobs, onClose, onEdit, onOpenJob, onUnlinkJob }
         <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
           {contact.email && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>Email</span><a href={`mailto:${contact.email}`} style={{ color:"var(--accent)", textDecoration:"none", fontWeight:500 }}>{contact.email}</a></div>}
           {contact.phone && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>Phone</span><span style={{ color:"var(--text-primary)", fontWeight:500 }}>{contact.phone}</span></div>}
-          {contact.linkedin && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>LinkedIn</span><a href={contact.linkedin} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none", fontWeight:500 }}>View profile ↗</a></div>}
+          {contact.linkedin && isSafeUrl(contact.linkedin) && <div style={{ display:"flex", gap:8, fontSize:12 }}><span style={{ color:"var(--text-muted)", minWidth:80 }}>LinkedIn</span><a href={contact.linkedin} target="_blank" rel="noreferrer" style={{ color:"var(--accent)", textDecoration:"none", fontWeight:500 }}>View profile ↗</a></div>}
         </div>
         {contact.notes && <div style={{ fontSize:12, color:"var(--text-secondary)", whiteSpace:"pre-wrap", lineHeight:1.5 }}>{contact.notes}</div>}
         <div>
