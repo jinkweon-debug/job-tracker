@@ -6,8 +6,8 @@
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta name="theme-color" content="#185FA5" />
-  <title>Free Follow-Up Email Generator (No Sign-Up) — Followup</title>
-  <meta name="description" content="Generate a follow-up email for your job search in seconds — fill in a few details, get a ready-to-send draft. No sign-up, no AI, just fill-in-the-blank templates." />
+  <title>Free Follow-Up Email Generator (No Sign-Up) | Followup</title>
+  <meta name="description" content="Generate a follow-up email for your job search in seconds. Fill in a few details, get a ready-to-send draft. No sign-up, no AI, just fill-in-the-blank templates." />
   <link rel="stylesheet" href="/assets/templates.css" />
   <style>
     .field { margin-bottom: 14px; }
@@ -35,7 +35,7 @@
     <div class="wrap">
       <div class="eyebrow">Free tool · no sign-up</div>
       <h1>Follow-up email generator</h1>
-      <p class="sub">Fill in a few details and get a ready-to-send follow-up email. This runs entirely in your browser — nothing you type here is sent anywhere, and no AI is involved, just fill-in-the-blank templates. Want a version for a different stage? See the <a href="/templates/index.html">full template library</a>.</p>
+      <p class="sub">Fill in a few details and get a ready-to-send follow-up email. This runs entirely in your browser: nothing you type here is sent anywhere, and no AI is involved, just fill-in-the-blank templates. Want a version for a different stage? See the <a href="/templates/index.html">full template library</a>.</p>
 
       <div class="template-card">
         <div class="field">
@@ -88,8 +88,8 @@
 
       <div class="cta-box">
         <h2 style="margin-top:0">Want Followup to draft these automatically?</h2>
-        <p>Sign up free and Followup tracks every application, tells you exactly when to follow up, and drafts the email for you — no copy-pasting placeholders.</p>
-        <a href="/" class="btn-primary">Save this to my tracker — sign up free</a>
+        <p>Sign up free and Followup tracks every application, tells you exactly when to follow up, and drafts the email for you, no copy-pasting placeholders.</p>
+        <a href="/" class="btn-primary">Save this to my tracker, sign up free</a>
       </div>
     </div>
   </main>
@@ -108,7 +108,7 @@
         }
       },
       after_phone_screen: {
-        subject: function (r) { return "Great speaking with you — " + r.role + " at " + r.company; },
+        subject: function (r) { return "Great speaking with you: " + r.role + " at " + r.company; },
         body: function (r) {
           return "Hi " + r.contactName + ",\n\n" +
             "Thank you for taking the time to speak with me today about the " + r.role + " position. I enjoyed learning more about " + (r.detail || "the role and team") + ", and it's reinforced how excited I am about the opportunity.\n\n" +
@@ -116,18 +116,18 @@
         }
       },
       thank_you: {
-        subject: function (r) { return "Thank you — " + r.role + " interview"; },
+        subject: function (r) { return "Thank you: " + r.role + " interview"; },
         body: function (r) {
           return "Hi " + r.contactName + ",\n\n" +
             "Thank you for taking the time to speak with me today about the " + r.role + " position. I really enjoyed our conversation about " + (r.detail || "the role and the team's work") + ", and it confirmed how well this role fits what I'm looking for.\n\n" +
-            "Thanks again — I'm looking forward to hearing about next steps.\n\nBest,\n" + r.yourName;
+            "Thanks again, I'm looking forward to hearing about next steps.\n\nBest,\n" + r.yourName;
         }
       },
       after_interview: {
-        subject: function (r) { return "Checking in — " + r.role + " interview"; },
+        subject: function (r) { return "Checking in: " + r.role + " interview"; },
         body: function (r) {
           return "Hi " + r.contactName + ",\n\n" +
-            "I hope you're doing well. I wanted to check in on the status of the " + r.role + " position at " + r.company + " — I interviewed recently and remain very interested in the opportunity" + (r.detail ? ", especially " + r.detail : "") + ".\n\n" +
+            "I hope you're doing well. I wanted to check in on the status of the " + r.role + " position at " + r.company + ". I interviewed recently and remain very interested in the opportunity" + (r.detail ? ", especially " + r.detail : "") + ".\n\n" +
             "Please let me know if there's any additional information I can provide, or if there's an updated timeline for a decision.\n\nThank you again for your time and consideration.\n\nBest,\n" + r.yourName;
         }
       },
@@ -136,7 +136,7 @@
         body: function (r) {
           return "Hi " + r.contactName + ",\n\n" +
             "Just wanted to bump this to the top of your inbox in case it got buried. I'm still very interested in the " + r.role + " position at " + r.company + " and happy to answer any questions.\n\n" +
-            "If the role has moved forward with other candidates, no worries at all — I'd appreciate a quick note either way so I can plan accordingly.\n\nThanks,\n" + r.yourName;
+            "If the role has moved forward with other candidates, no worries at all. I'd appreciate a quick note either way so I can plan accordingly.\n\nThanks,\n" + r.yourName;
         }
       },
       networking: {
