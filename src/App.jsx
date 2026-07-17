@@ -1515,7 +1515,11 @@ function Modal({ form, setForm, onSave, onClose, onDelete, isEdit }) {
     if (!url) return;
     setFetchState("loading");
     try {
-      const resp = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sign in to use paste-a-link autofill");
+      const resp = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed to fetch");
       setForm(f => ({

@@ -2,11 +2,22 @@
 // role/company/salary, mirroring the bookmarklet's extraction logic but without
 // the CORS restrictions a browser would hit.
 //
-// Hardening (Tier 1): SSRF blocklist (rejects private/internal targets), manual
-// redirect re-validation, request timeout, response-size cap, and a lightweight
-// in-instance rate limiter. No external services required.
+// Hardening (Tier 1): requires a signed-in caller (JWT-verified, same pattern as
+// delete-account.js — ties usage to an account instead of leaving this an open
+// public proxy), SSRF blocklist (rejects private/internal targets), DNS-rebinding
+// protection (the validated IP is pinned for the actual connection instead of
+// letting fetch() re-resolve independently), manual redirect re-validation,
+// request timeout, response-size cap, and a lightweight in-instance rate limiter.
 import dns from "node:dns/promises";
 import net from "node:net";
+import { Agent } from "undici";
+import { createClient } from "@supabase/supabase-js";
+
+// URL + anon key are both public by design (already shipped to the browser in
+// src/supabase.js) — only used here to verify the caller's JWT via Supabase's
+// auth server, no elevated privileges needed for that.
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://mugglrshrdgrpisidcur.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11Z2dscnNocmRncnBpc2lkY3VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0MDIxODUsImV4cCI6MjA5NTk3ODE4NX0.11_wpfaSTfZBSI7My7UJS0tM3IBU_8wzuKH_fQXpJB8";
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const FETCH_TIMEOUT_MS = 8000;
@@ -64,6 +75,10 @@ function ipIsPrivate(ip) {
   return true; // unrecognized -> treat as unsafe
 }
 
+// Returns the URL plus the exact IP that was validated as safe, so the caller
+// can pin the actual TCP connection to it — resolving again inside fetch()
+// would let a malicious DNS server (TTL=0 "rebinding") pass this check with a
+// public IP and then hand the real connection a private/internal one.
 async function assertSafeUrl(raw) {
   let u;
   try {
@@ -80,7 +95,7 @@ async function assertSafeUrl(raw) {
   }
   if (net.isIP(host)) {
     if (ipIsPrivate(host)) throw deny(400, "URL not allowed");
-    return u;
+    return { u, pinnedIp: host, family: net.isIPv6(host) ? 6 : 4 };
   }
   let addrs;
   try {
@@ -91,7 +106,7 @@ async function assertSafeUrl(raw) {
   if (!addrs.length || addrs.some((a) => ipIsPrivate(a.address))) {
     throw deny(400, "URL not allowed");
   }
-  return u;
+  return { u, pinnedIp: addrs[0].address, family: addrs[0].family };
 }
 
 // Fetch with manual redirect handling so each hop is re-validated against the
@@ -99,15 +114,22 @@ async function assertSafeUrl(raw) {
 async function safeFetch(startUrl) {
   let current = startUrl;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    const u = await assertSafeUrl(current);
+    const { u, pinnedIp, family } = await assertSafeUrl(current);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    // Pin the connection to the exact IP we just validated (SNI/Host stay on
+    // the original hostname via the dispatcher's own TLS handling — only the
+    // TCP-level DNS resolution is overridden).
+    const dispatcher = new Agent({
+      connect: { lookup: (_hostname, _options, callback) => callback(null, pinnedIp, family) },
+    });
     let resp;
     try {
       resp = await fetch(u.href, {
         headers: { "User-Agent": UA, Accept: "text/html,application/xhtml+xml" },
         redirect: "manual",
         signal: controller.signal,
+        dispatcher,
       });
     } catch (e) {
       throw deny(502, e.name === "AbortError" ? "Upstream timed out" : "Failed to fetch URL");
@@ -148,7 +170,22 @@ async function readCapped(resp) {
 export default async function handler(req, res) {
   const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
   if (rateLimited(ip)) {
-    res.status(429).json({ error: "Too many requests — slow down a moment." });
+    res.status(429).json({ error: "Too many requests, slow down a moment." });
+    return;
+  }
+
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!token) {
+    res.status(401).json({ error: "Missing authorization token." });
+    return;
+  }
+  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data: userData, error: userErr } = await authClient.auth.getUser(token);
+  if (userErr || !userData?.user?.id) {
+    res.status(401).json({ error: "Your session is invalid or expired. Please sign in again." });
     return;
   }
 
