@@ -2411,15 +2411,18 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
 
   function tierStyle(diff, type) {
     const d = isDark();
-    if (type==="interview") return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", tag:null };
-    if (diff===0)            return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", tag:null };
-    if (diff >= -7)          return { border: d?"#5c4020":"#C27209", bg: d?"#3d2b10":"#FFF8F0", tag:{ label:`${-diff}d overdue`, color: d?"#FAC775":"#7A4500", bg: d?"#3d2b10":"#FDEEC8" } };
-    return                          { border: d?"#5c2525":"#A32D2D", bg: d?"#3d1515":"#FFF5F5", tag:{ label:`${-diff}d overdue`, color: d?"#F08080":"#791F1F", bg: d?"#3d1515":"#FCEBEB" } };
+    // `text` is a bright, tier-tinted color for the sub-line — in dark mode the
+    // `border` color is far too dark to read on the tinted card background.
+    if (type==="interview") return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", text: d?"#8FB8E8":"#185FA5", tag:null };
+    if (diff===0)            return { border: d?"#2d5580":"#185FA5", bg: d?"#1a3550":"#F0F6FF", text: d?"#8FB8E8":"#185FA5", tag:null };
+    if (diff >= -7)          return { border: d?"#5c4020":"#C27209", bg: d?"#3d2b10":"#FFF8F0", text: d?"#FAC775":"#C27209", tag:{ label:`${-diff}d overdue`, color: d?"#FAC775":"#7A4500", bg: d?"#3d2b10":"#FDEEC8" } };
+    return                          { border: d?"#5c2525":"#A32D2D", bg: d?"#3d1515":"#FFF5F5", text: d?"#F08080":"#A32D2D", tag:{ label:`${-diff}d overdue`, color: d?"#F08080":"#791F1F", bg: d?"#3d1515":"#FCEBEB" } };
   }
 
   function AutoCard({ task }) {
     const { job, diff, type, fu } = task;
-    const { border, bg, tag } = tierStyle(diff, type);
+    const { border, bg, text, tag } = tierStyle(diff, type);
+    const linkColor = isDark() ? "#8FB8E8" : "#185FA5";
     const label = type==="interview" ? `${job.status}: ${job.company} · ${job.role}` : `${job.company} · ${job.role}`;
     const sublabel = type==="interview" ? "Scheduled for today" : `Status: ${job.status} · ${fu?.label}`;
     return (
@@ -2427,11 +2430,11 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
         <span style={{ fontSize:15, marginTop:1, flexShrink:0 }}>{type==="interview"?"📅":"🔔"}</span>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-            <span onClick={() => onOpenPanel(job)} style={{ fontSize:13, fontWeight:500, color:"#185FA5", cursor:"pointer" }}>{label}</span>
+            <span onClick={() => onOpenPanel(job)} style={{ fontSize:13, fontWeight:500, color:linkColor, cursor:"pointer" }}>{label}</span>
             {tag && <span style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:tag.bg, color:tag.color, flexShrink:0 }}>{tag.label}</span>}
             {(job.interest||0) > 0 && <InterestStars value={job.interest} size={11} />}
           </div>
-          <div style={{ fontSize:11, color:border, marginTop:2, fontWeight:500 }}>{sublabel}</div>
+          <div style={{ fontSize:11, color:text, marginTop:2, fontWeight:500 }}>{sublabel}</div>
           {(() => {
             const act = lastActivity(job);
             if (!act) return null;
@@ -2446,7 +2449,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
         </div>
         {type==="followup" && (
           <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, alignItems:"flex-end" }}>
-            <button onClick={() => { track("draft_opened", { job_status: job.status, source: "today" }); setDraftJob(job); }} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:"#185FA5", border:"1px solid #B5D4F4", borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
+            <button onClick={() => { track("draft_opened", { job_status: job.status, source: "today" }); setDraftJob(job); }} style={{ fontSize:11, padding:"4px 9px", background:"var(--surface-hover)", color:linkColor, border:`1px solid ${isDark()?"#3a5a80":"#B5D4F4"}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✍️ Draft</button>
             <button onClick={() => { logOutreach(job); track("draft_actioned", { action:"mark_contacted_no_draft" }); }} style={{ fontSize:11, padding:"4px 9px", background:getStatusCfg("Offer").bg, color:getStatusCfg("Offer").text, border:`1px solid ${getStatusCfg("Offer").border}`, borderRadius:6, cursor:"pointer", fontWeight:600, whiteSpace:"nowrap" }}>✓ Contacted</button>
             <button onClick={() => onLogReply(job)} style={{ fontSize:10, padding:"3px 8px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:6, cursor:"pointer", whiteSpace:"nowrap" }}>📨 Got a reply</button>
             <div style={{ display:"flex", gap:3 }}>
