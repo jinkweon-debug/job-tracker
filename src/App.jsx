@@ -2371,7 +2371,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders, demoMode }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onImportCSV, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders, demoMode }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const [draftJob, setDraftJob] = useState(null);
@@ -2434,7 +2434,15 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
             {tag && <span style={{ fontSize:10, fontWeight:600, padding:"1px 7px", borderRadius:10, background:tag.bg, color:tag.color, flexShrink:0 }}>{tag.label}</span>}
             {(job.interest||0) > 0 && <InterestStars value={job.interest} size={11} />}
           </div>
-          <div style={{ fontSize:11, color:text, marginTop:2, fontWeight:500 }}>{sublabel}</div>
+          <div style={{ fontSize:11, color:text, marginTop:2, fontWeight:500 }}>
+            {sublabel}
+            {type==="followup" && FOLLOWUP_DAYS[job.status] && (
+              <span style={{ color:"var(--text-muted)", fontWeight:400 }}> · due {FOLLOWUP_DAYS[job.status]}d after applying</span>
+            )}
+            {type==="followup" && (
+              <span onClick={() => onNavigate("automation")} style={{ color:"var(--text-muted)", fontWeight:400, textDecoration:"underline", cursor:"pointer", marginLeft:6 }}>Adjust timing</span>
+            )}
+          </div>
           {(() => {
             const act = lastActivity(job);
             if (!act) return null;
@@ -2504,7 +2512,7 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
   const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length;
 
   if (jobs.filter(j => !j.archived).length === 0) {
-    return <OnboardingCard onAdd={onAddJob} onLoadSample={onLoadSample} />;
+    return <OnboardingCard onAdd={onAddJob} onLoadSample={onLoadSample} onImportCSV={onImportCSV} />;
   }
 
   return (
@@ -2622,7 +2630,7 @@ function makeSampleJobs() {
 }
 
 // ── Onboarding card (shown when user has no jobs) ─────────────────────────────
-function OnboardingCard({ onAdd, onLoadSample }) {
+function OnboardingCard({ onAdd, onLoadSample, onImportCSV }) {
   const steps = [
     { icon:"📝", title:"Add a job", desc:"Paste any role you've applied to, or use the paste-a-link box and it fills in the details for you." },
     { icon:"🔔", title:"Get told when to follow up", desc:"Your Today list flags applications going cold so you never let one die." },
@@ -2648,8 +2656,15 @@ function OnboardingCard({ onAdd, onLoadSample }) {
       </div>
       <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
         <button onClick={onAdd} style={{ fontSize:14, padding:"10px 24px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>+ Add your first job</button>
+        {onImportCSV && (
+          <label style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>
+            📄 Import from a spreadsheet
+            <input type="file" accept=".csv" onChange={onImportCSV} style={{ display:"none" }} />
+          </label>
+        )}
         <button onClick={onLoadSample} style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>Explore with sample data</button>
       </div>
+      {onImportCSV && <div style={{ textAlign:"center", fontSize:11, color:"var(--text-muted)", marginTop:10 }}>Coming from a spreadsheet? We match common column names automatically, most CSVs just work.</div>}
     </div>
   );
 }
@@ -4601,6 +4616,7 @@ export default function App() {
       const merged = [...jobs,...fresh];
       setJobs(merged); saveJobs(merged); e.target.value="";
       pushUndo(`Imported ${fresh.length} job${fresh.length!==1?"s":""}`, jobs);
+      track("job_added", { source:"csv_import", jobs_total: merged.filter(j=>!j.archived).length, imported: fresh.length, skipped_duplicates: dupes });
       alert(`✓ Imported ${fresh.length} job${fresh.length!==1?"s":""}${dupes>0?` · skipped ${dupes} duplicate${dupes!==1?"s":""} already in tracker`:""}.`);
     };
     reader.readAsText(file);
@@ -4879,6 +4895,12 @@ export default function App() {
                 </button>
               )}
               {!showArchived && view==="contacts" && <button onClick={() => setContactModal("new")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}>+ Add contact</button>}
+              {!showArchived && view==="list" && (
+                <label title="Import jobs from a CSV spreadsheet" style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"var(--surface)", color:"var(--text-secondary)", border:"1.5px solid var(--border)", borderRadius:6, fontWeight:500, cursor:"pointer" }}>
+                  📄 Import CSV
+                  <input type="file" accept=".csv" onChange={importCSV} style={{ display:"none" }} />
+                </label>
+              )}
               {!showArchived && !["contacts","profile","documents"].includes(view) && <button onClick={openAdd} style={{ display:"flex", alignItems:"center", gap:5, fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background:"#185FA5", color:"#fff", border:"1.5px solid #0C447C", borderRadius:6, fontWeight:500, cursor:"pointer" }}><Icon name="plus" size={13} /> Add job</button>}
               <button onClick={() => setView("profile")} style={{ fontSize:13, padding:"6px 14px", whiteSpace:"nowrap", background: view==="profile"?"#185FA5":"var(--surface)", color: view==="profile"?"#fff":"var(--text-secondary)", border:`1.5px solid ${view==="profile"?"#0C447C":"var(--border)"}`, borderRadius:6, cursor:"pointer", fontWeight:500, display:"flex", alignItems:"center", gap:6 }}>
                 👤 Profile
@@ -4922,7 +4944,7 @@ export default function App() {
         filtered.length===0
           ? <div>
               {!showArchived && jobs.filter(j=>!j.archived).length===0
-                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} />
+                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onImportCSV={importCSV} />
                 : <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":"No results for this filter."}</div>}
             </div>
           : <div>
@@ -5049,7 +5071,7 @@ export default function App() {
             </div>
           </div>
         )}
-        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} demoMode={demoMode} />
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onImportCSV={importCSV} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} demoMode={demoMode} />
       </>}
 
       {/* Offers view */}
