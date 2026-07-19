@@ -315,6 +315,18 @@ function getFollowupDate(job) {
   return d.toISOString().slice(0, 10);
 }
 
+// Answers "what's next for this job" for the DetailPanel's always-visible header line.
+// Reuses getFollowupStatus/getFollowupDate rather than recomputing the due-date math.
+function jobNextAction(job) {
+  if (job.archived) return { text: "Archived — no action needed", urgent: false, none: true };
+  const dueDate = getFollowupDate(job);
+  if (!dueDate) return { text: "Waiting — no action needed", urgent: false, none: true };
+  const fu = getFollowupStatus(job);
+  const label = new Date(dueDate + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const dueText = fu && fu.diff < 0 ? `overdue since ${label}` : `follow up ${label}`;
+  return { text: `next: ${dueText} · draft now`, urgent: !!(fu && fu.urgent), none: false };
+}
+
 let STALE_DAYS = 14;
 // Lets Settings override the follow-up cadence + cold-flag threshold (synced from App, like _isDark).
 function applyFollowupSettings(appliedDays, warmDays, staleDays) {
@@ -1076,6 +1088,19 @@ function DetailPanel({ job, onClose, onSave, onDelete, onArchive, onRestore, onN
         </div>
         {!editing && (
           <div style={{ padding:"14px 20px 12px", borderBottom:"1px solid var(--border)", display:"flex", flexDirection:"column", gap:12, background:"var(--surface)" }}>
+            {/* Next-action spine — always answers "what's next for this job" */}
+            {(() => {
+              const na = jobNextAction(job);
+              const c = na.none ? null : getStatusCfg(na.urgent ? "Rejected" : "Phone Screen");
+              return (
+                <div style={{ fontSize:12, fontWeight:600, padding:"6px 10px", borderRadius:6,
+                  background: na.none ? "var(--surface-subtle)" : c.bg,
+                  color: na.none ? "var(--text-muted)" : c.text,
+                  border: `1px solid ${na.none ? "var(--border-subtle)" : c.border}` }}>
+                  {na.text}
+                </div>
+              );
+            })()}
             {/* Status stepper */}
             <StatusStepper job={job} onChange={(s, d, t) => onStatusChange(job.id, s, d, t)} />
             <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
@@ -2371,7 +2396,7 @@ function SalaryChart({ jobs, onOpenPanel }) {
 }
 
 // ── Today tab ─────────────────────────────────────────────────────────────────
-function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onImportCSV, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders, demoMode }) {
+function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName, onAddJob, onLoadSample, onImportCSV, onLogReply, weeklyGoal, onWin, isMobile, checklistProgress, onChecklistDone, onNavigate, onEnableReminders, demoMode, showWizard, wizardStep, wizardImportResult, onProfileNameChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, onWizardSkip, onWizardFinish }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newTask, setNewTask] = useState({ text:"", jobId:"", dueDate:todayStr() });
   const [draftJob, setDraftJob] = useState(null);
@@ -2511,8 +2536,12 @@ function TodayTab({ jobs, tasks, setTasks, onOpenPanel, onUpdateJob, profileName
   const recentJobs    = jobs.filter(j => !j.archived).map(j => ({ job:j, t:activityTime(j) })).filter(x => x.t).sort((a,b) => b.t.localeCompare(a.t)).slice(0, 12).map(x => x.job);
   const totalPending  = autoTasks.length + manualOverdue.length + manualToday.length;
 
-  if (jobs.filter(j => !j.archived).length === 0) {
-    return <OnboardingCard onAdd={onAddJob} onLoadSample={onLoadSample} onImportCSV={onImportCSV} />;
+  if (showWizard) {
+    return <OnboardingWizard step={wizardStep} onAdd={onAddJob} onLoadSample={onLoadSample} onImportCSV={onImportCSV} importResult={wizardImportResult}
+      profileName={profileName} onProfileNameChange={onProfileNameChange}
+      followupAppliedDays={followupAppliedDays} onFollowupAppliedChange={onFollowupAppliedChange}
+      followupWarmDays={followupWarmDays} onFollowupWarmChange={onFollowupWarmChange}
+      onSkip={onWizardSkip} onFinish={onWizardFinish} />;
   }
 
   return (
@@ -2629,42 +2658,75 @@ function makeSampleJobs() {
   ];
 }
 
-// ── Onboarding card (shown when user has no jobs) ─────────────────────────────
-function OnboardingCard({ onAdd, onLoadSample, onImportCSV }) {
-  const steps = [
-    { icon:"📝", title:"Add a job", desc:"Paste any role you've applied to, or use the paste-a-link box and it fills in the details for you." },
-    { icon:"🔔", title:"Get told when to follow up", desc:"Your Today list flags applications going cold so you never let one die." },
-    { icon:"✍️", title:"Send it in one tap", desc:"It drafts the follow-up email for you. Just review and send." },
-  ];
+// ── Onboarding wizard (shown when user has no jobs) ───────────────────────────
+// Step 1: get jobs in (paste-link / CSV import / sample data). Step 2: name + follow-up
+// timing with live consequence feedback. Step 3 is implicit — finishing lands on Today.
+function OnboardingWizard({ step, onAdd, onLoadSample, onImportCSV, importResult, profileName, onProfileNameChange, followupAppliedDays, onFollowupAppliedChange, followupWarmDays, onFollowupWarmChange, onSkip, onFinish }) {
+  const nextFollowupDate = dateInNDays(parseInt(followupAppliedDays, 10) || 7);
+  const nextFollowupLabel = new Date(nextFollowupDate + "T00:00:00").toLocaleDateString(undefined, { month:"short", day:"numeric" });
+  const smallInput = { width:64, padding:"6px 8px", borderRadius:6, border:"1px solid var(--input-border)", background:"var(--input-bg)", color:"var(--text-primary)", fontSize:13 };
+
   return (
     <div style={{ maxWidth:580, margin:"2rem auto", padding:"2rem", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, boxShadow:"0 2px 12px rgba(0,0,0,0.06)" }}>
-      <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
-        <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><FollowupMark size={44} /></div>
-        <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Followup</div>
-        <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up, so applications don't go cold and warm intros don't slip.</div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"1.5rem" }}>
+        <div style={{ fontSize:11, fontWeight:600, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:"0.05em" }}>Step {step} of 3 · about 1 min</div>
+        <button onClick={onSkip} style={{ fontSize:12, padding:"4px 10px", background:"none", border:"1px solid var(--border)", borderRadius:6, color:"var(--text-muted)", cursor:"pointer" }}>Skip setup</button>
       </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:12, marginBottom:"1.75rem" }}>
-        {steps.map((s, i) => (
-          <div key={i} style={{ display:"flex", gap:14, alignItems:"flex-start", padding:"12px 14px", background:"var(--surface-subtle)", borderRadius:10, border:"1px solid var(--border-subtle)" }}>
-            <div style={{ fontSize:22, flexShrink:0, marginTop:1 }}>{s.icon}</div>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)", marginBottom:2 }}>{s.title}</div>
-              <div style={{ fontSize:12, color:"var(--text-muted)", lineHeight:1.5 }}>{s.desc}</div>
+
+      {step === 1 && (
+        <>
+          <div style={{ textAlign:"center", marginBottom:"1.75rem" }}>
+            <div style={{ display:"flex", justifyContent:"center", marginBottom:10 }}><FollowupMark size={44} /></div>
+            <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>Welcome to Followup</div>
+            <div style={{ fontSize:13, color:"var(--text-muted)", lineHeight:1.5 }}>The job tracker that makes you follow up, so applications don't go cold and warm intros don't slip. Let's get your first jobs in.</div>
+          </div>
+          <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
+            <button onClick={onAdd} style={{ fontSize:14, padding:"10px 24px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>+ Add your first job</button>
+            {onImportCSV && (
+              <label style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>
+                📄 Import from a spreadsheet
+                <input type="file" accept=".csv" onChange={onImportCSV} style={{ display:"none" }} />
+              </label>
+            )}
+            <button onClick={onLoadSample} style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>Explore with sample data</button>
+          </div>
+          {onImportCSV && <div style={{ textAlign:"center", fontSize:11, color:"var(--text-muted)", marginTop:10 }}>Coming from a spreadsheet? We match common column names automatically, most CSVs just work.</div>}
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          {importResult && (
+            <div style={{ fontSize:12, color:"var(--text-secondary)", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:"8px 12px", marginBottom:16 }}>
+              {importResult.error
+                ? importResult.message
+                : `✓ Imported ${importResult.imported} job${importResult.imported!==1?"s":""}${importResult.matched ? ` · matched ${importResult.matched} column${importResult.matched!==1?"s":""}` : ""}${importResult.dupes ? ` · skipped ${importResult.dupes} duplicate${importResult.dupes!==1?"s":""}` : ""}.`}
+            </div>
+          )}
+          <div style={{ fontSize:18, fontWeight:700, color:"var(--text-primary)", marginBottom:6 }}>When should we nudge you?</div>
+          <div style={{ fontSize:13, color:"var(--text-muted)", marginBottom:"1.25rem", lineHeight:1.5 }}>We'll flag applications that go quiet so you never let one die.</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:14, marginBottom:"1.25rem" }}>
+            <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", flexDirection:"column", gap:4 }}>
+              Your name (used in follow-up drafts)
+              <input value={profileName} onChange={e=>onProfileNameChange(e.target.value)} placeholder="e.g. Jamie Rivera" style={{ padding:"8px 10px", borderRadius:8, border:"1px solid var(--input-border)", background:"var(--input-bg)", color:"var(--text-primary)", fontSize:13 }} />
+            </label>
+            <div style={{ display:"flex", gap:18, flexWrap:"wrap" }}>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:8 }}>
+                <input type="number" min="1" value={followupAppliedDays} onChange={e=>onFollowupAppliedChange(e.target.value)} style={smallInput} /> days after applying
+              </label>
+              <label style={{ fontSize:13, color:"var(--text-secondary)", display:"flex", alignItems:"center", gap:8 }}>
+                <input type="number" min="1" value={followupWarmDays} onChange={e=>onFollowupWarmChange(e.target.value)} style={smallInput} /> days after a phone screen/interview
+              </label>
             </div>
           </div>
-        ))}
-      </div>
-      <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
-        <button onClick={onAdd} style={{ fontSize:14, padding:"10px 24px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>+ Add your first job</button>
-        {onImportCSV && (
-          <label style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>
-            📄 Import from a spreadsheet
-            <input type="file" accept=".csv" onChange={onImportCSV} style={{ display:"none" }} />
-          </label>
-        )}
-        <button onClick={onLoadSample} style={{ fontSize:13, padding:"10px 18px", background:"var(--surface-hover)", color:"var(--text-secondary)", border:"1px solid var(--border)", borderRadius:8, cursor:"pointer" }}>Explore with sample data</button>
-      </div>
-      {onImportCSV && <div style={{ textAlign:"center", fontSize:11, color:"var(--text-muted)", marginTop:10 }}>Coming from a spreadsheet? We match common column names automatically, most CSVs just work.</div>}
+          <div style={{ fontSize:12, color:"var(--text-secondary)", background:"var(--surface-subtle)", border:"1px solid var(--border-subtle)", borderRadius:8, padding:"8px 12px", marginBottom:"1.5rem" }}>
+            📅 Your first nudge will be <strong style={{ color:"var(--text-primary)" }}>{nextFollowupLabel}</strong>.
+          </div>
+          <div style={{ display:"flex", justifyContent:"center" }}>
+            <button onClick={onFinish} style={{ fontSize:14, padding:"10px 28px", background:"#185FA5", color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:600 }}>Take me to Today →</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -3974,6 +4036,16 @@ export default function App() {
   _isDark = darkMode; // keep module-level flag current for getStatusCfg/getTagColors/getCalCfg
   applyFollowupSettings(parseInt(followupAppliedDays), parseInt(followupWarmDays), parseInt(staleDays));
   function persistSettings(extra) { saveSettings({ profileName, autoArchiveDays, quietPromptDays, followupAppliedDays, followupWarmDays, staleDays, weeklyGoal, checklistProgress, ...extra }); }
+  function updateProfileName(n) { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }
+  function updateFollowupAppliedDays(v) { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} persistSettings({ followupAppliedDays: v }); }
+  function updateFollowupWarmDays(v) { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }
+  // ── Onboarding wizard (G1): step counter lives here so it can survive jobs going 0→1 ──
+  const [wizardStep, setWizardStep] = useState(1);
+  const [wizardImportResult, setWizardImportResult] = useState(null);
+  const [wizardDone, setWizardDone] = useState(() => { try { return localStorage.getItem("followup_wizard_done") === "1"; } catch { return false; } });
+  function advanceWizard() { if (!wizardDone) setWizardStep(2); }
+  function finishWizard() { setWizardDone(true); try { localStorage.setItem("followup_wizard_done", "1"); } catch {} }
+  const showOnboardingWizard = !wizardDone && (jobs.filter(j => !j.archived).length === 0 || wizardStep === 2);
   function markChecklist(key) {
     if (checklistProgress[key]) return;
     const next = { ...checklistProgress, [key]: true };
@@ -4232,6 +4304,7 @@ export default function App() {
       track("job_added", { source: _addSource, jobs_total: updated.filter(j => !j.archived).length });
       _addSource = "manual";
       if (jobs.filter(j => !j.archived).length === 0) {
+        advanceWizard();
         let ahaShown = false;
         try { ahaShown = localStorage.getItem("followup_aha_shown") === "1"; } catch {}
         if (!ahaShown) {
@@ -4432,7 +4505,7 @@ export default function App() {
     const a = document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=`job-tracker-${new Date().toISOString().slice(0,10)}.csv`; a.click();
   }
 
-  function importCSV(e) {
+  function importCSV(e, onResult) {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = evt => {
@@ -4609,7 +4682,11 @@ export default function App() {
         });
       }
 
-      if (!imported.length) { alert("No jobs found. Make sure the file is a CSV with recognisable column headers."); e.target.value=""; return; }
+      if (!imported.length) {
+        const message = "No jobs found. Make sure the file is a CSV with recognisable column headers.";
+        if (onResult) onResult({ error: true, message }); else alert(message);
+        e.target.value=""; return;
+      }
 
       const fresh  = imported.filter(imp=>!jobs.find(j=>j.role===imp.role&&j.company===imp.company));
       const dupes  = imported.length - fresh.length;
@@ -4617,7 +4694,8 @@ export default function App() {
       setJobs(merged); saveJobs(merged); e.target.value="";
       pushUndo(`Imported ${fresh.length} job${fresh.length!==1?"s":""}`, jobs);
       track("job_added", { source:"csv_import", jobs_total: merged.filter(j=>!j.archived).length, imported: fresh.length, skipped_duplicates: dupes });
-      alert(`✓ Imported ${fresh.length} job${fresh.length!==1?"s":""}${dupes>0?` · skipped ${dupes} duplicate${dupes!==1?"s":""} already in tracker`:""}.`);
+      if (onResult) onResult({ imported: fresh.length, dupes, matched: Object.keys(colIdx).length });
+      else alert(`✓ Imported ${fresh.length} job${fresh.length!==1?"s":""}${dupes>0?` · skipped ${dupes} duplicate${dupes!==1?"s":""} already in tracker`:""}.`);
     };
     reader.readAsText(file);
   }
@@ -4941,11 +5019,18 @@ export default function App() {
 
       {/* List view */}
       {view==="list" && (
-        filtered.length===0
+        !showArchived && showOnboardingWizard
+          ? <OnboardingWizard step={wizardStep} onAdd={openAdd}
+              onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); advanceWizard(); }}
+              onImportCSV={(e) => importCSV(e, (result) => { setWizardImportResult(result); advanceWizard(); })}
+              importResult={wizardImportResult}
+              profileName={profileName || user?.user_metadata?.full_name || ""} onProfileNameChange={updateProfileName}
+              followupAppliedDays={followupAppliedDays} onFollowupAppliedChange={updateFollowupAppliedDays}
+              followupWarmDays={followupWarmDays} onFollowupWarmChange={updateFollowupWarmDays}
+              onSkip={finishWizard} onFinish={finishWizard} />
+        : filtered.length===0
           ? <div>
-              {!showArchived && jobs.filter(j=>!j.archived).length===0
-                ? <OnboardingCard onAdd={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onImportCSV={importCSV} />
-                : <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":"No results for this filter."}</div>}
+              <div style={{ textAlign:"center", padding:"3rem 1rem", color:"var(--text-muted)", fontSize:14 }}>{showArchived?"No archived jobs.":"No results for this filter."}</div>
             </div>
           : <div>
               {showArchived && (
@@ -5071,7 +5156,11 @@ export default function App() {
             </div>
           </div>
         )}
-        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); }} onImportCSV={importCSV} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} demoMode={demoMode} />
+        <TodayTab jobs={jobs} tasks={tasks} setTasks={setTasks} onOpenPanel={togglePanel} profileName={profileName || user?.user_metadata?.full_name || ""} onAddJob={openAdd} onLoadSample={() => { const s=makeSampleJobs(); setJobs(s); saveJobs(s); track("job_added", { source:"sample", jobs_total:s.length }); advanceWizard(); }} onImportCSV={(e) => importCSV(e, (result) => { setWizardImportResult(result); advanceWizard(); })} onUpdateJob={(id,patch) => { const now=new Date().toISOString(); const u=jobs.map(j=>j.id===id?{...j,...patch,updatedAt:now}:j); setJobs(u); saveJobs(u); }} onLogReply={logReply} weeklyGoal={weeklyGoal} onWin={showWinsToast} isMobile={isMobile} checklistProgress={checklistProgress} onChecklistDone={markChecklist} onNavigate={navigateChecklist} onEnableReminders={enableNotifications} demoMode={demoMode}
+          showWizard={showOnboardingWizard} wizardStep={wizardStep} wizardImportResult={wizardImportResult}
+          onProfileNameChange={updateProfileName} followupAppliedDays={followupAppliedDays} onFollowupAppliedChange={updateFollowupAppliedDays}
+          followupWarmDays={followupWarmDays} onFollowupWarmChange={updateFollowupWarmDays}
+          onWizardSkip={finishWizard} onWizardFinish={finishWizard} />
       </>}
 
       {/* Offers view */}
@@ -5110,15 +5199,15 @@ export default function App() {
         <ProfileScreen
           user={user} isMobile={isMobile}
           profileName={profileName || user?.user_metadata?.full_name || ""}
-          onProfileNameChange={n => { setProfileName(n); try { localStorage.setItem("followup_profile_name", n); } catch {} persistSettings({ profileName: n }); }}
+          onProfileNameChange={updateProfileName}
           autoArchiveDays={autoArchiveDays}
           onAutoArchiveDaysChange={v => { setAutoArchiveDays(v); try { localStorage.setItem("followup_autoarchive_days", v); } catch {} persistSettings({ autoArchiveDays: v }); }}
           quietPromptDays={quietPromptDays}
           onQuietPromptDaysChange={v => { setQuietPromptDays(v); try { localStorage.setItem("followup_quietprompt_days", v); } catch {} persistSettings({ quietPromptDays: v }); }}
           followupAppliedDays={followupAppliedDays}
-          onFollowupAppliedChange={v => { setFollowupAppliedDays(v); try { localStorage.setItem("followup_applied_days", v); } catch {} persistSettings({ followupAppliedDays: v }); }}
+          onFollowupAppliedChange={updateFollowupAppliedDays}
           followupWarmDays={followupWarmDays}
-          onFollowupWarmChange={v => { setFollowupWarmDays(v); try { localStorage.setItem("followup_warm_days", v); } catch {} persistSettings({ followupWarmDays: v }); }}
+          onFollowupWarmChange={updateFollowupWarmDays}
           staleDays={staleDays}
           onStaleDaysChange={v => { setStaleDays(v); try { localStorage.setItem("followup_stale_days", v); } catch {} persistSettings({ staleDays: v }); }}
           weeklyGoal={weeklyGoal}
