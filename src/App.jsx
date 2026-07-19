@@ -4073,7 +4073,7 @@ export default function App() {
   function showWinsToast(message) { setWinsToast(message); }
   const [selected, setSelected] = useState(new Set());
   const [showArchived, setShowArchived] = useState(false);
-  const [salaryOpen, setSalaryOpen] = useState(false);
+  const [salaryOpen, setSalaryOpen] = useState(true);
   const [demoMode, setDemoMode] = useState(false);
   const dragId = useRef(null);
 
