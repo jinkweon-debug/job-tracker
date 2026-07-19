@@ -125,7 +125,19 @@ credible engagement move available.)*
 
 ## Post log
 
+**Note (added 2026-07-19):** the three threads actually posted used a different title/body
+than the drafted Variant A copy above ("I got laid off and create a job tracking app, wdyt?")
+and included r/ProductivityApps, which isn't in the target-subs table. Exact post
+dates/times aren't confirmed — reddit.com is unreachable from this AI environment
+(blocked by policy for both WebFetch and the browser tool), so engagement stats
+(upvotes/comments) need to be checked manually by Jin. PostHog shows no real signups or
+pageviews attributable to any Reddit referrer as of 2026-07-19 — but see the caveat below:
+`landing.html` has no PostHog SDK, so pageviews/click-throughs aren't captured at all,
+only in-app signups. A visitor who read the thread and bounced without signing up would
+leave zero trace in PostHog.
+
 | Date | Sub | Title | Thread | Signups (48h) |
 |---|---|---|---|---|
-| 2026-07-16 | r/SideProject | (Variant A) | (TBD) | (check 07-18) |
-| 2026-07-16 | r/alphaandbetausers | (Variant A, tester ask) | (TBD) | (check 07-18) |
+| unconfirmed | r/SideProject | "I got laid off and create a job tracking app, wdyt?" | https://www.reddit.com/r/SideProject/comments/1uym310/ | 0 tracked (see caveat above) |
+| unconfirmed | r/ProductivityApps | "I got laid off and create a job tracking app, wdyt?" | https://www.reddit.com/r/ProductivityApps/comments/1uyxpy6/i_got_laid_off_and_create_a_job_tracking_app_wdyt/ | 0 tracked (see caveat above) |
+| unconfirmed | r/alphaandbetausers | "I got laid off and create a job tracking app, wdyt?" | https://www.reddit.com/r/alphaandbetausers/comments/1uym4ec/i_got_laid_off_and_create_a_job_tracking_app_wdyt/ | 0 tracked (see caveat above) |
