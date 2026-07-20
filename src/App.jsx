@@ -3884,6 +3884,9 @@ function AuthScreen() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Funnel instrumentation: landing_cta_clicked → auth_screen_viewed → signed_up.
+  useEffect(() => { track("auth_screen_viewed", { referrer: document.referrer || "$direct" }); }, []);
+
   async function signInWithGoogle() {
     setError(""); setMessage("");
     const { error } = await supabase.auth.signInWithOAuth({

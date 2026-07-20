@@ -20,6 +20,11 @@
     // reads this page and bounces without signing up is still visible.
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.uploadQueue.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
     posthog.init('phc_AKdXAimy2RN8WANoT5V3HckeNqGDy2S25pMS8NfhrNNz', { api_host: 'https://us.i.posthog.com', capture_pageview: true, person_profiles: 'identified_only' });
+    // CTA click tracking — sendBeacon so the event survives the same-tab navigation.
+    document.addEventListener('click', function (e) {
+      var el = e.target && e.target.closest ? e.target.closest('[data-cta]') : null;
+      if (el) posthog.capture('landing_cta_clicked', { cta: el.getAttribute('data-cta') }, { transport: 'sendBeacon' });
+    });
   </script>
   <style>
     :root {
@@ -50,6 +55,13 @@
     }
     .btn-primary:hover { background: #060f1c; }
     .btn-primary:active { transform: translateY(1px); }
+    .btn-secondary {
+      display: inline-block; font-size: 15px; font-weight: 700; text-decoration: none;
+      padding: 12px 24px; border-radius: 9px; background: #fff; color: var(--blue);
+      border: 1.5px solid var(--blue); transition: transform .08s, background .15s; cursor: pointer;
+    }
+    .btn-secondary:hover { background: #eef4fa; }
+    .btn-secondary:active { transform: translateY(1px); }
 
     /* NAV */
     nav {
@@ -154,8 +166,8 @@
       <a href="/" class="brand" style="text-decoration:none"><svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true" style="display:block;flex-shrink:0"><defs><linearGradient id="luNav" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#185FA5"/><stop offset="1" stop-color="#3C3489"/></linearGradient></defs><rect width="64" height="64" rx="15" fill="url(#luNav)"/><rect x="16" y="16" width="32" height="22" rx="6.5" fill="none" stroke="#fff" stroke-width="3.4"/><path d="M24 38 L21 45 L29 38" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 33 V22" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M27 27 L32 22 L37 27" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Followup</a>
       <div class="links">
         <a href="#features" class="signin" style="color:var(--body)">Features</a>
-        <a href="/" class="signin">Sign in</a>
-        <a href="/" class="cta">Get started</a>
+        <a href="/" class="signin" data-cta="nav_signin">Sign in</a>
+        <a href="/" class="cta" data-cta="nav_signup">Get started</a>
       </div>
     </div>
   </nav>
@@ -166,8 +178,8 @@
       <h1>The job tracker that makes you follow up.</h1>
       <p class="sub">It tells you who to follow up with, flags the ones going cold, and <b>drafts the message for you</b>.</p>
       <div class="hero-cta">
-        <a href="/" class="btn-primary">Get started, it's free</a>
-        <a href="/?demo=1" style="font-size:15px;font-weight:600;color:var(--blue);text-decoration:none;padding:13px 10px">Try it first, no account →</a>
+        <a href="/" class="btn-primary" data-cta="hero_signup">Get started, it's free</a>
+        <a href="/?demo=1" class="btn-secondary" data-cta="hero_demo">Try it first, no account →</a>
       </div>
     </div>
   </header>
@@ -315,7 +327,7 @@
     <div class="wrap">
       <h2>Run your job search like it matters.</h2>
       <p>Add your applications, and never let a good lead go cold again.</p>
-      <a href="/" class="btn-primary">Get started, it's free</a>
+      <a href="/" class="btn-primary" data-cta="footer_signup">Get started, it's free</a>
     </div>
   </section>
 
